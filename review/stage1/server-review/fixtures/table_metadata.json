@@ -1,0 +1,1554 @@
+[
+  {
+    "name": "public.cq_students",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "name",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_assignments_student_id_fkey",
+        "source_table": "public.cq_assignments",
+        "source_columns": [
+          "student_id"
+        ],
+        "target_table": "public.cq_students",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_student_devices_student_id_fkey",
+        "source_table": "public.cq_student_devices",
+        "source_columns": [
+          "student_id"
+        ],
+        "target_table": "public.cq_students",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_pairing_requests_approved_student_id_fkey",
+        "source_table": "public.cq_pairing_requests",
+        "source_columns": [
+          "approved_student_id"
+        ],
+        "target_table": "public.cq_students",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_books",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "title",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "author",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "''::text"
+      },
+      {
+        "name": "pdf_path",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_chapters_book_id_fkey",
+        "source_table": "public.cq_chapters",
+        "source_columns": [
+          "book_id"
+        ],
+        "target_table": "public.cq_books",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_chapters",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "book_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "title",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "chapter_number",
+        "data_type": "integer",
+        "format": "int4",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "start_page",
+        "data_type": "integer",
+        "format": "int4",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "end_page",
+        "data_type": "integer",
+        "format": "int4",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "questions",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "'[]'::jsonb"
+      },
+      {
+        "name": "vocabulary",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "'[]'::jsonb"
+      },
+      {
+        "name": "activities",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "'{}'::jsonb"
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_chapters_book_id_fkey",
+        "source_table": "public.cq_chapters",
+        "source_columns": [
+          "book_id"
+        ],
+        "target_table": "public.cq_books",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_assignments_chapter_id_fkey",
+        "source_table": "public.cq_assignments",
+        "source_columns": [
+          "chapter_id"
+        ],
+        "target_table": "public.cq_chapters",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_assignments",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "student_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "chapter_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "assigned_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_submissions_assignment_id_fkey",
+        "source_table": "public.cq_submissions",
+        "source_columns": [
+          "assignment_id"
+        ],
+        "target_table": "public.cq_assignments",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_assignments_student_id_fkey",
+        "source_table": "public.cq_assignments",
+        "source_columns": [
+          "student_id"
+        ],
+        "target_table": "public.cq_students",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_assignments_chapter_id_fkey",
+        "source_table": "public.cq_assignments",
+        "source_columns": [
+          "chapter_id"
+        ],
+        "target_table": "public.cq_chapters",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_submissions",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "assignment_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable",
+          "unique"
+        ]
+      },
+      {
+        "name": "read_completed",
+        "data_type": "boolean",
+        "format": "bool",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "false"
+      },
+      {
+        "name": "answers",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "'{}'::jsonb"
+      },
+      {
+        "name": "writing",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "''::text"
+      },
+      {
+        "name": "speaking_paths",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "'{}'::jsonb"
+      },
+      {
+        "name": "submitted",
+        "data_type": "boolean",
+        "format": "bool",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "false"
+      },
+      {
+        "name": "submitted_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_feedback_submission_id_fkey",
+        "source_table": "public.cq_feedback",
+        "source_columns": [
+          "submission_id"
+        ],
+        "target_table": "public.cq_submissions",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_submissions_assignment_id_fkey",
+        "source_table": "public.cq_submissions",
+        "source_columns": [
+          "assignment_id"
+        ],
+        "target_table": "public.cq_assignments",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_feedback",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "submission_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable",
+          "unique"
+        ]
+      },
+      {
+        "name": "feedback_text",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "''::text"
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_feedback_submission_id_fkey",
+        "source_table": "public.cq_feedback",
+        "source_columns": [
+          "submission_id"
+        ],
+        "target_table": "public.cq_submissions",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_student_devices",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "student_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "auth_user_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable",
+          "unique"
+        ]
+      },
+      {
+        "name": "approved_by",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "connected_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      },
+      {
+        "name": "revoked_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_student_devices_auth_user_id_fkey",
+        "source_table": "public.cq_student_devices",
+        "source_columns": [
+          "auth_user_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_student_devices_student_id_fkey",
+        "source_table": "public.cq_student_devices",
+        "source_columns": [
+          "student_id"
+        ],
+        "target_table": "public.cq_students",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_student_devices_approved_by_fkey",
+        "source_table": "public.cq_student_devices",
+        "source_columns": [
+          "approved_by"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_admins",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "user_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "user_id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_admins_user_id_fkey",
+        "source_table": "public.cq_admins",
+        "source_columns": [
+          "user_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_pairing_requests",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "auth_user_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "pairing_code",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable",
+          "unique"
+        ]
+      },
+      {
+        "name": "expires_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "approved_student_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "approved_by",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "approved_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "used_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_pairing_requests_approved_by_fkey",
+        "source_table": "public.cq_pairing_requests",
+        "source_columns": [
+          "approved_by"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_pairing_requests_approved_student_id_fkey",
+        "source_table": "public.cq_pairing_requests",
+        "source_columns": [
+          "approved_student_id"
+        ],
+        "target_table": "public.cq_students",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_pairing_requests_auth_user_id_fkey",
+        "source_table": "public.cq_pairing_requests",
+        "source_columns": [
+          "auth_user_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_v4_pdf_enrollments",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "parent_user_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "student_user_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "parent_user_id",
+      "student_user_id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_v4_pdf_enrollments_parent_user_id_fkey",
+        "source_table": "public.cq_v4_pdf_enrollments",
+        "source_columns": [
+          "parent_user_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_v4_pdf_enrollments_student_user_id_fkey",
+        "source_table": "public.cq_v4_pdf_enrollments",
+        "source_columns": [
+          "student_user_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_v4_pdf_chapters",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "chapter_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "parent_user_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "title",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ],
+        "check": "length(title) >= 1 AND length(title) <= 200"
+      },
+      {
+        "name": "storage_path",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable",
+          "unique"
+        ],
+        "check": "storage_path ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]pdf$'::text"
+      },
+      {
+        "name": "pdf_ready",
+        "data_type": "boolean",
+        "format": "bool",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "false"
+      },
+      {
+        "name": "pdf_verified_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "chapter_id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_v4_activities_chapter_uuid_fkey",
+        "source_table": "public.cq_v4_activities",
+        "source_columns": [
+          "chapter_uuid"
+        ],
+        "target_table": "public.cq_v4_pdf_chapters",
+        "target_columns": [
+          "chapter_id"
+        ]
+      },
+      {
+        "name": "cq_v4_pdf_chapters_parent_user_id_fkey",
+        "source_table": "public.cq_v4_pdf_chapters",
+        "source_columns": [
+          "parent_user_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_v4_approval_requests_chapter_uuid_fkey",
+        "source_table": "public.cq_v4_approval_requests",
+        "source_columns": [
+          "chapter_uuid"
+        ],
+        "target_table": "public.cq_v4_pdf_chapters",
+        "target_columns": [
+          "chapter_id"
+        ]
+      },
+      {
+        "name": "cq_v4_student_submissions_chapter_uuid_fkey",
+        "source_table": "public.cq_v4_student_submissions",
+        "source_columns": [
+          "chapter_uuid"
+        ],
+        "target_table": "public.cq_v4_pdf_chapters",
+        "target_columns": [
+          "chapter_id"
+        ]
+      },
+      {
+        "name": "cq_v4_pdf_assignments_chapter_id_fkey",
+        "source_table": "public.cq_v4_pdf_assignments",
+        "source_columns": [
+          "chapter_id"
+        ],
+        "target_table": "public.cq_v4_pdf_chapters",
+        "target_columns": [
+          "chapter_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_v4_pdf_assignments",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "chapter_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "student_user_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "assigned_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "chapter_id",
+      "student_user_id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_v4_pdf_assignments_student_user_id_fkey",
+        "source_table": "public.cq_v4_pdf_assignments",
+        "source_columns": [
+          "student_user_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_v4_pdf_assignments_chapter_id_fkey",
+        "source_table": "public.cq_v4_pdf_assignments",
+        "source_columns": [
+          "chapter_id"
+        ],
+        "target_table": "public.cq_v4_pdf_chapters",
+        "target_columns": [
+          "chapter_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_v4_snapshots",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "owner_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "payload",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "'{}'::jsonb"
+      },
+      {
+        "name": "updated_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "owner_id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_v4_snapshots_owner_id_fkey",
+        "source_table": "public.cq_v4_snapshots",
+        "source_columns": [
+          "owner_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_v4_activities",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "chapter_uuid",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "questions",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "'[]'::jsonb",
+        "check": "jsonb_typeof(questions) = 'array'::text"
+      },
+      {
+        "name": "vocabulary",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "'[]'::jsonb",
+        "check": "jsonb_typeof(vocabulary) = 'array'::text"
+      },
+      {
+        "name": "writing_prompt",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "''::text"
+      },
+      {
+        "name": "speaking_prompt",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "''::text"
+      },
+      {
+        "name": "published_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "approval_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "approval_hash",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      }
+    ],
+    "primary_keys": [
+      "chapter_uuid"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_v4_activities_approval_id_fkey",
+        "source_table": "public.cq_v4_activities",
+        "source_columns": [
+          "approval_id"
+        ],
+        "target_table": "public.cq_v4_approval_requests",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_v4_activities_chapter_uuid_fkey",
+        "source_table": "public.cq_v4_activities",
+        "source_columns": [
+          "chapter_uuid"
+        ],
+        "target_table": "public.cq_v4_pdf_chapters",
+        "target_columns": [
+          "chapter_id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_v4_student_submissions",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "chapter_uuid",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "child_user_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "answers",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "check": "jsonb_typeof(answers) = 'object'::text"
+      },
+      {
+        "name": "submitted_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      },
+      {
+        "name": "feedback",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "feedback_released",
+        "data_type": "boolean",
+        "format": "bool",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "false"
+      }
+    ],
+    "primary_keys": [
+      "chapter_uuid",
+      "child_user_id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_v4_student_submissions_chapter_uuid_fkey",
+        "source_table": "public.cq_v4_student_submissions",
+        "source_columns": [
+          "chapter_uuid"
+        ],
+        "target_table": "public.cq_v4_pdf_chapters",
+        "target_columns": [
+          "chapter_id"
+        ]
+      },
+      {
+        "name": "cq_v4_student_submissions_child_user_id_fkey",
+        "source_table": "public.cq_v4_student_submissions",
+        "source_columns": [
+          "child_user_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_v4_approval_requests",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "parent_user_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "request_key",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "book_local_id",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "chapter_local_id",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "title",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ],
+        "check": "length(title) >= 1 AND length(title) <= 200"
+      },
+      {
+        "name": "source_text",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "questions",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "check": "jsonb_typeof(questions) = 'array'::text"
+      },
+      {
+        "name": "answer_key",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "check": "jsonb_typeof(answer_key) = 'array'::text"
+      },
+      {
+        "name": "vocabulary",
+        "data_type": "jsonb",
+        "format": "jsonb",
+        "options": [
+          "updatable"
+        ],
+        "check": "jsonb_typeof(vocabulary) = 'array'::text"
+      },
+      {
+        "name": "writing_prompt",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "speaking_prompt",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "content_hash",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "chapter_uuid",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_v4_activities_approval_id_fkey",
+        "source_table": "public.cq_v4_activities",
+        "source_columns": [
+          "approval_id"
+        ],
+        "target_table": "public.cq_v4_approval_requests",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_v4_approval_requests_chapter_uuid_fkey",
+        "source_table": "public.cq_v4_approval_requests",
+        "source_columns": [
+          "chapter_uuid"
+        ],
+        "target_table": "public.cq_v4_pdf_chapters",
+        "target_columns": [
+          "chapter_id"
+        ]
+      },
+      {
+        "name": "cq_v4_approval_requests_parent_user_id_fkey",
+        "source_table": "public.cq_v4_approval_requests",
+        "source_columns": [
+          "parent_user_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  },
+  {
+    "name": "public.cq_v4_invites",
+    "rls_enabled": true,
+    "columns": [
+      {
+        "name": "invite_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "gen_random_uuid()"
+      },
+      {
+        "name": "parent_user_id",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "token_hash",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "updatable",
+          "unique"
+        ]
+      },
+      {
+        "name": "expires_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ]
+      },
+      {
+        "name": "claimed_by",
+        "data_type": "uuid",
+        "format": "uuid",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "student_name",
+        "data_type": "text",
+        "format": "text",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "claimed_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "approved_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "revoked_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "nullable",
+          "updatable"
+        ]
+      },
+      {
+        "name": "created_at",
+        "data_type": "timestamp with time zone",
+        "format": "timestamptz",
+        "options": [
+          "updatable"
+        ],
+        "default_value": "now()"
+      }
+    ],
+    "primary_keys": [
+      "invite_id"
+    ],
+    "foreign_key_constraints": [
+      {
+        "name": "cq_v4_invites_claimed_by_fkey",
+        "source_table": "public.cq_v4_invites",
+        "source_columns": [
+          "claimed_by"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      },
+      {
+        "name": "cq_v4_invites_parent_user_id_fkey",
+        "source_table": "public.cq_v4_invites",
+        "source_columns": [
+          "parent_user_id"
+        ],
+        "target_table": "auth.users",
+        "target_columns": [
+          "id"
+        ]
+      }
+    ]
+  }
+]

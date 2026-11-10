@@ -20,5 +20,6 @@ test('valid authenticated parent receives sanitized draft',async()=>assert.deepE
 test('markdown JSON output is parsed',async()=>assert.deepEqual(await generate(req(),{...env,AI:{run:async()=>({response:'```json\n'+JSON.stringify(draft)+'\n```'})}},user),draft));
 test('malformed model output is blocked',async()=>assert.rejects(generate(req(),{...env,AI:{run:async()=>({response:'not-json'})}},user),e=>e.status===502));
 test('out-of-range MC answer is blocked',()=>assert.throws(()=>validateDraft({...draft,questions:[{...draft.questions[0],correct:3}]}),e=>e.status===502));
+test('literal questions normalize to the server publication contract',()=>assert.equal(validateDraft({...draft,questions:[{kind:'literal',text:'What happened?',sample:'The character helped.'}]}).questions[0].kind,'comprehension'));
 test('unknown API paths return JSON 404',async()=>assert.equal((await worker.fetch(new Request('https://example.test/api/unknown'),env)).status,404));
 test('static asset paths preserve asset delivery',async()=>assert.equal(await (await worker.fetch(new Request('https://example.test/'),{ASSETS:{fetch:async()=>new Response('asset')}})).text(),'asset'));

@@ -1,5 +1,10 @@
 <!doctype html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Chapter Quest · 영어원서 학습</title>
-<style>
+<script src="/project-config.js"></script><script>
+window.CQProject=Object.freeze({read(){
+ try {const saved=JSON.parse(localStorage.getItem('cq_v4_cloud_project')||'null');if(saved?.url&&saved?.anonKey)return saved;}catch{}
+ return window.CQ_PUBLIC_PROJECT?.url&&window.CQ_PUBLIC_PROJECT?.anonKey?{...window.CQ_PUBLIC_PROJECT}:null;
+}});
+</script><style>
 :root{font-family:system-ui,"Noto Sans KR",sans-serif;color:#17233a;background:#f4f6fb}*{box-sizing:border-box}body{margin:0}header{background:#263e78;color:white;padding:18px max(16px,calc((100vw - 1050px)/2))}h1{margin:0;font-size:24px}small,.muted{color:#64748b}header small{color:#dce6ff}main{max-width:1050px;margin:auto;padding:18px}button,input,select,textarea{font:inherit}button{border:0;border-radius:10px;padding:10px 14px;background:#e5edfa;color:#23437d;cursor:pointer}button.primary,.active{background:#315bd2;color:white}button:disabled{opacity:.45;cursor:not-allowed}input,select,textarea{border:1px solid #cbd5e1;border-radius:9px;padding:10px;max-width:100%}textarea{width:100%;min-height:100px}label{display:block;margin:8px 0}.card{background:white;border:1px solid #e0e7f1;border-radius:16px;padding:20px;margin:12px 0;box-shadow:0 2px 10px #17233a09}.row{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.between{justify-content:space-between}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px}.chip{border-radius:100px;padding:5px 11px;background:#edf2ff;font-size:13px}.note{background:#fff7e4;padding:13px;border-radius:9px}.question{padding:16px 0;border-bottom:1px solid #e4eaf3}.option{display:block;padding:10px;border:1px solid #dbe3ee;border-radius:9px;margin:8px 0}.option input{margin-right:8px}.wide{width:100%}.hidden{display:none}.tabs{display:flex;gap:8px;flex-wrap:wrap}.tabs button{flex:1}.book{border:1px solid #dce5f1;border-radius:12px;padding:14px}.pill{background:#e9f6ee;color:#176534;padding:5px 10px;border-radius:30px}.danger{background:#fff0ef;color:#9a302b}.source{white-space:pre-wrap;line-height:1.85;max-height:65vh;overflow:auto}.status{min-height:22px;font-size:14px;color:#315bd2}.mutedline{font-size:14px;color:#64748b}footer{text-align:center;padding:20px;color:#64748b;font-size:12px}@media(max-width:600px){main{padding:10px}.card{padding:15px}header{padding:15px}h1{font-size:20px}}
 </style><script>(function(root,factory){const api=factory();if(typeof module==='object'&&module.exports)module.exports=api;root.CQVoiceManifest=api;})(typeof globalThis!=='undefined'?globalThis:this,function(){
  'use strict';
@@ -546,7 +551,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
 (() => {
  let session=null, project=null, busy=false, auto=false, baseline=undefined, aligned=false, syncTimer=null, syncing=false, dirty=false, revision=0, refreshPromise=null, sessionGeneration=0;
  const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
- const readProject=()=>{try{return JSON.parse(localStorage.getItem('cq_v4_cloud_project')||'null')}catch{return null}};
+ const readProject=()=>{try{return window.CQProject.read()}catch{return null}};
  project=readProject();
  const status=t=>{const el=document.getElementById('cloudStatus');if(el)el.textContent=t};
  // Stage131: parent cloud actions use the stage130 storage contract.
@@ -1094,7 +1099,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    const controller=new AbortController();serverPdfController=controller;
    const current=()=>!controller.signal.aborted&&session?.uid===uid&&childGeneration===generation&&document.getElementById('cqChildWork')?.dataset.uuid===chapterUuid&&target.isConnected;
    try{
-     const project=JSON.parse(localStorage.getItem('cq_v4_cloud_project')||'null');
+     const project=window.CQProject.read();
      if(!project?.url||!project?.anonKey)throw Error('Supabase 프로젝트 설정이 없습니다.');
      const transport=window.CQServerPDF.createPdfTransport({url:project.url,anonKey:project.anonKey,getAccessToken:()=>session?.uid===uid?session.token:null});
      const bytes=await transport.getPdf(chapterUuid,{signal:controller.signal});
@@ -1209,7 +1214,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
  }
  async function verifyExistingAudio(uid,uuid,ext,expectedSha256){
    if(!validAudioHash(expectedSha256))throw Error('기존 녹음 파일의 무결성 정보를 확인할 수 없습니다.');
-   const project=JSON.parse(localStorage.getItem('cq_v4_cloud_project')||'null');
+   const project=window.CQProject.read();
    if(!project?.url||!project?.anonKey||!session?.token||session.uid!==uid)throw Error('학생 인증이 필요합니다.');
    const response=await fetch(project.url+'/storage/v1/object/sign/cq-v4-speaking/'+uid+'/'+uuid+'.'+ext,{
      method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+session.token,'Content-Type':'application/json'},
@@ -1353,7 +1358,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
  const originalRender=render;
  render=function(){originalRender();if(mode==='student'){el('app')?.insertAdjacentHTML('afterbegin','<div id="cqChildAccount"></div>');draw()}};
  async function login(){
-  const project=JSON.parse(localStorage.getItem('cq_v4_cloud_project')||'null');
+  const project=window.CQProject.read();
   if(!project?.url||!project?.anonKey)throw Error('부모 관리자에서 Supabase 프로젝트 공개 설정을 먼저 저장해야 합니다.');
   const email=el('cqChildEmail').value.trim(),password=el('cqChildPassword').value;
   if(!email||!password)throw Error('학생 이메일과 비밀번호를 입력하세요.');
@@ -1382,7 +1387,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
      const code=el('cqChildInvite')?.value.trim(),name=el('cqChildInviteName')?.value.trim();
      if(!/^[0-9a-f]{48}$/.test(code||''))throw Error('초대코드 형식을 확인하세요.');
      if(!name||name.length>80)throw Error('학생 이름을 입력하세요.');
-     const project=JSON.parse(localStorage.getItem('cq_v4_cloud_project')||'null');
+     const project=window.CQProject.read();
      const ok=await CQInvitationAPI.claim({url:project?.url,anonKey:project?.anonKey,getAccessToken:()=>session.token},code,name);
      if(!ok)throw Error('초대코드가 만료됐거나 이미 사용됐습니다.');
      draw();status('연결 요청 완료. 부모 승인을 기다리세요.');
@@ -1574,7 +1579,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
      }
      if(voiceBlob&&!confirmedAudio){
        if(voiceBlob.size>10485760)throw Error('녹음 파일은 10MB 이하여야 합니다.');
-       const config=JSON.parse(localStorage.getItem('cq_v4_cloud_project')||'null');
+       const config=window.CQProject.read();
        if(!config?.url||!config?.anonKey)throw Error('Supabase 프로젝트 설정이 없습니다.');
        const ext=voiceBlob.type.includes('mp4')?'mp4':voiceBlob.type.includes('ogg')?'ogg':'webm';
        if(pending&&pending.ext!==ext)throw Error('이전 업로드 시도와 녹음 형식이 다릅니다. 안전을 위해 제출을 중단합니다.');

@@ -1,24 +1,25 @@
-[32m✔ unconfigured server fails closed without model use [90m(37.134291ms)[39m[39m
-[32m✔ GET cannot trigger AI billing [90m(0.60461ms)[39m[39m
-[32m✔ cross-origin generation is denied [90m(0.711229ms)[39m[39m
-[32m✔ missing authentication is denied before any upstream request [90m(0.978007ms)[39m[39m
-[32m✔ expired Supabase session is denied [90m(1.014576ms)[39m[39m
-[32m✔ student or unapproved account is denied before model call [90m(1.799062ms)[39m[39m
-[32m✔ untrusted editable metadata cannot grant parent access [90m(0.687765ms)[39m[39m
-[32m✔ short chapter is rejected [90m(0.889232ms)[39m[39m
-[32m✔ oversized chapter is rejected [90m(1.931399ms)[39m[39m
-[32m✔ stream size limit prevents oversized payload [90m(2.026056ms)[39m[39m
-[32m✔ valid authenticated parent receives sanitized draft [90m(1.769657ms)[39m[39m
-[32m✔ markdown JSON output is parsed [90m(0.723892ms)[39m[39m
-[32m✔ malformed model output is blocked [90m(0.64172ms)[39m[39m
-[32m✔ out-of-range MC answer is blocked [90m(0.249636ms)[39m[39m
-[32m✔ unknown API paths return JSON 404 [90m(0.368278ms)[39m[39m
-[32m✔ static asset paths preserve asset delivery [90m(0.423381ms)[39m[39m
-[34mℹ tests 16[39m
+[32m✔ unconfigured server fails closed without model use [90m(41.119716ms)[39m[39m
+[32m✔ GET cannot trigger AI billing [90m(0.841152ms)[39m[39m
+[32m✔ cross-origin generation is denied [90m(0.787752ms)[39m[39m
+[32m✔ missing authentication is denied before any upstream request [90m(1.07573ms)[39m[39m
+[32m✔ expired Supabase session is denied [90m(0.922303ms)[39m[39m
+[32m✔ student or unapproved account is denied before model call [90m(1.786318ms)[39m[39m
+[32m✔ untrusted editable metadata cannot grant parent access [90m(0.79718ms)[39m[39m
+[32m✔ short chapter is rejected [90m(0.948502ms)[39m[39m
+[32m✔ oversized chapter is rejected [90m(2.278056ms)[39m[39m
+[32m✔ stream size limit prevents oversized payload [90m(2.242621ms)[39m[39m
+[32m✔ valid authenticated parent receives sanitized draft [90m(1.944343ms)[39m[39m
+[32m✔ markdown JSON output is parsed [90m(0.773245ms)[39m[39m
+[32m✔ malformed model output is blocked [90m(0.699357ms)[39m[39m
+[32m✔ out-of-range MC answer is blocked [90m(0.268822ms)[39m[39m
+[32m✔ literal questions normalize to the server publication contract [90m(0.132598ms)[39m[39m
+[32m✔ unknown API paths return JSON 404 [90m(0.347239ms)[39m[39m
+[32m✔ static asset paths preserve asset delivery [90m(0.34229ms)[39m[39m
+[34mℹ tests 17[39m
 [34mℹ suites 0[39m
-[34mℹ pass 16[39m
+[34mℹ pass 17[39m
 [34mℹ fail 0[39m
 [34mℹ cancelled 0[39m
 [34mℹ skipped 0[39m
 [34mℹ todo 0[39m
-[34mℹ duration_ms 143.919636[39m
+[34mℹ duration_ms 145.269598[39m
