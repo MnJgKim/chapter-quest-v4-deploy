@@ -34,7 +34,7 @@ jobs:
           npx --no-install supabase --workdir local-supabase start --exclude realtime,imgproxy,studio,logflare,vector,supavisor,postgres-meta,mailpit > "$RUNNER_TEMP/supabase-start.log" 2>&1
           npx --no-install supabase --workdir local-supabase status -o json > "$RUNNER_TEMP/cq-local-status.json"
           chmod 600 "$RUNNER_TEMP/cq-local-status.json"
-          npx --no-install supabase --workdir local-supabase functions serve > "$RUNNER_TEMP/cq-functions.log" 2>&1 &
+          nohup npx --no-install supabase --workdir local-supabase functions serve > "$RUNNER_TEMP/cq-functions.log" 2>&1 < /dev/null &
       - name: Real local Auth, Storage, Edge and learning flow
         run: python app/local-supabase/full_browser_test.py "$RUNNER_TEMP/cq-local-status.json" "$RUNNER_TEMP/cq-full-results.json"
       - name: Sanitized local startup diagnostics

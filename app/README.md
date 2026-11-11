@@ -22,10 +22,10 @@ Malformed existing browser state is copied to a recovery key before display repa
 
 ## Verified locally
 
-- 48 Node checks: authenticated AI handling/free-plan lock, origin restrictions, state repair, asset existence sanitized student question transport, parent PDF ownership/signature denial and original byte integrity.
+- 48 Node checks: authenticated AI handling/free-plan lock, origin restrictions, state repair, asset existence, sanitized student question transport, parent PDF ownership/signature denial and original byte integrity.
 - 24 isolated PostgreSQL checks using captured hosted function definitions.
 - 34 local-browser checks including PDF/TXT originals, PDF text extraction, question selection, audio, final submission, feedback, preservation, malformed state and failed-asset recovery.
-- 30 mocked-server browser checks: parent/child invitation, TXT-to-PDF signed upload, PDF binding/publication, vocabulary, touch input, 360/412/800/1280px active-learning layouts, refresh/login draft recovery, same-browser student separation, audio retry/lost-response recovery, parent cache clearing authorization rejection, and fresh-browser recovery of an existing PDF with exact bytes/extracted source retained after reload.
+- 32 mocked-server browser checks: parent/child invitation, TXT-to-PDF signed upload, PDF binding/publication, vocabulary, touch input, 360/412/800/1280px active-learning layouts, refresh/login draft recovery, same-browser student separation, audio retry/lost-response recovery, parent cache clearing, authorization rejection, and fresh-browser recovery of an existing PDF with exact bytes/extracted source retained after reload, repeated recovery without duplicate chapters and preservation of the local TXT original.
 - 30 real lean-local Auth/PostgreSQL/PostgREST API checks and 9 independent real-local browser checks. In the lean setup, storage objects are SQL fixtures; it does not run Storage API/Edge services.
 - Five previously executed live anonymous denial checks. Hosted authenticated writes have not been used for testing.
 - Root deployment dry-run succeeds. Actual deployment has not run.

@@ -51,8 +51,16 @@ try:
   email=role+'-'+secrets.token_hex(6)+'@example.test';password=secrets.token_urlsafe(24);private.append(password)
   api('/auth/v1/signup',{'email':email,'password':password});login=api('/auth/v1/token?grant_type=password',{'email':email,'password':password});private.append(login['access_token']);private.append(login['refresh_token']);users[role]={'token':login['access_token'],'email':email,'password':password,'uid':str(uuid.UUID(login['user']['id']))}
  passed('three synthetic accounts sign up and log in on the full local stack')
- try:api('/functions/v1/cq-v4-pdf-parent',{'action':'create_chapter','title':'Must be denied'},users['outsider']['token']);raise AssertionError('Non-parent Edge request was not denied')
- except urllib.error.HTTPError as error:assert error.code==403,'Expected local role denial 403, got '+str(error.code)+' '+error.read(400).decode(errors='replace')
+ # Kong can answer OPTIONS before the replacement Edge runtime is ready. Probe a read-only
+ # authenticated action and retry gateway startup errors only; never hide a role/auth failure.
+ for attempt in range(60):
+  try:api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['outsider']['token']);raise AssertionError('Non-parent Edge request was not denied')
+  except urllib.error.HTTPError as error:
+   if error.code==403:break
+   if error.code not in (502,503,504) or attempt==59:raise AssertionError('Expected local role denial 403, got '+str(error.code)+' '+error.read(400).decode(errors='replace'))
+  except (urllib.error.URLError,TimeoutError):
+   if attempt==59:raise
+  time.sleep(2)
  passed('real Edge parent endpoint denies a non-parent account before privileged writes')
  env=os.environ.copy()
  for k in ['DOCKER_HOST','DOCKER_CONTEXT','DOCKER_TLS','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH']:env.pop(k,None)

@@ -98,7 +98,15 @@
       "pass": true
     },
     {
+      "name": "recovering converted server PDF preserves the original local TXT and reviewed chapter",
+      "pass": true
+    },
+    {
       "name": "fresh parent browser reuses owned PDF with exact bytes and extracted text without server writes",
+      "pass": true
+    },
+    {
+      "name": "repeated original recovery reuses the same local chapter and preserves reviewed questions",
       "pass": true
     },
     {
