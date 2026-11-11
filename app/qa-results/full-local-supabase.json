@@ -2,7 +2,7 @@
   "scope": "real local Supabase Auth, PostgreSQL, Storage and Edge functions; generated synthetic users/PDF/audio only; no hosted data or AI calls",
   "checks": [
     {
-      "name": "four synthetic accounts sign up and log in on the full local stack",
+      "name": "five synthetic accounts sign up and log in on the full local stack",
       "pass": true
     },
     {
@@ -58,12 +58,28 @@
       "pass": true
     },
     {
+      "name": "parent assigns the same approved chapter to a second real student without removing the first assignment",
+      "pass": true
+    },
+    {
+      "name": "second assigned student starts without the first result and submits independent answers and real recorded audio",
+      "pass": true
+    },
+    {
+      "name": "parent receives two distinct submissions and released feedback remains scoped to each real student",
+      "pass": true
+    },
+    {
+      "name": "two students assigned to the same chapter cannot sign each other private recording",
+      "pass": true
+    },
+    {
       "name": "no runtime errors or non-local service requests",
       "pass": true
     }
   ],
   "page_errors": [],
   "blocked_requests": [],
-  "commit": "c0f06a87b565f14fc3de1aeedef3e15d40d37a18",
-  "workflow_run": "https://github.com/MnJgKim/chapter-quest-v4-deploy/actions/runs/42967563464"
+  "commit": "a4b8874192cd6e37584bbd7935b1d72d3b952a51",
+  "workflow_run": "https://github.com/MnJgKim/chapter-quest-v4-deploy/actions/runs/42968594077"
 }

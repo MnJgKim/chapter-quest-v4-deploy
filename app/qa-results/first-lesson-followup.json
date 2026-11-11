@@ -17,10 +17,10 @@
     "afterReloadEssay": "empty despite prior save status"
   },
   "afterFix": {
-    "nodeChecks": 71,
+    "nodeChecks": 78,
     "isolatedDBChecks": 24,
     "localBrowserChecks": 34,
-    "mockedServerBrowserChecks": 51
+    "mockedServerBrowserChecks": 52
   },
   "cloudflare": {
     "readOnlyDeviceAttempts": 2,
@@ -28,5 +28,11 @@
     "planVerified": false,
     "deploymentVersionVerified": false,
     "secretValuesRequestedInChat": false
+  },
+  "publicationRelogin": {
+    "reproducedBeforeFix": true,
+    "stableAccountContentKey": true,
+    "legacyKeysPreserved": true,
+    "ambiguousKeysStopPublication": true
   }
 }

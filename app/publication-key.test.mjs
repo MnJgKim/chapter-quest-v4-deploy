@@ -1,0 +1,13 @@
+import test from 'node:test';import assert from 'node:assert/strict';import fs from 'node:fs';import vm from 'node:vm';
+const context=vm.createContext({crypto});vm.runInContext(fs.readFileSync(new URL('./public/publication-key.js',import.meta.url),'utf8'),context);const {resolve}=context.CQPublicationKey;
+const uid='11111111-1111-4111-8111-111111111111',pdf='44444444-4444-4444-8444-444444444444',first='55555555-5555-4555-8555-555555555555',second='66666666-6666-4666-8666-666666666666',origin='https://test.supabase.co',hash='a'.repeat(64),prefix='cq_v4_approval_request_v1:';
+const options={origin,uid,bookId:'book',chapterId:'chapter',pdfUuid:pdf,hash,newUUID:()=>first};
+function storage(){const map=new Map();return {map,get length(){return map.size},key:i=>[...map.keys()][i],getItem:k=>map.get(k)??null,setItem:(k,v)=>map.set(k,String(v))};}
+const legacy=(generation,account=uid)=>prefix+JSON.stringify([origin+'|'+account+'|'+generation,'book','chapter',pdf,hash]);
+test('same authenticated account/content reuses its durable publication request',()=>{const s=storage();assert.equal(resolve({...options,storage:s}),first);assert.equal(resolve({...options,storage:s,newUUID:()=>{throw Error('must not regenerate')}}),first);assert.equal(s.length,1);});
+test('legacy session key survives logout/re-login without deleting the original key',()=>{const s=storage();s.setItem(legacy(2),second);assert.equal(resolve({...options,storage:s}),second);assert.equal(s.getItem(legacy(2)),second);assert.equal(resolve({...options,storage:s,newUUID:()=>{throw Error('must reuse')}}),second);assert.equal(s.length,2);});
+test('another parent legacy request is never adopted',()=>{const s=storage();s.setItem(legacy(2,'22222222-2222-4222-8222-222222222222'),second);assert.equal(resolve({...options,storage:s}),first);});
+test('changed PDF or approved content gets its own request',()=>{const s=storage();resolve({...options,storage:s});assert.equal(resolve({...options,storage:s,hash:'b'.repeat(64),newUUID:()=>second}),second);assert.equal(s.length,2);});
+test('conflicting legacy attempts stop without generating or deleting any key',()=>{const s=storage();s.setItem(legacy(2),first);s.setItem(legacy(5),second);assert.throws(()=>resolve({...options,storage:s}),/여러 개/);assert.equal(s.length,2);});
+test('damaged durable key is never silently regenerated',()=>{const s=storage();resolve({...options,storage:s});s.setItem(s.key(0),'bad');assert.throws(()=>resolve({...options,storage:s}),/손상/);assert.equal(s.getItem(s.key(0)),'bad');});
+test('storage failure blocks any new publication request',()=>{const s=storage();s.setItem=()=>{throw Error('quota')};assert.throws(()=>resolve({...options,storage:s}),/quota/);assert.equal(s.length,0);});

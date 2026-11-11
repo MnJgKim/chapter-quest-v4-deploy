@@ -42,6 +42,10 @@
       "pass": true
     },
     {
+      "name": "parent logout and re-login reuses the original publication request for unchanged approved material",
+      "pass": true
+    },
+    {
       "name": "student assigned chapter opens actual PDF and enables submission after render",
       "pass": true
     },
@@ -214,6 +218,11 @@
     "cq_v4_claim_invite",
     "cq_v4_list_child_access",
     "cq_v4_approve_child",
+    "cq_v4_list_child_access",
+    "cq_v4_register_approval_once",
+    "cq_v4_bind_verified_pdf",
+    "cq_v4_publish_approved",
+    "cq_is_admin",
     "cq_v4_list_child_access",
     "cq_v4_register_approval_once",
     "cq_v4_bind_verified_pdf",

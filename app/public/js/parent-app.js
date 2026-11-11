@@ -233,13 +233,7 @@
      if(cloudIdentity()!==owner||selectedBook!==currentBook||selectedChapter!==currentChapter||chapter()!==c)throw Error('계정 또는 챕터가 변경되었습니다.');
      if(!await isApprovalCurrent(c))throw Error('게시 중 학습 자료가 변경되었습니다.');
      // Stage98: stable per-account/per-content request key, persisted before network I/O.
-     const requestScope=JSON.stringify([owner,currentBook,currentChapter,serverPdfUuid,c.approvalReceipt.sha256]);
-     const requestStorageKey='cq_v4_approval_request_v1:'+requestScope;
-     let requestKey=localStorage.getItem(requestStorageKey);
-     if(!requestKey){
-       requestKey=crypto.randomUUID();
-       localStorage.setItem(requestStorageKey,requestKey);
-     }
+     const requestKey=CQPublicationKey.resolve({storage:localStorage,origin:project.url,uid:session.uid,bookId:currentBook,chapterId:currentChapter,pdfUuid:serverPdfUuid,hash:c.approvalReceipt.sha256});
      if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestKey))throw Error('서버 승인 요청 키가 손상되었습니다. 임의로 재발급하지 않습니다.');
      const approvalId=await parentRpc('cq_v4_register_approval_once',{
        p_request_key:requestKey,p_book_id:currentBook,p_chapter_id:currentChapter,p_title:c.title,p_source:c.source,
