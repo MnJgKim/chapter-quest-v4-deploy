@@ -42,3 +42,5 @@ Cloudflare는 기존 설정과 저장된 공식 무료 문서 검토 범위만 �
 - 실제 계정 복구/연결·운영 배포·자료 게시/배정은 구체적인 변경·위험·복구 방법을 설명한 뒤 별도 승인을 받습니다. 지금 운영 변경을 요청하거나 실행하지 않습니다.
 
 관련 문서: `FIRST_LESSON_AUDIT.md`, `server-review/PDF_REUSE_APPROVAL.md`, `server-review/PARENT_CONTEXT_APPROVAL.md`.
+
+최신 페이지 선택 기능과 미정 범위 처리: `PDF_PAGE_SELECTION.md`. 1~11쪽 응답은 철회되어 실제 범위는 미정입니다. 실제 등록·배정은 보류합니다. 익명 계정의 원래 세션 유지/공식 이메일 연결/세션 소실 제한 검토는 `ANONYMOUS_ACCOUNT_REVIEW.md`에 있으며 계정을 변경하지 않았습니다.

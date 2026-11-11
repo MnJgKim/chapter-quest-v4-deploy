@@ -82,6 +82,7 @@
        await refreshPdfParentLists();
      }else if(action==='create'||action==='from-local'){
        const localChapter=action==='from-local'?chapter():null,localContext=pdfContext(),owner=cloudIdentity();
+       if(localChapter?.serverPdfUuid&&localChapter.serverPdfOwner===session.uid&&localChapter.serverPdfOrigin===project.url){const linked=await pdfParentCall('list_chapters',{});if(linked.chapters?.some(x=>x.chapter_uuid===localChapter.serverPdfUuid&&x.pdf_ready)){pdfParentStatus('이미 연결된 서버 PDF를 재사용합니다. 원본을 재업로드하지 않았습니다.');return;}}
        const title=localChapter?((book()?.title||'도서')+' · '+localChapter.title).slice(0,200):document.getElementById('cqPdfChapterTitle')?.value.trim();
        let file=localChapter?await pdfGet(localContext):document.getElementById('cqPdfServerFile')?.files?.[0];
        if(cloudIdentity()!==owner||(localChapter&&(chapter()!==localChapter||pdfContext()!==localContext)))throw Error('계정 또는 챕터가 변경되었습니다.');
@@ -117,12 +118,12 @@
        const transport=CQServerPDF.createPdfTransport({url:project.url,anonKey:project.anonKey,role:'parent',getAccessToken:async()=>{await refreshIfNeeded();if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다.');return session.token;}});
        const bytes=await transport.getPdf(serverChapter.uuid);
        if(cloudIdentity()!==owner||book()!==targetBook)throw Error('계정 또는 선택한 도서가 변경되었습니다.');
-       let source='',doc=null;
-       try{if(window.pdfjsLib){doc=await pdfjsLib.getDocument({data:new Uint8Array(bytes.slice(0)),isEvalSupported:false}).promise;for(let n=1;n<=doc.numPages;n++){const text=await(await doc.getPage(n)).getTextContent();source+=text.items.map(x=>x.str).join(' ')+'\n';if(source.length>500000)throw Error('교재가 너무 깁니다. 챕터별 원문을 준비하세요.');}}}finally{if(doc)await doc.destroy();}
+       let source='',doc=null,inspection=null;
+       try{if(window.pdfjsLib){doc=await pdfjsLib.getDocument({data:new Uint8Array(bytes.slice(0)),isEvalSupported:false}).promise;const metadata=await doc.getMetadata().catch(()=>null);inspection={pageCount:doc.numPages,title:String(metadata?.info?.Title||'').slice(0,500),outline:[]};for(let n=1;n<=Math.min(doc.numPages,10);n++){const text=await(await doc.getPage(n)).getTextContent();source+=text.items.map(x=>x.str).join(' ')+'\n';if(source.length>500000){source='';break;}}}}finally{if(doc)await doc.destroy();}
        if(cloudIdentity()!==owner||book()!==targetBook)throw Error('계정 또는 선택한 도서가 변경되었습니다.');
        const existing=state.books.flatMap(b=>(b.chapters||[]).map(c=>({book:b,chapter:c}))).find(x=>x.chapter.serverOriginalCopy===true&&x.chapter.serverPdfUuid===serverChapter.uuid&&x.chapter.serverPdfOrigin===project.url&&x.chapter.serverPdfOwner===session.uid);
        const preparedBook=existing?.book||targetBook||{id:uid(),title:title.trim(),students:[state.who],chapters:[]};
-       const prepared=existing?.chapter||{id:uid(),title:serverChapter.title,source,questions:[],vocabulary:[],writingPrompt:'',speakingPrompt:'',pdfStored:true,pdfName:serverChapter.title+'.pdf',readerType:'pdf',serverPdfUuid:serverChapter.uuid,serverPdfOrigin:project.url,serverPdfOwner:session.uid,serverOriginalCopy:true};
+       const prepared=existing?.chapter||{id:uid(),title:serverChapter.title,source,sourcePreviewOnly:true,pdfInspection:inspection,questions:[],vocabulary:[],writingPrompt:'',speakingPrompt:'',pdfStored:true,pdfName:serverChapter.title+'.pdf',readerType:'pdf',serverPdfUuid:serverChapter.uuid,serverPdfOrigin:project.url,serverPdfOwner:session.uid,serverOriginalCopy:true};
        const key=pdfKey(preparedBook.id,prepared.id);await pdfPut(key,new File([bytes],prepared.pdfName,{type:'application/pdf'}));const saved=await pdfGet(key);
        if(!saved||saved.size!==bytes.byteLength)throw Error('원본을 이 기기에 보관하지 못했습니다.');
        if(cloudIdentity()!==owner||book()!==targetBook)throw Error('계정 또는 선택한 도서가 변경되었습니다.');

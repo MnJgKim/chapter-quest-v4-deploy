@@ -1,6 +1,6 @@
 {
   "scope": "configuration/build/public documentation only; actual Cloudflare account unverified",
-  "assetCount": 29,
+  "assetCount": 33,
   "largestAsset": "app/public/vendor/pdf.worker.min.js",
   "largestAssetBytes": 1087212,
   "allAssetsWithinFree25MiB": true,

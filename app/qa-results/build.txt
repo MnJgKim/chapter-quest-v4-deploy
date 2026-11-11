@@ -13,7 +13,7 @@ Pinned PDF renderer copied into application assets.
 
  ⛅️ wrangler 4.159.0 (update available 4.160.0)
 ───────────────────────────────────────────────
-✨ Read 31 files from the assets directory /workspace/chapter-quest-v4-deploy/app/public
+✨ Read 35 files from the assets directory /workspace/chapter-quest-v4-deploy/app/public
 Total Upload: 9.11 KiB / gzip: 3.29 KiB
 Your Worker has access to the following bindings:
 Binding                                                                        Resource                  
