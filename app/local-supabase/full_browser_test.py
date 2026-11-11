@@ -28,7 +28,7 @@ def api(path,data=None,token=None):
  headers={'Content-Type':'application/json','apikey':anon}
  if token:headers['Authorization']='Bearer '+token
  request=urllib.request.Request(base+path,data=json.dumps(data).encode() if data is not None else None,headers=headers)
- with urllib.request.urlopen(request,timeout=20) as r:return json.load(r)
+ with urllib.request.urlopen(request,timeout=90 if path.startswith('/functions/') else 20) as r:return json.load(r)
 class Assets(SimpleHTTPRequestHandler):
  def log_message(self,*a):pass
  def do_GET(self):
@@ -37,13 +37,21 @@ class Assets(SimpleHTTPRequestHandler):
   else:super().do_GET()
 server=ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Assets,directory=str(ROOT/'public')));threading.Thread(target=server.serve_forever,daemon=True).start();origin=f'http://127.0.0.1:{server.server_port}'
 try:
+ # The function-serving process starts asynchronously in CI; preflight is read-only.
+ for attempt in range(30):
+  try:
+   request=urllib.request.Request(base+'/functions/v1/cq-v4-pdf-parent',method='OPTIONS',headers={'apikey':anon,'Origin':origin,'Access-Control-Request-Method':'POST'})
+   with urllib.request.urlopen(request,timeout=3) as ready:
+    if ready.status==204:break
+  except (urllib.error.URLError,TimeoutError):time.sleep(2)
+ else:raise RuntimeError('Local Edge preflight never became ready')
  users={}
  for role in ['parent','student','outsider']:
   email=role+'-'+secrets.token_hex(6)+'@example.test';password=secrets.token_urlsafe(24);private.append(password)
   api('/auth/v1/signup',{'email':email,'password':password});login=api('/auth/v1/token?grant_type=password',{'email':email,'password':password});private.append(login['access_token']);private.append(login['refresh_token']);users[role]={'token':login['access_token'],'email':email,'password':password,'uid':str(uuid.UUID(login['user']['id']))}
  passed('three synthetic accounts sign up and log in on the full local stack')
  try:api('/functions/v1/cq-v4-pdf-parent',{'action':'create_chapter','title':'Must be denied'},users['outsider']['token']);raise AssertionError('Non-parent Edge request was not denied')
- except urllib.error.HTTPError as error:assert error.code==403
+ except urllib.error.HTTPError as error:assert error.code==403,'Expected local role denial 403, got '+str(error.code)+' '+error.read(400).decode(errors='replace')
  passed('real Edge parent endpoint denies a non-parent account before privileged writes')
  env=os.environ.copy()
  for k in ['DOCKER_HOST','DOCKER_CONTEXT','DOCKER_TLS','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH']:env.pop(k,None)
@@ -68,7 +76,7 @@ try:
   pp.locator('#cqDraftImport').set_input_files(str(draft));expect(pp.locator('[data-act="approve"]')).to_be_visible();pp.locator('[data-act="approve"]').click();pp.locator('[data-publish-child]').check();pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(1);chapter_uuid=sp.locator('[data-child="view"]').get_attribute('data-uuid');context=api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['parent']['token']);assert context[0]['answer_key'][0]==0
   try:api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student could read parent context')
-  except urllib.error.HTTPError as error:assert error.code==403
+  except urllib.error.HTTPError as error:assert error.code==403,'Expected local role denial 403, got '+str(error.code)+' '+error.read(400).decode(errors='replace')
   passed('real parent lesson context includes model answers and denies the student')
   sp.locator('[data-child="view"]').click();expect(sp.locator('[data-server-pdf="count"]')).to_have_text('1 / 1 페이지',timeout=90000);expect(sp.locator('#cqChildWork [type="submit"]')).to_be_enabled();passed('assigned student downloads and renders PDF through the real signed-link Edge function')
   sp.locator('[data-word-reveal="0"]').click();expect(sp.locator('[data-word-done="0"]')).to_be_checked();sp.locator('[name="readComplete"]').check();sp.locator('[name="cqAnswer0"][value="0"]').check();sp.locator('[name="cqAnswer1"]').fill('They wanted to find the book.');sp.locator('[name="essay"]').fill('Mina helped Leo and they found the book.');sp.locator('[name="speaking"]').fill('I will explain how Mina helped Leo.');sp.locator('[data-child="voice-start"]').click();expect(sp.locator('#cqVoiceStatus')).to_contain_text('녹음 중');sp.wait_for_timeout(900);sp.locator('[data-child="voice-stop"]').click();expect(sp.locator('#cqVoiceStatus')).to_contain_text('원본 저장 완료');sp.locator('#cqChildWork [type="submit"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('제출 완료',timeout=60000);passed('real MediaRecorder audio uploads to private Storage and final answers submit through RPC')
@@ -79,7 +87,7 @@ try:
 except Exception as error:
  message=str(error)
  for value in sorted(private,key=len,reverse=True):message=message.replace(value,'[local-private-value]')
- report['failure']=message
+ report['failure']=type(error).__name__+': '+message
 finally:
  server.shutdown();out.write_text(json.dumps(report,ensure_ascii=False,indent=2));print(json.dumps(report,ensure_ascii=False,indent=2))
 if 'failure' in report:raise SystemExit(1)
