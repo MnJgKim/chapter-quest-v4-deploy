@@ -31,7 +31,7 @@ Malformed existing browser state is copied to a recovery key before display repa
 - 15 full real-local Supabase browser/API checks passed on free GitHub Actions: actual Auth, PostgreSQL, private Storage, both Edge functions, PDF/TXT upload and rendering, recording upload/playback, submission, feedback, fresh-parent PDF recovery and another registered parent denial. Evidence: `qa-results/full-local-supabase.json`. No hosted service or AI request was used.
 - Root deployment dry-run succeeds. Actual deployment has not run.
 
-Machine-readable results are in `qa-results/`. The new GitHub Actions workflow uses only a standard Linux runner on this public repository, has read-only repository permission, no production secrets and no deploy step. It runs a complete ephemeral local Supabase stack and `local-supabase/full_browser_test.py`; run [42964265817](https://github.com/MnJgKim/chapter-quest-v4-deploy/actions/runs/42964265817) passed all steps on runtime commit `ae594f5`. The new viewport-only test expansion also passed locally.
+Machine-readable results are in `qa-results/`. The new GitHub Actions workflow uses only a standard Linux runner on this public repository, has read-only repository permission, no production secrets and no deploy step. It runs a complete ephemeral local Supabase stack and `local-supabase/full_browser_test.py`; run [42967563464](https://github.com/MnJgKim/chapter-quest-v4-deploy/actions/runs/42967563464) passed all steps on runtime commit `c0f06a8`. A subsequent test-only expansion checks two real assigned students on the same chapter; its result is in the latest PR checks.
 
 ## Free operation and remaining gates
 

@@ -47,10 +47,10 @@ try:
   time.sleep(2)
  else:raise RuntimeError('Local Edge preflight never became ready')
  users={}
- for role in ['parent','student','outsider','otherparent']:
+ for role in ['parent','student','outsider','otherparent','sibling']:
   email=role+'-'+secrets.token_hex(6)+'@example.test';password=secrets.token_urlsafe(24);private.append(password)
   api('/auth/v1/signup',{'email':email,'password':password});login=api('/auth/v1/token?grant_type=password',{'email':email,'password':password});private.append(login['access_token']);private.append(login['refresh_token']);users[role]={'token':login['access_token'],'email':email,'password':password,'uid':str(uuid.UUID(login['user']['id']))}
- passed('four synthetic accounts sign up and log in on the full local stack')
+ passed('five synthetic accounts sign up and log in on the full local stack')
  # Kong can answer OPTIONS before the replacement Edge runtime is ready. Probe a read-only
  # authenticated action and retry gateway startup errors only; never hide a role/auth failure.
  for attempt in range(60):
@@ -105,6 +105,18 @@ try:
   passed('another registered parent cannot obtain this PDF, recording or answer context')
 
   op=page();op.locator('#cqChildEmail').fill(users['outsider']['email']);op.locator('#cqChildPassword').fill(users['outsider']['password']);op.locator('[data-child="login"]').click();expect(op.locator('[data-child="list"]')).to_be_visible();op.locator('[data-child="list"]').click();expect(op.locator('#cqChildStatus')).to_contain_text('0개');passed('unassigned real account sees no other student chapter')
+  # Two genuinely assigned students share the PDF but never submissions, feedback or audio.
+  pp.locator('[data-parent-invite="issue"]').click();expect(pp.locator('#cqInviteCode')).to_have_text(__import__('re').compile('^[0-9a-f]{48}$'));second_invite=pp.locator('#cqInviteCode').inner_text();private.append(second_invite)
+  sibling=page();sibling.locator('#cqChildEmail').fill(users['sibling']['email']);sibling.locator('#cqChildPassword').fill(users['sibling']['password']);sibling.locator('[data-child="login"]').click();expect(sibling.locator('#cqChildInvite')).to_be_visible();sibling.locator('#cqChildInvite').fill(second_invite);sibling.locator('#cqChildInviteName').fill('Second Synthetic Student');sibling.locator('[data-child="claim"]').click();expect(sibling.locator('#cqChildStatus')).to_contain_text('연결 요청 완료');pp.locator('[data-parent-invite="refresh"]').click();pp.locator('[data-parent-invite="approve"]').click();expect(pp.locator('#cqInviteStatus')).to_contain_text('승인 완료');pp.locator('[data-publish-child="'+users['sibling']['uid']+'"]').check();pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공')
+  assert len(api('/rest/v1/rpc/cq_v4_my_chapters',{},users['student']['token']))==1;passed('parent assigns the same approved chapter to a second real student without removing the first assignment')
+  sibling.locator('[data-child="list"]').click();expect(sibling.locator('[data-child="view"]')).to_have_count(1);sibling.locator('[data-child="view"]').click();expect(sibling.locator('[data-server-pdf="count"]')).to_have_text('1 / 1 페이지',timeout=90000);expect(sibling.locator('[name="essay"]')).to_have_value('');assert 'Great explanation!' not in sibling.locator('#cqChildDetail').inner_text()
+  sibling.locator('[name="readComplete"]').check();sibling.locator('[name="cqAnswer0"][value="1"]').check();sibling.locator('[name="cqAnswer1"]').fill('This student has a different explanation.');sibling.locator('[name="essay"]').fill('A separate essay from the second student.');sibling.locator('[name="speaking"]').fill('My own spoken summary.');sibling.locator('[data-child="voice-start"]').click();expect(sibling.locator('#cqVoiceStatus')).to_contain_text('녹음 중');sibling.wait_for_timeout(900);sibling.locator('[data-child="voice-stop"]').click();expect(sibling.locator('#cqVoiceStatus')).to_contain_text('원본 저장 완료');sibling.locator('#cqChildWork [type="submit"]').click();expect(sibling.locator('#cqChildStatus')).to_contain_text('제출 완료',timeout=60000);passed('second assigned student starts without the first result and submits independent answers and real recorded audio')
+  rows=api('/rest/v1/rpc/cq_v4_parent_submissions',{},users['parent']['token']);by_user={row['child_user_id']:row for row in rows};assert len(rows)==2 and by_user[users['student']['uid']]['answers']['essay']=='Mina helped Leo and they found the book.' and by_user[users['sibling']['uid']]['answers']['essay']=='A separate essay from the second student.'
+  api('/rest/v1/rpc/cq_v4_release_feedback',{'p_child_user_id':users['sibling']['uid'],'p_chapter_uuid':chapter_uuid,'p_feedback':'Feedback only for the second student.','p_release':True},users['parent']['token']);assert api('/rest/v1/rpc/cq_v4_my_submission',{'p_chapter_uuid':chapter_uuid},users['student']['token'])[0]['feedback']=='Great explanation!';assert api('/rest/v1/rpc/cq_v4_my_submission',{'p_chapter_uuid':chapter_uuid},users['sibling']['token'])[0]['feedback']=='Feedback only for the second student.';passed('parent receives two distinct submissions and released feedback remains scoped to each real student')
+  for caller,target in [('student','sibling'),('sibling','student')]:
+   try:api('/storage/v1/object/sign/cq-v4-speaking/'+users[target]['uid']+'/'+chapter_uuid+'.webm',{'expiresIn':30},users[caller]['token']);raise AssertionError('Assigned students could read one another recording')
+   except urllib.error.HTTPError as error:assert error.code in (400,403,404),'Unexpected cross-student recording response '+str(error.code)
+  passed('two students assigned to the same chapter cannot sign each other private recording')
   assert not report['page_errors'] and not report['blocked_requests'];passed('no runtime errors or non-local service requests')
   browser.close()
 except Exception as error:
