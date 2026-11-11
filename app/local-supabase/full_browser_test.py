@@ -26,7 +26,7 @@ def public_key(value):
   except Exception:pass
  return None
 anon=public_key(status);assert anon,'Local public key unavailable'
-base='http://127.0.0.1:54321';report={'scope':'real local Supabase Auth, PostgreSQL, Storage and Edge functions; generated synthetic users/PDF/audio only; no hosted data or AI calls','originalKind':original_kind,'checks':[],'page_errors':[],'blocked_requests':[]};private=[anon]
+base='http://127.0.0.1:54321';report={'scope':'real local Supabase Auth, PostgreSQL, Storage and Edge functions; generated synthetic users/PDF/audio only; no hosted data or AI calls','originalKind':original_kind,'generation':'local synthetic HTTP response; no AI model call','checks':[],'page_errors':[],'blocked_requests':[]};private=[anon]
 def passed(name):report['checks'].append({'name':name,'pass':True})
 def api(path,data=None,token=None):
  headers={'Content-Type':'application/json','apikey':anon}
@@ -90,6 +90,11 @@ try:
   def page():
    context=browser.new_context(has_touch=True,permissions=['microphone'],viewport={'width':1280,'height':900});context.set_default_timeout(30000)
    def route(r):
+    if r.request.url==origin+'/api/generate':
+     payload=r.request.post_data_json
+     assert r.request.headers.get('authorization')=='Bearer '+users['parent']['token'],'Generation must use parent authentication'
+     assert payload['source'].count('Mina helped Leo')>0 and 'OUTSIDE_SELECTED_CHAPTER' not in payload['source'],'Only selected source may reach generation'
+     r.fulfill(status=200,json=fixture);return
     if r.request.url.startswith(origin+'/') or r.request.url.startswith(base+'/'):r.continue_()
     else:report['blocked_requests'].append(r.request.url);r.abort()
    context.route('**/*',route);tab=context.new_page();tab.on('dialog',lambda d:d.accept('123456') if d.type=='prompt' else d.accept());tab.on('pageerror',lambda e:report['page_errors'].append(str(e)));tab.goto(origin);return tab
@@ -116,7 +121,10 @@ try:
    link=api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':original_uuid},users['parent']['token']);private.append(link['signed_url']);assert link['signed_url'].startswith('/storage/v1/object/sign/cq-v4-originals/')
    with urllib.request.urlopen(urllib.request.Request(base+link['signed_url'],headers={'apikey':anon,'Authorization':'Bearer '+users['parent']['token']}),timeout=30) as r:assert hashlib.sha256(r.read()).hexdigest()==original_sha
    passed('only a derived two-page PDF is registered and the complete server original remains byte-identical')
-  pp.locator('#cqDraftImport').set_input_files(str(draft));expect(pp.locator('[data-act="approve"]')).to_be_visible();pp.locator('[data-act="approve"]').click();pp.locator('[data-publish-child]').check()
+  if original_kind=='range':
+   pp.locator('[data-act="generate"]').click();expect(pp.locator('[data-act="approve"]')).to_be_visible();assert pp.evaluate('chapter().questions.length')==0;passed('selected chapter source reaches authenticated generation UI; synthetic response remains unapproved until parent review (no model call)')
+  else:pp.locator('#cqDraftImport').set_input_files(str(draft));expect(pp.locator('[data-act="approve"]')).to_be_visible()
+  pp.locator('[data-act="approve"]').click();pp.locator('[data-publish-child]').check()
   if original_kind=='range':
    derived_uuid=pp.locator('#cqPublishVerifiedPdf').input_value();pp.locator('#cqPublishVerifiedPdf').select_option(original_uuid);pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('선택 범위 자료와 서버 PDF가 다릅니다');assert api('/rest/v1/rpc/cq_v4_my_chapters',{},users['student']['token'])==[];pp.locator('#cqPublishVerifiedPdf').select_option(derived_uuid);passed('changing the range lesson binding to the complete original is blocked before publishing or assigning')
   pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
@@ -125,6 +133,14 @@ try:
    try:api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':original_uuid},users['student']['token']);raise AssertionError('Range assignment exposed the complete original PDF')
    except urllib.error.HTTPError as error:assert error.code==403,'The unassigned complete original must remain private'
    passed('a student assigned the selected pages cannot request a download link for the complete original')
+
+   try:api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':original_uuid},users['student']['token']);raise AssertionError('Student used parent original preview')
+   except urllib.error.HTTPError as error:assert error.code==403
+   passed('student cannot bypass the range endpoint through the parent-only original preview action')
+   try:api('/storage/v1/object/sign/cq-v4-originals/'+users['parent']['uid']+'/'+original_uuid+'.pdf',{'expiresIn':30},users['student']['token']);raise AssertionError('Student signed the complete original directly through Storage')
+   except urllib.error.HTTPError as error:assert error.code in (400,403,404)
+   passed('direct Storage signing does not expose the complete original to a range-assigned student')
+
 
    # Only the isolated local database is changed for this integrity fault injection.
    def local_sql(sql):

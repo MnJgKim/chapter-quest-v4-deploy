@@ -12,3 +12,11 @@ Use an isolated authorized test account/environment, not an existing student's o
 6. Repeat with a second assigned student: different drafts, recordings, submissions and feedback; neither can read the other's private audio. Verify revoked/unassigned access is refused.
 
 No physical device results are claimed. Production testing that writes data or requires deployment must wait for explicit approval.
+
+## 운영 서버에서만 남는 검증 (미실행)
+
+- 별도 승인된 후보 배포 후 실제 부모 JWT/관리자·원본 소유권으로 29.3MB 파일 미리보기, 실제 내부 제목/페이지 수/목차와 스캔 여부 확인.
+- 부모가 확정한 Chapter 1 범위의 서버 추출 CPU/메모리/시간이 기존 무료 Edge 제한에 맞는지 확인. 합성 소형 PDF 통과로 대용량 성공을 보장하지 않음.
+- 실제 익명 UID와 부모 연결의 동일성·기존 기기 세션·필요한 최소 갱신을 승인 범위에서 확인. 계정 대체/이메일 전환은 자동 실행하지 않음.
+- 승인한 운영 자료·문항·배정으로 다운로드 제한과 실제 제출/피드백 확인. 이 단계는 운영 쓰기이므로 별도 사전 승인 필요.
+- 실제 AI 무료 사용 가능 모델/응답 품질·한도, 실제 Cloudflare 계정 플랜/CPU/배포 버전 확인. 인증 재요청 없이 확인할 수 없는 항목은 미검증 유지.

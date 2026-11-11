@@ -24,6 +24,8 @@
       const signed=new URL(link.signed_url,url);
       const base=new URL(url);
       if(signed.origin!==base.origin||!signed.pathname.startsWith('/storage/v1/object/sign/cq-v4-originals/'))throw Error('UNTRUSTED_PDF_URL');
+      const objectParts=signed.pathname.slice('/storage/v1/object/sign/cq-v4-originals/'.length).split('/');
+      if(objectParts.length!==2||! /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(objectParts[0])||objectParts[1]!==chapterUuid+'.pdf')throw Error('PDF_OBJECT_MISMATCH');
       if(!signed.searchParams.has('token'))throw Error('UNSIGNED_PDF_URL');
       const expires=Date.parse(link.expires_at);
       if(!Number.isFinite(expires)||expires<=now()+5000||expires>now()+10*60*1000)throw Error('INVALID_PDF_LINK_EXPIRY');
