@@ -11,5 +11,9 @@
   "main": "worker.mjs",
   "ai": {
     "binding": "AI"
+  },
+  "vars": {
+    "SUPABASE_URL": "https://ftffxetmqditfqdvzjdd.supabase.co",
+    "SUPABASE_PUBLISHABLE_KEY": "sb_publishable_e2Fe7CRhCM76ikA2cvOSKA_lMR2xOm4"
   }
 }

@@ -36,7 +36,7 @@ try:
   page.locator('#chapterTitle').fill('QA Chapter 1');page.locator('[data-act="addChapter"]').click()
   page.locator('#cqOriginalPDF').set_input_files(str(out/'fixture.pdf'));page.locator('[data-act="savePDF"]').click()
   expect(page.get_by_text('원본 PDF 저장 완료 · 학생 읽기 화면에 표시됩니다.')).to_be_visible();passed('original PDF upload and IndexedDB verification')
-  prompt_answers.append('What did the character learn?');page.locator('[data-act="manualQuestion"]').click()
+  prompt_answers.extend(['What did the character learn?','The character learned to help.']);page.locator('[data-act="manualQuestion"]').click()
   expect(page.locator('[data-act="approveManual"]')).to_be_visible();page.locator('[data-act="approveManual"]').click()
   expect(page.get_by_text('로컬 승인 기록 있음 · 수정 시 승인 무효화')).to_be_visible();passed('manual question parent approval')
   original=page.evaluate('JSON.parse(localStorage.getItem("chapter_quest_v4_state"))')

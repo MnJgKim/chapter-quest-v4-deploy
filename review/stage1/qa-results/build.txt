@@ -1,0 +1,20 @@
+
+> chapter-quest-v4-launch@4.0.0 build
+> wrangler deploy --dry-run --outdir .build
+
+▲ [WARNING] Proxy environment variables detected. We'll use your proxy for fetch requests.
+
+
+
+ ⛅️ wrangler 4.159.0 (update available 4.160.0)
+───────────────────────────────────────────────
+✨ Read 3 files from the assets directory /workspace/chapter-quest-v4-deploy/review/stage1/public
+Total Upload: 9.03 KiB / gzip: 3.26 KiB
+Your Worker has access to the following bindings:
+Binding                                                                        Resource
+env.AI                                                                         AI
+env.ASSETS                                                                     Assets
+env.SUPABASE_URL ("https://ftffxetmqditfqdvzjdd.supabase...")                  Environment Variable
+env.SUPABASE_PUBLISHABLE_KEY ("sb_publishable_e2Fe7CRhCM76ikA2cvOSKA...")      Environment Variable
+
+--dry-run: exiting now.

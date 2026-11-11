@@ -1,3 +1,5 @@
+> Historical plan, superseded by the 2026-11-11 inspection: the parent role gate, strict answer validation and privilege reduction are already installed. Do not reapply these candidates or their old rollback scripts as part of the current frontend/Worker release. See ../README.md for the current release gates.
+
 # Supabase server repair — approval required before application
 
 Status: source and isolated tests prepared; NOT applied to the live project.

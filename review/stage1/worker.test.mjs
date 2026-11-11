@@ -5,7 +5,7 @@ const uid='11111111-1111-4111-8111-111111111111';
 const draft={questions:[{kind:'mc',text:'Who helped?',options:['A','B'],correct:0},{kind:'inference',text:'Why?',sample:'To help.'}],vocabulary:[{word:'help',meaning:'돕다',example:'I help.'}],writingPrompt:'Explain.',speakingPrompt:'Summarize.'};
 const env={SUPABASE_URL:'https://testproject.supabase.co',SUPABASE_PUBLISHABLE_KEY:'public-test-key',AI_PARENT_USER_IDS:uid,AI:{run:async()=>({response:JSON.stringify(draft)})}};
 const req=(body={source:'A chapter about a character helping a friend. '.repeat(10)},headers={},method='POST')=>new Request('https://example.test/api/generate',{method,headers:{'Content-Type':'application/json',Authorization:'Bearer test-token',...headers},...(method==='POST'?{body:JSON.stringify(body)}:{})});
-const user=async()=>Response.json({id:uid});
+const user=async url=>Response.json(url.endsWith('/cq_is_admin')?true:{id:uid});
 test('unconfigured server fails closed without model use',async()=>assert.equal((await worker.fetch(req(),{})).status,503));
 test('GET cannot trigger AI billing',async()=>assert.equal((await worker.fetch(req({}, {},'GET'),env)).status,405));
 test('cross-origin generation is denied',async()=>assert.equal((await worker.fetch(req({}, {Origin:'https://foreign.test'}),env)).status,403));
@@ -23,3 +23,7 @@ test('out-of-range MC answer is blocked',()=>assert.throws(()=>validateDraft({..
 test('literal questions normalize to the server publication contract',()=>assert.equal(validateDraft({...draft,questions:[{kind:'literal',text:'What happened?',sample:'The character helped.'}]}).questions[0].kind,'comprehension'));
 test('unknown API paths return JSON 404',async()=>assert.equal((await worker.fetch(new Request('https://example.test/api/unknown'),env)).status,404));
 test('static asset paths preserve asset delivery',async()=>assert.equal(await (await worker.fetch(new Request('https://example.test/'),{ASSETS:{fetch:async()=>new Response('asset')}})).text(),'asset'));
+
+test('server parent role is required even for an allowlisted user',async()=>assert.rejects(generate(req(),env,async url=>Response.json(url.endsWith('/cq_is_admin')?false:{id:uid})),e=>e.status===403));
+test('configured server uses cq_is_admin without a separate editable parent list',async()=>assert.deepEqual(await generate(req(),{...env,AI_PARENT_USER_IDS:''},user),draft));
+test('missing written model answer cannot be approved for publication',()=>assert.throws(()=>validateDraft({...draft,questions:[{kind:'inference',text:'Why?'}]}),e=>e.status===502));

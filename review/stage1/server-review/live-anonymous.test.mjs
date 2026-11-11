@@ -1,7 +1,7 @@
 import fs from 'node:fs/promises';
 import vm from 'node:vm';
 const context=vm.createContext({window:{}});
-vm.runInContext(await fs.readFile(new URL('../candidates/fixed/public/project-config.js',import.meta.url),'utf8'),context);
+vm.runInContext(await fs.readFile(new URL('../public/project-config.js',import.meta.url),'utf8'),context);
 const config=context.window.CQ_PUBLIC_PROJECT;
 const results=[];
 for(const name of ['cq_v4_my_chapters','cq_v4_list_child_access','cq_v4_parent_submissions']){

@@ -17,7 +17,7 @@ window.CQProject=Object.freeze({read(){
  return {create,verify,digest};
 });
 </script>
-</head><body><header><h1>📚 Chapter Quest</h1><small>월·목 한 챕터씩, 꾸준한 영어원서 학습</small></header><main><div class="card row between"><div class="row"><label>학생 <select id="student"></select></label><span id="dayLabel" class="chip"></span></div><div class="row"><button id="studentBtn" class="active">학생 화면</button><button id="parentBtn">부모 관리자</button></div></div><div id="notice" class="status"></div><div id="app"></div></main><footer>기기 데모 학습 기록은 이 브라우저에 저장됩니다. 학생 서버 학습은 별도 계정 및 Supabase 설정이 필요하며, 실서버 검증은 아직 완료되지 않았습니다.</footer>
+</head><body><header><h1>📚 Chapter Quest</h1><small>월·목 한 챕터씩, 꾸준한 영어원서 학습</small></header><main><div class="card row between"><div class="row"><label>학생 <select id="student"></select></label><span id="dayLabel" class="chip"></span></div><div class="row"><button id="studentBtn" class="active">학생 화면</button><button id="parentBtn">부모 관리자</button></div></div><div id="notice" class="status"></div><div id="app"></div></main><footer>기기 데모 기록은 이 브라우저에 저장됩니다. 학생 계정의 제출 기록과 부모 피드백은 서버에서 관리합니다.</footer>
 <script>
 /* Chapter Quest V4 stage 141: standalone, not wired to production UI. */
 (function(root){
@@ -301,8 +301,8 @@ if(tab==='speak')return `<h2>말하기 · 녹음</h2><p>${E(c.speakingPrompt||'S
 return `<h2>제출 · 부모 피드백</h2><p>상태: ${r.submitted?'제출 완료':'작성 중'}</p><p>제출일: ${E(r.submittedAt||'-')}</p><p class="note">${r.submitted&&r.feedbackReleased?E(r.feedback||'아직 작성된 피드백이 없습니다.'):r.submitted?'부모가 피드백을 검토 중이에요.':'전체 활동을 제출하면 부모 피드백을 확인할 수 있어요.'}</p><button class="primary" data-act="submit" ${r.submitted?'disabled':''}>${r.submitted?'제출 완료':'학습 제출'}</button>`}
 function parentUI(){return `<section class="card"><div class="row between"><h2>👨‍👩‍👧 부모 관리자</h2><div class="row"><button data-act="importV3">V3 백업 가져오기</button><input type="file" id="v3Input" accept=".json" hidden><button data-act="backup">전체 백업</button><button data-act="restore">백업 복원</button><input type="file" id="restoreInput" accept=".json" hidden></div></div><p class="muted">학생 활성화, 책별 배정, 챕터 등록, AI 문제 승인, 월·목 학습 배정을 한 화면에서 관리합니다. 부모 PIN은 이 기기의 화면 잠금용입니다. 정답과 원문은 브라우저 저장 데이터에 포함되어 있어 기술적으로 접근할 수 있습니다. 서버 권한 분리 전에는 보안 인증으로 간주할 수 없습니다.</p><h3>학생 설정</h3><div class="row">${state.students.map(x=>`<label class="chip"><input type="checkbox" data-active="${E(x.name)}" ${x.active?'checked':''}> ${E(x.name)} 학습 사용</label>`).join('')}</div></section><section class="card"><h2>📚 책 관리</h2><p class="note">이 버전은 아직 브라우저 저장 방식입니다. Supabase 동기화 전에는 기기 간 기록이 공유되지 않습니다. 학생 읽기는 업로드한 PDF 또는 TXT 원본을 사용합니다. AI 문제용 텍스트는 별도 입력합니다.</p><p class="muted">학생별 현재 학습 책을 선택하면 다음 미완료 챕터가 월·목 자동 배정됩니다.</p><div class="row"><label>집중 학습 책 <select id="focusBook"><option value="">첫 배정 책</option>${state.books.filter(b=>b.students.includes(state.who)).map(b=>`<option value="${E(b.id)}" ${state.focus?.[state.who]===b.id?'selected':''}>${E(b.title)}</option>`).join('')}</select></label></div><div class="row"><input id="bookTitle" placeholder="책 제목 (예: Magic Tree House #1)" style="flex:1"><button class="primary" data-act="addBook">+ 책 등록</button></div><div class="grid">${state.books.map(b=>`<div class="book"><b>${E(b.title)}</b><p>${b.chapters.length}개 챕터</p><div>${state.students.map(s=>`<label><input type="checkbox" data-bookstudent="${E(b.id)}" data-name="${E(s.name)}" ${b.students.includes(s.name)?'checked':''}> ${E(s.name)}에게 배정</label>`).join('')}</div><button data-act="manageBook" data-b="${E(b.id)}">챕터 관리</button></div>`).join('')}</div></section>${view==='manage'&&book()?manageUI():''}<section class="card"><h2>📅 이번 주 월·목 학습 배정</h2><label>배정 대상 학생 <select id="assignStudent">${state.students.map(x=>`<option value="${E(x.name)}" ${state.who===x.name?'selected':''}>${E(x.name)}</option>`).join('')}</select></label><p class="muted">이번 주 ${weekKey()} 시작 · 서진이가 함께 학습하는 주에는 같은 책·챕터를 두 학생에게 배정할 수 있습니다.</p>${['월','목'].map(d=>{const a=state.weekly[weekKey()]?.[state.who]?.[d];return `<div class="book"><b>${d}요일</b><div class="row"><select id="week-${d}"><option value="">선택 안 함</option>${state.books.flatMap(b=>b.chapters.map(c=>`<option value="${E(b.id+'|'+c.id)}" ${a?.bookId===b.id&&a?.chapterId===c.id?'selected':''}>${E(b.title)} · ${E(c.title)}</option>`)).join('')}</select><button data-act="assign" data-day="${d}">배정 저장</button></div></div>`}).join('')}</section><section class="card"><h2>📊 학생별 학습 기록</h2>${state.students.map(s=>`<div class="book"><b>${E(s.name)}</b>${state.books.flatMap(b=>b.chapters.map(c=>{let r=state.records[[s.name,b.id,c.id].join('::')];return r?`<div class="question"><b>${E(b.title)} · ${E(c.title)}</b> · ${r.submitted?'제출 완료':'작성 중'}<p>문제 답변 ${Object.keys(r.answers||{}).length}개 · 독후감 ${r.writing?.length||0}자</p><details><summary>답변 확인 · 피드백</summary>${c.questions.map((q,i)=>`<p><b>${i+1}. ${E(q.text)}</b><br>${E(q.kind==='mc'?q.options?.[r.answers[i]]??'미응답':r.answers[i]??'미응답')}</p>`).join('')}<p><b>독후감</b><br>${E(r.writing)}</p><textarea data-feedback="${E([s.name,b.id,c.id].join('::'))}" placeholder="부모 피드백">${E(r.feedback||'')}</textarea><label><input type="checkbox" data-release="${E([s.name,b.id,c.id].join('::'))}" ${r.feedbackReleased?'checked':''} ${r.submitted?'':'disabled'}> 피드백 학생에게 공개</label></details></div>`:''})).join('')||'<p class="muted">기록 없음</p>'}</div>`).join('')}</section>`}
 function manageUI(){let b=book();return `<section class="card"><div class="row between"><h2>${E(b.title)} · 챕터 관리</h2><button data-act="closeManage">닫기</button></div><div class="row"><input id="chapterTitle" placeholder="예: Chapter 1" style="flex:1"><button class="primary" data-act="addChapter">+ 챕터 추가</button></div>${b.chapters.map(c=>`<div class="book"><div class="row between"><b>${E(c.title)}</b><button data-act="editChapter" data-c="${E(c.id)}">편집 / AI 문제 생성</button></div><p class="muted">승인된 문제 ${c.questions.length}개 · 단어 ${c.vocabulary.length}개 · PDF ${c.pdfStored?'등록됨':'미등록'} · AI용 텍스트 ${c.source?.length||0}자</p></div>`).join('')}${selectedChapter&&chapter()?editorUI(chapter()):''}</section>`}
-function editorUI(c){return `<div class="card" style="background:#f8faff"><h3>${E(c.title)} · 학습 자료 편집</h3><label>AI 문제 생성용 텍스트 (PDF 읽기 화면과 별개 · 붙여넣기)<textarea id="sourceText" style="min-height:180px">${E(c.source||'')}</textarea></label><div class="row"><input type="file" id="cqOriginalPDF" accept="application/pdf,.pdf,text/plain,.txt"><button data-act="savePDF">원본 PDF/TXT 등록</button></div><p class="muted">학생 읽기용 원본 PDF/TXT: ${c.pdfStored?'이 기기에 등록됨':'미등록'} · PDF 파일은 이 기기의 IndexedDB에 별도 저장됩니다. 기기 저장공간 정리 시 삭제될 수 있습니다. 다른 기기에서는 다시 등록해야 합니다. 일반 JSON 백업에는 원본 PDF/TXT 파일이 포함되지 않습니다.</p><div class="row"><button data-act="saveSource">AI용 텍스트 저장</button></div><p class="muted">문제 생성용 텍스트를 위 입력란에 붙여넣으세요. 원본 파일이 등록되어야 학생이 챕터를 시작할 수 있습니다. TXT를 등록하면 AI용 텍스트도 함께 준비됩니다.</p><p class="muted">문제 생성은 부모 Supabase 로그인 후 사용할 수 있습니다.</p><input id="accessCode" type="hidden" value=""><div class="row"><button class="primary" data-act="generate">✨ AI 문제 초안 생성</button><button data-act="manualQuestion">+ 문제 직접 추가</button></div><p class="mutedline">AI 생성은 HTTPS 배포된 서버의 /api/generate가 필요합니다. 로컬 HTML 파일에서는 동작하지 않을 수 있습니다.</p>${draft&&draft.chapterId===c.id?draftUI():''}<h3>로컬 문제 (${c.questions.length})</h3><button data-act="approveManual" ${c.questions.length?'':'disabled'}>✓ 현재 문제 부모 승인</button><p class="muted">${c.approvalReceipt?'로컬 승인 기록 있음 · 수정 시 승인 무효화':'승인 기록 없음 · 서버 게시 불가'}</p>${c.questions.map((q,i)=>`<p>${i+1}. ${E(q.text)}</p>`).join('')||'<p>아직 승인된 문제가 없습니다.</p>'}<label>독후감 질문<textarea id="writingPrompt">${E(c.writingPrompt||'')}</textarea></label><label>말하기 질문<textarea id="speakingPrompt">${E(c.speakingPrompt||'')}</textarea></label><button data-act="savePrompts">학습 활동 저장</button><button data-act="checkPublication" data-c="${E(c.id)}">게시 가능 여부 확인</button><button data-parent-publish="publish" data-c="${E(c.id)}">승인 자료 서버 게시 (테스트)</button></div><p class="note" id="cqPublicationStatus" role="status">테스트 서버 SQL 적용 후에만 게시할 수 있습니다. 실제 학생 화면 검증은 별도입니다.</p>`}
-function draftUI(){return `<div class="card"><h3>AI 초안 검토</h3><p>문제 ${draft.questions.length}개 · 단어 ${draft.vocabulary.length}개</p>${draft.questions.map((q,i)=>`<div class="question"><label>문제 ${i+1}<textarea data-draftq="${i}">${E(q.text)}</textarea></label><small>${E(q.kind)}</small></div>`).join('')}<button class="primary" data-act="approve">검토 완료 · 학생에게 공개</button><button data-act="cancelDraft">초안 취소</button></div>`}
+function editorUI(c){return `<div class="card" style="background:#f8faff"><h3>${E(c.title)} · 학습 자료 편집</h3><label>AI 문제 생성용 텍스트 (PDF 읽기 화면과 별개 · 붙여넣기)<textarea id="sourceText" style="min-height:180px">${E(c.source||'')}</textarea></label><div class="row"><input type="file" id="cqOriginalPDF" accept="application/pdf,.pdf,text/plain,.txt"><button data-act="savePDF">원본 PDF/TXT 등록</button></div><p class="muted">학생 읽기용 원본 PDF/TXT: ${c.pdfStored?'이 기기에 등록됨':'미등록'} · PDF 파일은 이 기기의 IndexedDB에 별도 저장됩니다. 기기 저장공간 정리 시 삭제될 수 있습니다. 다른 기기에서는 다시 등록해야 합니다. 일반 JSON 백업에는 원본 PDF/TXT 파일이 포함되지 않습니다.</p><div class="row"><button data-act="saveSource">AI용 텍스트 저장</button></div><p class="muted">문제 생성용 텍스트를 위 입력란에 붙여넣으세요. 원본 파일이 등록되어야 학생이 챕터를 시작할 수 있습니다. TXT를 등록하면 AI용 텍스트도 함께 준비됩니다.</p><p class="muted">문제 생성은 부모 Supabase 로그인 후 사용할 수 있습니다.</p><input id="accessCode" type="hidden" value=""><div class="row"><button class="primary" data-act="generate">✨ AI 문제 초안 생성</button><button data-act="manualQuestion">+ 문제 직접 추가</button></div><p class="mutedline">AI 생성은 HTTPS 배포된 서버의 /api/generate가 필요합니다. 로컬 HTML 파일에서는 동작하지 않을 수 있습니다.</p>${draft&&draft.chapterId===c.id?draftUI():''}<h3>로컬 문제 (${c.questions.length})</h3><button data-act="approveManual" ${c.questions.length?'':'disabled'}>✓ 현재 문제 부모 승인</button><p class="muted">${c.approvalReceipt?'로컬 승인 기록 있음 · 수정 시 승인 무효화':'승인 기록 없음 · 서버 게시 불가'}</p>${c.questions.map((q,i)=>`<p>${i+1}. ${E(q.text)}</p>`).join('')||'<p>아직 승인된 문제가 없습니다.</p>'}<label>독후감 질문<textarea id="writingPrompt">${E(c.writingPrompt||'')}</textarea></label><label>말하기 질문<textarea id="speakingPrompt">${E(c.speakingPrompt||'')}</textarea></label><button data-act="savePrompts">학습 활동 저장</button><button data-act="checkPublication" data-c="${E(c.id)}">게시 가능 여부 확인</button><button data-parent-publish="publish" data-c="${E(c.id)}">승인 자료 서버 게시 (테스트)</button></div><p class="note" id="cqPublicationStatus" role="status">부모 계정 로그인 후 검증된 원본 PDF와 게시 대상 학생을 선택하세요.</p>`}
+function draftUI(){return `<div class="card"><h3>AI 초안 검토</h3><p>정답·모범 답안・단어・활동을 확인한 뒤 승인하세요. 서버 게시는 별도입니다.</p>${draft.questions.map((q,i)=>`<div class="question"><label>문제 ${i+1}<textarea data-draftq="${i}">${E(q.text)}</textarea></label><small>${E(q.kind)}</small>${q.kind==='mc'?`<ol>${q.options.map((o,j)=>`<li>${E(o)}${j===q.correct?' ✓ 정답':''}</li>`).join('')}</ol>`:`<p>모범 답안: ${E(q.sample||'')}</p>`}</div>`).join('')}<h4>핵심 단어</h4><ul>${draft.vocabulary.map(v=>`<li>${E(v.word)} · ${E(v.meaning)} · ${E(v.example||'')}</li>`).join('')}</ul><h4>독후감 질문</h4><p>${E(draft.writingPrompt)}</p><h4>말하기 질문</h4><p>${E(draft.speakingPrompt)}</p><button class="primary" data-act="approve">검토 완료 · 학생에게 공개</button><button data-act="cancelDraft">초안 취소</button></div>`}
 async function extractFile(file){if(!file)return;try{let text='';if(file.name.toLowerCase().endsWith('.pdf')){if(!window.pdfjsLib)throw Error('PDF 읽기 라이브러리를 불러오지 못했습니다. TXT로 변환해 등록하세요.');const pdf=await pdfjsLib.getDocument({isEvalSupported:false,data:await file.arrayBuffer()}).promise;for(let i=1;i<=pdf.numPages;i++){let pg=await pdf.getPage(i),tc=await pg.getTextContent();text+=tc.items.map(x=>x.str).join(' ')+'\n'}}else{text=await file.text()}$('#sourceText').value=text;setStatus('AI 문제용 텍스트 '+text.length+'자 추출. 텍스트 저장을 눌러주세요.')}catch(e){alert(e.message)}}
 function download(name,content,type='application/json'){const blob=content instanceof Blob?content:new Blob([content],{type});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),10000)}
 
@@ -375,7 +375,7 @@ if(a==='savePDF'){
 }
 if(a==='saveSource'){let c=chapter();if(c.source!==$('#sourceText').value){invalidateApproval(c);c.source=$('#sourceText').value;}save();setStatus('AI 문제 생성용 텍스트 저장 완료')}
 if(a==='savePrompts'){let c=chapter(),w=$('#writingPrompt').value,sp=$('#speakingPrompt').value;if(c.writingPrompt!==w||c.speakingPrompt!==sp)invalidateApproval(c);c.writingPrompt=w;c.speakingPrompt=sp;save();setStatus('학습 활동 저장 완료')}
-if(a==='generate'){let c=chapter(),source=$('#sourceText').value.trim();if(source.length<250)return alert('원문 텍스트 250자 이상이 필요합니다.');if(c.source!==source){invalidateApproval(c);c.source=source;}state.code=$('#accessCode').value.trim();draft=null;btn.disabled=true;setStatus('AI 문제를 생성하는 중입니다...');try{const authHeaders=await window.CQParentAI.authorization();const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders},body:JSON.stringify({title:book().title,chapter:c.title,source:source.slice(0,45000)})});const data=await response.json();if(!response.ok)throw Error(data.error||'AI 서버 오류 '+response.status);if(!Array.isArray(data.questions)||!Array.isArray(data.vocabulary))throw Error('AI 응답 형식이 올바르지 않습니다.');draft={chapterId:c.id,questions:data.questions.map(q=>({kind:q.kind||'inference',text:q.text||q.q||'',options:q.options||q.opts||[],correct:Number(q.correct??q.a??0),sample:q.sample||q.answer||''})),vocabulary:data.vocabulary.map(v=>Array.isArray(v)?{word:v[0],meaning:v[1],example:v[2]||''}:v),writingPrompt:data.writingPrompt||data.writing?.prompt||'',speakingPrompt:(Array.isArray(data.speakingPrompts)?data.speakingPrompts.join('\n'):data.speakingPrompt||data.speaking?.prompt||'')};const issue=cqValidateAIDraft(draft);if(issue){draft=null;throw Error('AI 응답 검증 실패: '+issue)}render();setStatus('AI 초안 생성 완료. 검토 후 승인하세요.')}catch(e){alert('AI 생성 실패: '+e.message);setStatus('AI 생성 실패')}finally{btn.disabled=false}}
+if(a==='generate'){let c=chapter(),source=$('#sourceText').value.trim();const expectedBook=book(),expectedChapter=c,expectedParent=window.CQParentAI?.identity?.();if(source.length<250)return alert('원문 텍스트 250자 이상이 필요합니다.');if(c.source!==source){invalidateApproval(c);c.source=source;}state.code=$('#accessCode').value.trim();draft=null;btn.disabled=true;setStatus('AI 문제를 생성하는 중입니다...');try{const authHeaders=await window.CQParentAI.authorization();const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json',...authHeaders},body:JSON.stringify({title:book().title,chapter:c.title,source:source.slice(0,45000)})});const data=await response.json();if(chapter()!==expectedChapter||book()!==expectedBook||mode!=='parent'||!parentUnlocked||window.CQParentAI?.identity?.()!==expectedParent||$('#sourceText')?.value.trim()!==source)throw Error('생성 중 계정 또는 자료가 변경되었습니다. 현재 자료에서 다시 생성하세요.');if(!response.ok)throw Error(data.error||'AI 서버 오류 '+response.status);if(!Array.isArray(data.questions)||!Array.isArray(data.vocabulary))throw Error('AI 응답 형식이 올바르지 않습니다.');draft={chapterId:c.id,questions:data.questions.map(q=>({kind:q.kind||'inference',text:q.text||q.q||'',options:q.options||q.opts||[],correct:Number(q.correct??q.a??0),sample:q.sample||q.answer||''})),vocabulary:data.vocabulary.map(v=>Array.isArray(v)?{word:v[0],meaning:v[1],example:v[2]||''}:v),writingPrompt:data.writingPrompt||data.writing?.prompt||'',speakingPrompt:(Array.isArray(data.speakingPrompts)?data.speakingPrompts.join('\n'):data.speakingPrompt||data.speaking?.prompt||'')};const issue=cqValidateAIDraft(draft);if(issue){draft=null;throw Error('AI 응답 검증 실패: '+issue)}render();setStatus('AI 초안 생성 완료. 검토 후 승인하세요.')}catch(e){alert('AI 생성 실패: '+e.message);setStatus('AI 생성 실패')}finally{btn.disabled=false}}
 if(a==='approve'){if(!draft)return;let c=chapter();if(!c||draft.chapterId!==c.id)return alert('AI 초안과 현재 챕터가 다릅니다. 다시 생성해 주세요.');const issue=cqValidateAIDraft(draft);if(issue)return alert(issue);c.questions=draft.questions;c.vocabulary=draft.vocabulary;c.writingPrompt=draft.writingPrompt||c.writingPrompt;c.speakingPrompt=draft.speakingPrompt||c.speakingPrompt;invalidateApproval(c);c.approvalReceipt={version:1,sha256:await approvalDigest(c),approvedAt:new Date().toISOString(),scope:'local-only'};draft=null;save();render();alert('이 기기의 학생 화면에 문제가 공개되었습니다. 다른 기기·서버 동기화는 별도 검증이 필요합니다.')}
 if(a==='checkPublication'){
  const c=chapter(),currentBook=selectedBook,currentChapter=selectedChapter;
@@ -402,7 +402,7 @@ if(a==='approveManual'){
  c.approvalReceipt={version:1,sha256:hash,approvedAt:new Date().toISOString(),scope:'local-only'};
  save();render();alert('현재 문제의 부모 승인이 완료됐습니다. 서버 게시 및 다른 기기 동기화는 별도입니다.');
 }
-if(a==='manualQuestion'){let text=prompt('문제 내용을 입력하세요.');if(!text)return;let c=chapter();invalidateApproval(c);c.questions.push({kind:'inference',text,sample:''});save();render()}
+if(a==='manualQuestion'){let text=prompt('문제 내용을 입력하세요.');if(!text?.trim())return;let sample=prompt('부모 검토용 모범 답안을 입력하세요. 학생에게는 공개되지 않습니다.');if(!sample?.trim())return;let c=chapter();invalidateApproval(c);c.questions.push({kind:'inference',text:text.trim(),sample:sample.trim()});save();render()}
 if(a==='assign'){let d=btn.dataset.day,v=$('#week-'+d).value;state.weekly[weekKey()]??={};state.weekly[weekKey()][state.who]??={};if(v){let [bookId,chapterId]=v.split('|');state.weekly[weekKey()][state.who][d]={bookId,chapterId}}else delete state.weekly[weekKey()][state.who][d];save();render()}
 if(a==='backup')download('chapter-quest-backup-'+new Date().toISOString().slice(0,10)+'.json',JSON.stringify({format:'chapter-quest-v4',state:{...state,code:''}},null,2));
 if(a==='restore')$('#restoreInput').click();
@@ -586,7 +586,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
    })();
    try{await refreshPromise}finally{refreshPromise=null}
  }
- const panel=()=>`<section class="card" id="cloudPanel"><h2>☁️ 부모 클라우드 백업 (선택)</h2><p class="note" id="stage131Mode">저장 방식: 로컬 학습 + 부모 클라우드 백업(선택). 로그인 후 백업/복원은 130차 저장소 어댑터를 경유합니다. 학생 학습 화면은 여전히 로컬 모드이며 서버 권한 검증은 미완료입니다.</p><p class="muted">Supabase 로그인 후 명시적으로 저장·복원합니다. 자동 동기화는 로그인 후 선택적으로 활성화할 수 있습니다. 다른 기기와의 실시간 병합은 지원하지 않습니다.</p>
+ const panel=()=>`<section class="card" id="cloudPanel"><h2>☁️ 부모 클라우드 백업 (선택)</h2><p class="note" id="stage131Mode">기기에서 준비한 학습 자료를 부모 계정에 백업할 수 있습니다. 다른 기기의 학생에게 자료를 보내려면 PDF 등록과 승인 자료 서버 게시를 진행하세요.</p><p class="muted">Supabase 로그인 후 명시적으로 저장·복원합니다. 자동 동기화는 로그인 후 선택적으로 활성화할 수 있습니다. 다른 기기와의 실시간 병합은 지원하지 않습니다.</p>
  <div class="grid"><label>프로젝트 URL<input class="wide" id="cloudUrl" placeholder="https://xxxx.supabase.co" value="${escapeHtml(project?.url||'')}"></label><label>공개 키 (anon/publishable)<input class="wide" id="cloudKey" value="${escapeHtml(project?.anonKey||'')}"></label></div>
  <div class="row"><button data-cloud="project">프로젝트 설정 저장</button><span class="muted">service_role 비밀키는 절대 입력하지 마세요.</span></div>
  <div class="grid"><label>부모 이메일<input class="wide" id="cloudEmail" type="email" autocomplete="email"></label><label>비밀번호<input class="wide" id="cloudPassword" type="password" autocomplete="current-password"></label></div>
@@ -600,7 +600,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
  const publicationChildrenPanel=()=>`<section class="card"><h2>📤 서버 게시 대상 학생</h2><p class="muted">게시할 학생과 서버에서 검증된 PDF 챕터를 각각 선택하세요. 로컬 챕터와 서버 PDF는 자동으로 동일하다고 간주하지 않습니다.</p><label>서버 PDF 챕터<select id="cqPublishVerifiedPdf"><option value="">검증된 서버 PDF 챕터 선택 (필수)</option>${pdfServerChapters.filter(x=>x.ready).map(x=>`<option value="${escapeHtml(x.uuid)}">${escapeHtml(x.title)} · ${escapeHtml(x.uuid)}</option>`).join('')}</select></label>${pendingChildren.filter(c=>c.active).map(c=>`<label><input type="checkbox" data-publish-child="${escapeHtml(c.child_user_id)}"> ${escapeHtml(c.student_name||c.child_user_id)}</label>`).join('')||'<p>활성 연결 학생 목록을 먼저 불러오세요.</p>'}</section>`;
  let pdfServerChapters=[],pdfServerStudents=[],pdfServerAssignments=[];
  const pdfParentStatus=message=>{const el=document.getElementById('cqPdfParentStatus');if(el)el.textContent=message};
- const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정 (개발 검증용)</h2><p class="note">Supabase 서버 기능이 배포된 후에만 작동합니다. 기기 데모의 책·챕터와 자동으로 연결되지 않습니다. PDF는 비공개 저장소에 업로드하며 AI용 텍스트는 별도 관리합니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><label>챕터 제목 <input id="cqPdfChapterTitle" placeholder="예: Chapter 1" maxlength="200"></label><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF 등록·검증</button></div><p class="muted">최대 50MB · PDF 파일만 가능. 업로드·서버 검증이 끝나야 배정할 수 있습니다.</p>${session&&pdfServerStudents.length===0?'<p class="note">등록된 서버 학생 연결이 없습니다. 기존 초대·승인 기록과 PDF 전용 학생 연결은 아직 통합되지 않았습니다. 서버 학생 연결을 검증하기 전에는 배정할 수 없습니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'PDF 검증 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row"><select data-pdf-student="${i}"><option value="">학생 선택</option>${pdfServerStudents.map(x=>`<option value="${escapeHtml(x.student_user_id)}">서버 학생 ID: ${escapeHtml(x.student_user_id)}</option>`).join('')}</select><button data-pdf-parent="assign" data-index="${i}" ${c.ready&&session&&pdfServerStudents.length?'':'disabled'}>학생 배정</button><button data-pdf-parent="unassign" data-index="${i}" ${session?'':'disabled'}>배정 취소</button>${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
+ const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정</h2><p class="note">Supabase 서버 기능이 배포된 후에만 작동합니다. 기기 데모의 책·챕터와 자동으로 연결되지 않습니다. PDF는 비공개 저장소에 업로드하며 AI용 텍스트는 별도 관리합니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><label>챕터 제목 <input id="cqPdfChapterTitle" placeholder="예: Chapter 1" maxlength="200"></label><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF 등록·검증</button></div><p class="muted">최대 50MB · PDF 파일만 가능. 업로드·서버 검증이 끝나야 배정할 수 있습니다.</p>${session&&pdfServerStudents.length===0?'<p class="note">등록된 서버 학생 연결이 없습니다. 학생이 초대코드로 연결을 요청한 뒤 부모가 승인하면 목록에 표시됩니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'PDF 검증 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row"><select data-pdf-student="${i}"><option value="">학생 선택</option>${pdfServerStudents.map(x=>`<option value="${escapeHtml(x.student_user_id)}">서버 학생 ID: ${escapeHtml(x.student_user_id)}</option>`).join('')}</select><button data-pdf-parent="assign" data-index="${i}" ${c.ready&&session&&pdfServerStudents.length?'':'disabled'}>학생 배정</button><button data-pdf-parent="unassign" data-index="${i}" ${session?'':'disabled'}>배정 취소</button>${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
  async function pdfParentCall(action,args){
    if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('부모 계정으로 로그인해야 합니다.');
    await refreshIfNeeded();
@@ -617,7 +617,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
    pdfServerChapters=chapters.chapters.filter(c=>/^[0-9a-f-]{36}$/i.test(String(c.chapter_uuid||''))).map(c=>({title:String(c.title||''),uuid:String(c.chapter_uuid||''),ready:c.pdf_ready===true}));
    pdfServerStudents=students.students.map(s=>({student_user_id:String(s.student_user_id||'')})).filter(s=>/^[0-9a-f-]{36}$/i.test(s.student_user_id));
    pdfServerAssignments=assignments.assignments.filter(a=>/^[0-9a-f-]{36}$/i.test(a.chapter_uuid||'')&&/^[0-9a-f-]{36}$/i.test(a.student_user_id||''));
-   render();pdfParentStatus('서버 목록을 다시 불러왔습니다. 학생 목록은 PDF 전용 연결 기준입니다.');
+   render();pdfParentStatus('서버 목록을 다시 불러왔습니다. 승인된 학생과 PDF 목록을 확인했습니다.');
  }
  let pdfParentBusy=false;
  document.addEventListener('click',async event=>{
@@ -903,7 +903,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
 
  // Capture account identity before async writes; never apply a late response to a new login.
  const cloudIdentity=()=>session&&project?project.url+'|'+session.uid+'|'+sessionGeneration:null;
- window.CQParentAI=Object.freeze({authorization:async()=>{
+ window.CQParentAI=Object.freeze({identity:cloudIdentity,authorization:async()=>{
    if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('문제 생성 전에 부모 Supabase 계정으로 로그인하세요.');
    const owner=cloudIdentity();await refreshIfNeeded();
    if(cloudIdentity()!==owner||!session?.token)throw Error('로그인 상태가 변경되었습니다. 다시 시도하세요.');
@@ -1101,7 +1101,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    try{
      const project=window.CQProject.read();
      if(!project?.url||!project?.anonKey)throw Error('Supabase 프로젝트 설정이 없습니다.');
-     const transport=window.CQServerPDF.createPdfTransport({url:project.url,anonKey:project.anonKey,getAccessToken:()=>session?.uid===uid?session.token:null});
+     const transport=window.CQServerPDF.createPdfTransport({url:project.url,anonKey:project.anonKey,getAccessToken:()=>session?.uid===uid?childAccessToken():null});
      const bytes=await transport.getPdf(chapterUuid,{signal:controller.signal});
      if(!current())return;
      const blob=new Blob([bytes],{type:'application/pdf'});
@@ -1138,8 +1138,14 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
        draw().catch(e=>{if(current())target.querySelector('[data-server-pdf="count"]').textContent='표시 오류: '+e.message;});
      });
      await draw();
-     // Deliberately leave final submission disabled until backend RLS and assignment tests pass.
-     if(current())target.insertAdjacentHTML('beforeend','<p class="muted">PDF 열람은 연결되었습니다. 서버 권한 및 제출 연동 검증 전까지 최종 제출은 잠겨 있습니다.</p>');
+     if(current()){
+       const form=document.getElementById('cqChildWork');
+       form.dataset.pdfVerified='true';
+       const read=form.elements.namedItem('readComplete');read.disabled=false;
+       read.parentElement.lastChild.textContent=' 원문 읽기 완료';
+       const submit=form.querySelector('[type="submit"]');submit.disabled=false;submit.textContent='최종 제출';submit.title='모든 활동을 마친 뒤 제출하세요.';
+       target.insertAdjacentHTML('beforeend','<p class="muted">원본 PDF 연결 완료. 읽기와 모든 활동을 마친 뒤 제출하세요.</p>');
+     }
    }catch(error){if(current())target.textContent='원본 PDF를 불러오지 못했습니다: '+error.message;}
  }
  const childContext=()=>({uid:session?.uid,generation:childGeneration});
@@ -1260,6 +1266,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
  const confirmVoiceDeparture=()=>!hasAtRiskVoice()||window.confirm('아직 기기에 안전하게 저장되지 않은 녹음이 있습니다. 이동하면 녹음이 사라질 수 있습니다. 계속하시겠습니까?');
  window.addEventListener('beforeunload',event=>{if(!hasAtRiskVoice())return;event.preventDefault();event.returnValue='';});
  function invalidateVoiceForNavigation(){
+   clearVoicePreview();
    childGeneration++;discardUnsavedVoice();
    if(voiceRecorder?.state==='recording')voiceRecorder.stop();
    voiceBlob=null;voiceChapter=null;
@@ -1301,7 +1308,16 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    }catch(err){if(session?.uid===uid&&childGeneration===generation)voiceNotice('복구 파일 저장 실패: '+err.message+' · 원본 파일을 기기에 보관하세요.');}
    finally{finishVoiceSave();}
  }
- const voiceNotice=(message)=>{const n=document.getElementById('cqVoiceStatus');if(n)n.textContent=message;};
+ let voicePreviewUrl=null,voicePreviewBlob=null;
+ function clearVoicePreview(){if(voicePreviewUrl)URL.revokeObjectURL(voicePreviewUrl);voicePreviewUrl=null;voicePreviewBlob=null;}
+ function previewVoice(){
+  const target=document.getElementById('cqVoicePlayback');
+  if(!target||!voiceBlob||!session||document.getElementById('cqChildWork')?.dataset.uuid!==voiceChapter)return;
+  if(voicePreviewBlob===voiceBlob&&target.querySelector('audio'))return;
+  clearVoicePreview();voicePreviewBlob=voiceBlob;voicePreviewUrl=URL.createObjectURL(voiceBlob);
+  const audio=document.createElement('audio');audio.controls=true;audio.src=voicePreviewUrl;audio.setAttribute('aria-label','제출 전 녹음 확인');target.replaceChildren(audio);
+ }
+ const voiceNotice=(message)=>{const n=document.getElementById('cqVoiceStatus');if(n)n.textContent=message;previewVoice();};
  const cleanupQueue=CQAudioCleanupQueue.createCleanupQueue({
    storage:localStorage,
    verifySubmission:async(uid,uuid)=>{
@@ -1347,16 +1363,33 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
  const escape=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  function draw(){
   const root=el('cqChildAccount');if(!root)return;
-  root.innerHTML=`<section class="card"><h2>🔐 학생 계정 연결 (시험 기능)</h2>
-   <p class="muted">부모 계정과 별도의 학생 Supabase 계정으로 승인된 챕터만 조회합니다. 이 영역의 학습 기록은 기존 로컬 학습 화면과 아직 연결되지 않습니다.</p>
+  root.innerHTML=`<section class="card"><h2>🔐 학생 계정 로그인</h2>
+   <p class="muted">학생 본인의 계정으로 로그인하세요. 부모가 승인하고 배정한 챕터를 학습할 수 있습니다. 기기 데모 기록은 별도로 보관됩니다.</p>
    ${session?`<p>학생 계정 로그인됨</p><div class="row"><input id="cqChildInvite" placeholder="부모 초대코드 (48자리)" autocomplete="off" style="flex:1"><input id="cqChildInviteName" placeholder="학생 이름" style="max-width:130px"><button data-child="claim">연결 요청</button></div><button data-child="list">내 배정 챕터 불러오기</button><button data-child="logout">로그아웃</button>
-    <div>${chapters.map(c=>`<div class="book"><b>${escape(c.chapter_title)}</b><p>${escape(c.book_id)} · ${escape(c.chapter_id)}</p><button data-child="view" data-uuid="${escape(c.chapter_uuid)}">원문·문제 보기</button></div>`).join('')}</div><div id="cqChildDetail"></div>`:
+    <div>${chapters.map(c=>`<div class="book"><b>${escape(c.chapter_title)}</b><button data-child="view" data-uuid="${escape(c.chapter_uuid)}">원문·문제 보기</button></div>`).join('')}</div><div id="cqChildDetail"></div>`:
     `<div class="grid"><label>학생 이메일<input id="cqChildEmail" type="email" autocomplete="username"></label><label>학생 비밀번호<input id="cqChildPassword" type="password" autocomplete="current-password"></label></div><button data-child="login">학생 계정 로그인</button>`}
    <p id="cqChildStatus" class="status"></p></section>`;
  }
  const status=t=>{if(el('cqChildStatus'))el('cqChildStatus').textContent=t};
  const originalRender=render;
  render=function(){originalRender();if(mode==='student'){el('app')?.insertAdjacentHTML('afterbegin','<div id="cqChildAccount"></div>');draw()}};
+ let childRefreshPromise=null;
+ async function childAccessToken(){
+  if(!session)throw Error('학생 계정으로 다시 로그인하세요.');
+  if(Date.now()<session.expiresAt-60000)return session.token;
+  if(childRefreshPromise)return childRefreshPromise;
+  const owner=session,generation=childGeneration,project=window.CQProject.read();
+  const pending=(async()=>{
+   if(!owner.refreshToken)throw Error('학생 로그인이 만료되었습니다. 다시 로그인하세요. 임시 답변은 보존됩니다.');
+   const response=await fetch(project.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:owner.refreshToken})});
+   const data=await response.json();
+   if(session!==owner||generation!==childGeneration)throw Error('학생 계정이 변경되었습니다.');
+   if(!response.ok||!data.access_token||!data.refresh_token)throw Error('학생 로그인 갱신에 실패했습니다. 다시 로그인하세요. 임시 답변은 보존됩니다.');
+   owner.token=data.access_token;owner.refreshToken=data.refresh_token;owner.expiresAt=Date.now()+(data.expires_in||3600)*1000;
+   return owner.token;
+  })();childRefreshPromise=pending;
+  try{return await pending}finally{if(childRefreshPromise===pending)childRefreshPromise=null}
+ }
  async function login(){
   const project=window.CQProject.read();
   if(!project?.url||!project?.anonKey)throw Error('부모 관리자에서 Supabase 프로젝트 공개 설정을 먼저 저장해야 합니다.');
@@ -1366,15 +1399,15 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
   if(!response.ok)throw Error('학생 로그인 실패 ('+response.status+')');
   const data=await response.json();if(!data.access_token||!data.user?.id)throw Error('인증 정보가 없습니다.');
-  childGeneration++;cancelChildUpload();session={token:data.access_token,uid:data.user.id};
-  childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:()=>session?.token});
+  childGeneration++;childRefreshPromise=null;cancelChildUpload();session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
+  childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:childAccessToken});
   chapters=[];draw();status('로그인 성공 · 계정 인증과 실제 학생 권한은 서버 정책으로 확인됩니다.');
  }
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-child]');if(!b||mode!=='student')return;
   if(b.dataset.child==='logout'){
     if(!confirmVoiceDeparture())return;
-    invalidateVoiceForNavigation();cancelChildUpload();uploadedAudio.clear();session=null;childApi=null;chapters=[];
+    invalidateVoiceForNavigation();cancelChildUpload();uploadedAudio.clear();session=null;childRefreshPromise=null;childApi=null;chapters=[];
     draw();status('로그아웃했습니다. 진행 중인 녹음 업로드는 취소를 요청했습니다.');return;
   }
   if(busy)return;
@@ -1382,13 +1415,14 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
   let viewContext=null;
   try{
    if(b.dataset.child==='login')await login();
+   else if(session)await childAccessToken();
    if(b.dataset.child==='claim'){
      if(!session)throw Error('학생 로그인 후 요청하세요.');
      const code=el('cqChildInvite')?.value.trim(),name=el('cqChildInviteName')?.value.trim();
      if(!/^[0-9a-f]{48}$/.test(code||''))throw Error('초대코드 형식을 확인하세요.');
      if(!name||name.length>80)throw Error('학생 이름을 입력하세요.');
      const project=window.CQProject.read();
-     const ok=await CQInvitationAPI.claim({url:project?.url,anonKey:project?.anonKey,getAccessToken:()=>session.token},code,name);
+     const ok=await CQInvitationAPI.claim({url:project?.url,anonKey:project?.anonKey,getAccessToken:childAccessToken},code,name);
      if(!ok)throw Error('초대코드가 만료됐거나 이미 사용됐습니다.');
      draw();status('연결 요청 완료. 부모 승인을 기다리세요.');
    }
@@ -1495,7 +1529,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
     const vocabulary=Array.isArray(activity.vocabulary)?activity.vocabulary:[];
     const vocabularyHtml=vocabulary.map(v=>`<li><strong>${escape(v.word||'')}</strong> — ${escape(v.meaning||'')} ${v.example?`<small>${escape(v.example)}</small>`:''}</li>`).join('');
     const activityHtml=`<section><h4>핵심 단어</h4><ul>${vocabularyHtml||'<li>등록된 단어가 없습니다.</li>'}</ul><h4>영어 독후감 질문</h4><p>${escape(activity.writing_prompt||'')}</p><h4>말하기 질문</h4><p>${escape(activity.speaking_prompt||'')}</p></section>`;
-    const form=`${pending?'<p class="muted">이전에 업로드된 녹음이 있습니다. 최종 제출 시 서버에서 파일을 확인합니다. 임시저장된 답변이 있다면 자동으로 복원됩니다.</p>':''}<form id="cqChildWork" data-uuid="${escape(c.chapter_uuid)}"><div id="cqServerPdfViewer" class="card" role="region" aria-label="원본 PDF 읽기">원본 PDF 접근 권한을 확인하는 중입니다...</div><div class="note" role="status">서버 PDF 읽기 연결을 시험합니다. AI용 추출 텍스트는 읽기 화면에 표시하지 않습니다. 서버 접근 권한 검증이 완료되기 전에는 제출할 수 없습니다.</div>${activityHtml}<label><input type="checkbox" name="readComplete" required disabled> 원문 PDF 연결 대기</label>${questionFields}<label>영어 독후감<textarea name="essay" rows="5" required></textarea></label><label>말하기 대본<textarea name="speaking" rows="3" required></textarea></label><div class="row"><button type="button" data-child="voice-start">● 녹음 시작</button><button type="button" data-child="voice-stop">■ 녹음 종료</button><button type="button" data-child="voice-retry">↻ 녹음 저장 재시도</button><button type="button" data-child="voice-download">↓ 미저장 녹음 백업</button><button type="button" data-child="voice-import">↑ 녹음 백업 복원</button><input id="cqVoiceManifestImport" type="file" accept=".json,.cqvoice.json,application/json" hidden><input id="cqVoiceImport" type="file" accept="audio/webm,audio/mp4,audio/ogg" hidden></div><p class="muted" id="cqVoiceStatus">말하기 녹음은 필수입니다. 녹음 완료 후 이 기기의 IndexedDB에 원본을 저장합니다. 저장에 실패하면 제출할 수 없으며, 최종 제출 시 서버 업로드를 시도합니다. 업로드가 실패하면 제출되지 않습니다.</p><button type="submit" disabled title="서버 PDF 연결 및 접근 권한 검증 후 활성화">최종 제출 (PDF 연결 대기)</button></form>`;
+    const form=`${pending?'<p class="muted">이전에 업로드된 녹음이 있습니다. 최종 제출 시 서버에서 파일을 확인합니다. 임시저장된 답변이 있다면 자동으로 복원됩니다.</p>':''}<form id="cqChildWork" data-uuid="${escape(c.chapter_uuid)}"><div id="cqServerPdfViewer" class="card" role="region" aria-label="원본 PDF 읽기">원본 PDF 접근 권한을 확인하는 중입니다...</div><div class="note" role="status">원본 PDF를 읽고 문제·독후감·말하기를 완료하세요. PDF를 불러오지 못하면 제출할 수 없습니다.</div>${activityHtml}<label><input type="checkbox" name="readComplete" required disabled> 원문 PDF 연결 대기</label>${questionFields}<label>영어 독후감<textarea name="essay" rows="5" required></textarea></label><label>말하기 대본<textarea name="speaking" rows="3" required></textarea></label><div class="row"><button type="button" data-child="voice-start">● 녹음 시작</button><button type="button" data-child="voice-stop">■ 녹음 종료</button><button type="button" data-child="voice-retry">↻ 녹음 저장 재시도</button><button type="button" data-child="voice-download">↓ 미저장 녹음 백업</button><button type="button" data-child="voice-import">↑ 녹음 백업 복원</button><input id="cqVoiceManifestImport" type="file" accept=".json,.cqvoice.json,application/json" hidden><input id="cqVoiceImport" type="file" accept="audio/webm,audio/mp4,audio/ogg" hidden></div><div id="cqVoicePlayback"></div><p class="muted" id="cqVoiceStatus">말하기 녹음은 필수입니다. 녹음 완료 후 이 기기의 IndexedDB에 원본을 저장합니다. 저장에 실패하면 제출할 수 없으며, 최종 제출 시 서버 업로드를 시도합니다. 업로드가 실패하면 제출되지 않습니다.</p><button type="submit" disabled title="서버 PDF 연결 및 접근 권한 검증 후 활성화">최종 제출 (PDF 연결 대기)</button></form>`;
     const feedback=submitted?.feedback_released?`<h4>부모 피드백</h4><p>${escape(submitted.feedback||'')}</p>`:'<p>부모 피드백 검토 중입니다.</p>';
     detail.innerHTML=`<div class="book"><h3>${escape(c.chapter_title)}</h3>${submitted?`<p>제출 완료 · ${escape(submitted.submitted_at||'')}</p>${feedback}<button data-child="view" data-uuid="${escape(c.chapter_uuid)}">피드백 새로고침</button>`:form}</div>`;
     if(submitted){clearDraft(viewUid,c.chapter_uuid);clearRecovery(viewUid,c.chapter_uuid)}
@@ -1524,6 +1558,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    e.preventDefault();
    if(busy||mode!=='student'||!session||!childApi)return;
    const form=e.target,uuid=form.dataset.uuid;
+   if(form.dataset.pdfVerified!=='true'){status('원본 PDF 연결이 완료된 뒤 제출하세요.');return;}
    const chapter=chapters.find(c=>c.chapter_uuid===uuid);
    if(!chapter){status('배정되지 않은 챕터입니다.');return;}
    const questions=chapter.questions||[];
@@ -1546,6 +1581,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    // logout, or lost response must not discard a completed answer draft.
    try{writeDraft(session.uid,uuid,form)}
    catch(error){status('답변 임시저장 실패로 제출을 중단했습니다: '+error.message);return;}
+   try{await childAccessToken()}catch(error){status(error.message);return;}
    const context=childContext();
    const submitController=new AbortController();activeChildSubmit=submitController;
    busy=true;const button=form.querySelector('[type="submit"]');if(button)button.disabled=true;
@@ -1660,7 +1696,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
   let current=initial;
   return Object.freeze({get:()=>current,set(next){if(!Object.values(MODES).includes(next))throw Error('Invalid student mode');current=next;return current},isServer:()=>current===MODES.SERVER});
  }
- function serverOnlyMarkup(){return '<section class="card" id="cqStage132ServerOnly"><h2>☁️ 학생 서버 학습</h2><p>이 모드에서는 로컬 데모 도서·답안·학생 선택기를 사용하지 않습니다. 위쪽 학생 계정 연결에서 별도 Supabase 학생 계정으로 로그인한 후 배정 챕터를 조회하고 제출하세요.</p><p class="muted">서버 연결 오류가 발생해도 로컬 데모 기록으로 자동 전환하지 않습니다. 학생별 접근 제어는 Supabase RLS/RPC 검증이 필요합니다.</p></section>'}
+ function serverOnlyMarkup(){return '<section class="card"><h3>학습 순서</h3><p>내 배정 챕터를 불러오고 원문을 읽은 뒤, 문제·독후감·말하기를 완료해 제출하세요. 제출한 답변은 수정할 수 없으며 부모가 공개한 피드백을 확인할 수 있습니다.</p></section>'}
  root.CQStudentMode132=Object.freeze({MODES,createMode,serverOnlyMarkup});
  if(typeof module!=='undefined')module.exports={MODES,createMode,serverOnlyMarkup};
 })(typeof window!=='undefined'?window:globalThis);
@@ -1685,7 +1721,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    switcher.innerHTML='<h2>학습 저장 방식</h2><div class="row"><button type="button" data-stage132="local-demo">기기 데모</button><button type="button" data-stage132="server">학생 서버 학습</button></div><p class="muted" id="cqStage132ModeStatus"></p>';
    panel.before(switcher);
    const s=switcher.querySelector('#cqStage132ModeStatus');
-   s.textContent=gate.isServer()?'서버 모드: 인증된 학생 계정과 서버 RPC만 사용합니다.':'기기 데모: 로컬 학습 기록이며 서버 동기화되지 않습니다.';
+   s.textContent=gate.isServer()?'학생 본인의 계정으로 배정된 챕터를 학습합니다.':'기기 데모: 로컬 학습 기록이며 서버 동기화되지 않습니다.';
    for(const b of switcher.querySelectorAll('[data-stage132]')){
      b.classList.toggle('active',b.dataset.stage132===gate.get());
    }

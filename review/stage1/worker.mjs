@@ -18,7 +18,7 @@ export function validateDraft(raw){
   if(kind==='mc'){
    if(!Array.isArray(q.options)||q.options.length<2||q.options.length>6||q.options.some(o=>!text(o,500))||!Number.isInteger(q.correct)||q.correct<0||q.correct>=q.options.length)throw new RequestError(502,'AI 객관식 문제 형식이 올바르지 않습니다.');
    item.options=q.options.map(o=>o.trim());item.correct=q.correct;
-  }else item.sample=text(q?.sample,2000)||'';
+  }else {item.sample=text(q?.sample,2000);if(!item.sample)throw new RequestError(502,'서술형 모범 답안이 누락되었습니다. 다시 생성하세요.');}
   return item;
  });
  const vocabulary=raw.vocabulary.map(v=>{const word=text(v?.word,100),meaning=text(v?.meaning,500);if(!word||!meaning)throw new RequestError(502,'AI 단어 형식이 올바르지 않습니다.');return {word,meaning,example:text(v.example,1000)||''};});
@@ -29,12 +29,15 @@ export async function generate(request,env,fetchImpl=fetch){
  const origin=request.headers.get('origin');if(origin&&origin!==new URL(request.url).origin)throw new RequestError(403,'다른 사이트에서의 요청은 허용하지 않습니다.');
  const url=String(env.SUPABASE_URL||'').replace(/\/$/,'');
  const ids=new Set(String(env.AI_PARENT_USER_IDS||'').split(',').map(x=>x.trim()).filter(x=>/^[0-9a-f-]{36}$/i.test(x)));
- if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)||!env.SUPABASE_PUBLISHABLE_KEY||!ids.size||!env.AI?.run)throw new RequestError(503,'AI 서버 연결이 아직 준비되지 않았습니다. 관리자 연결 검증 후 사용할 수 있습니다.');
+ if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)||!env.SUPABASE_PUBLISHABLE_KEY||!env.AI?.run)throw new RequestError(503,'AI 서버 연결이 아직 준비되지 않았습니다. 관리자 연결 검증 후 사용할 수 있습니다.');
  const authorization=request.headers.get('authorization')||'';
  if(!/^Bearer \S+$/.test(authorization))throw new RequestError(401,'부모 Supabase 계정으로 로그인하세요.');
  const authResponse=await fetchImpl(url+'/auth/v1/user',{headers:{apikey:env.SUPABASE_PUBLISHABLE_KEY,Authorization:authorization},signal:AbortSignal.timeout(10000)});
  if(!authResponse.ok)throw new RequestError(401,'부모 로그인이 만료되었습니다. 다시 로그인하세요.');
- const user=await authResponse.json();if(!ids.has(user?.id))throw new RequestError(403,'문제 생성 권한이 있는 부모 계정이 아닙니다.');
+ const user=await authResponse.json();if(!user?.id||(ids.size&&!ids.has(user.id)))throw new RequestError(403,'문제 생성 권한이 있는 부모 계정이 아닙니다.');
+ const roleResponse=await fetchImpl(url+'/rest/v1/rpc/cq_is_admin',{method:'POST',headers:{apikey:env.SUPABASE_PUBLISHABLE_KEY,Authorization:authorization,'Content-Type':'application/json'},body:'{}',signal:AbortSignal.timeout(10000)});
+ if(!roleResponse.ok)throw new RequestError(503,'부모 권한 확인에 실패했습니다. 잠시 후 다시 시도하세요.');
+ if(await roleResponse.json()!==true)throw new RequestError(403,'문제 생성 권한이 있는 부모 계정이 아닙니다.');
  const body=await bodyJson(request);
  if(typeof body.source!=='string'||body.source.trim().length<250||body.source.length>45000)throw new RequestError(400,'원문은 250~45,000자로 챕터별 등록하세요.');
  const title=typeof body.title==='string'?body.title.slice(0,200):'',chapter=typeof body.chapter==='string'?body.chapter.slice(0,200):'';
@@ -49,7 +52,7 @@ export async function generate(request,env,fetchImpl=fetch){
 }
 export default {async fetch(request,env){
  const path=new URL(request.url).pathname;
- if(path==='/api/health')return json({service:'chapter-quest-v4',aiConfigured:!!(env.AI?.run&&env.SUPABASE_URL&&env.SUPABASE_PUBLISHABLE_KEY&&env.AI_PARENT_USER_IDS)});
+ if(path==='/api/health')return json({service:'chapter-quest-v4',aiConfigured:!!(env.AI?.run&&env.SUPABASE_URL&&env.SUPABASE_PUBLISHABLE_KEY)});
  if(path==='/api/generate'){
   try{return json(await generate(request,env));}catch(error){return json({error:error instanceof RequestError?error.message:'AI 연결 오류입니다. 잠시 후 다시 시도하세요.'},error instanceof RequestError?error.status:502);}
  }

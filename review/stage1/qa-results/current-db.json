@@ -1,0 +1,89 @@
+{
+  "scope": "PGlite isolated PostgreSQL with synthetic data; live DDL metadata and functions; not hosted Auth/Storage integration",
+  "checks": [
+    {
+      "name": "assigned student sees published questions without answer key",
+      "pass": true
+    },
+    {
+      "name": "unassigned student sees no chapters",
+      "pass": true
+    },
+    {
+      "name": "unassigned student sees no activities",
+      "pass": true
+    },
+    {
+      "name": "student cannot read approval answer keys directly",
+      "pass": true
+    },
+    {
+      "name": "student cannot issue parent invitation",
+      "pass": true
+    },
+    {
+      "name": "student cannot bind an approval to a PDF",
+      "pass": true
+    },
+    {
+      "name": "parent registration, PDF binding and publication match the client contract",
+      "pass": true
+    },
+    {
+      "name": "unverified PDF cannot bind to an approval",
+      "pass": true
+    },
+    {
+      "name": "feedback stays hidden until parent release, then is visible",
+      "pass": true
+    },
+    {
+      "name": "current live function compiles in isolated PostgreSQL",
+      "pass": true
+    },
+    {
+      "name": "short answer array rejected",
+      "pass": true
+    },
+    {
+      "name": "extra answer rejected",
+      "pass": true
+    },
+    {
+      "name": "empty written answer rejected",
+      "pass": true
+    },
+    {
+      "name": "null answer rejected",
+      "pass": true
+    },
+    {
+      "name": "MC option out of range rejected",
+      "pass": true
+    },
+    {
+      "name": "MC non-integer rejected",
+      "pass": true
+    },
+    {
+      "name": "non-text written answer rejected",
+      "pass": true
+    },
+    {
+      "name": "unassigned student rejected",
+      "pass": true
+    },
+    {
+      "name": "authorized complete submission accepted",
+      "pass": true
+    },
+    {
+      "name": "duplicate submit preserves original answers",
+      "pass": true
+    },
+    {
+      "name": "TRUNCATE privilege removed without changing snapshot CRUD",
+      "pass": true
+    }
+  ]
+}

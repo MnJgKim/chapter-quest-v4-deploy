@@ -1,0 +1,12 @@
+{
+  "name": "chapter-quest-v4-launch",
+  "version": "4.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test worker.test.mjs",
+    "build": "wrangler deploy --dry-run --outdir .build",
+    "dev": "wrangler dev"
+  },
+  "devDependencies": { "wrangler": "4.159.0" }
+}
