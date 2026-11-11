@@ -118,6 +118,10 @@ try:
    passed('only a derived two-page PDF is registered and the complete server original remains byte-identical')
   pp.locator('#cqDraftImport').set_input_files(str(draft));expect(pp.locator('[data-act="approve"]')).to_be_visible();pp.locator('[data-act="approve"]').click();pp.locator('[data-publish-child]').check();pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(1);chapter_uuid=sp.locator('[data-child="view"]').get_attribute('data-uuid');context=api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['parent']['token']);assert context[0]['answer_key'][0]==0
+  if original_kind=='range':
+   try:api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':original_uuid},users['student']['token']);raise AssertionError('Range assignment exposed the complete original PDF')
+   except urllib.error.HTTPError as error:assert error.code==403,'The unassigned complete original must remain private'
+   passed('a student assigned the selected pages cannot request a download link for the complete original')
   try:api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student could read parent context')
   except urllib.error.HTTPError as error:assert error.code==403,'Expected local role denial 403, got '+str(error.code)+' '+error.read(400).decode(errors='replace')
   passed('real parent lesson context includes model answers and denies the student')
