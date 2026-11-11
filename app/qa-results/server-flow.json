@@ -22,6 +22,10 @@
       "pass": true
     },
     {
+      "name": "parent source storage failure blocks the AI request and never displays a successful save",
+      "pass": true
+    },
+    {
       "name": "failed AI generation retains the reviewed source and restores its action button",
       "pass": true
     },

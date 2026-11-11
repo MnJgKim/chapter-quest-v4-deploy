@@ -20,7 +20,7 @@
     "nodeChecks": 71,
     "isolatedDBChecks": 24,
     "localBrowserChecks": 34,
-    "mockedServerBrowserChecks": 50
+    "mockedServerBrowserChecks": 51
   },
   "cloudflare": {
     "readOnlyDeviceAttempts": 2,
