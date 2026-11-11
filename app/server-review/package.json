@@ -1,0 +1,12 @@
+{
+  "name": "cq-v4-server-review",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test edge-parent.test.mjs && node db-isolated.test.mjs",
+    "test:current-db": "node current-db.test.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.5.16"
+  }
+}

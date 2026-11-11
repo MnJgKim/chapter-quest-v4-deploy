@@ -1,0 +1,7 @@
+import test from 'node:test';import assert from 'node:assert/strict';import './public/state-model.js';
+const normalize=globalThis.CQState.normalize;
+test('missing state produces a usable library',()=>{const {state}=normalize(null);assert.equal(state.who,'서우');assert.deepEqual(state.books,[]);});
+test('malformed nested lists cannot crash rendering',()=>{const {state}=normalize({books:[{id:'b',chapters:[{id:'c',questions:null,vocabulary:[null]}]}],students:'broken',records:[]});assert.deepEqual(state.books[0].chapters[0].questions,[]);assert.deepEqual(state.books[0].chapters[0].vocabulary,[]);assert.deepEqual(state.records,{});});
+test('existing submissions and custom metadata survive repair',()=>{const input={books:[],students:[{name:'서우',active:true}],who:'서우',records:{a:{submitted:true,answers:{0:'A'},writing:'Original essay',speaking:'Original speaking',custom:'keep'}},weekly:{},focus:{},customRoot:{keep:true}};const result=normalize(input);assert.deepEqual(result.state.records,input.records);assert.deepEqual(result.state.customRoot,input.customRoot);assert.deepEqual(input.records.a.answers,{0:'A'});});
+test('invalid selected student falls back without mixing records',()=>{const {state}=normalize({books:[],students:[{name:'A',active:true}],who:'B',records:{'B::b::c':{answers:{0:'private'},writing:'B essay'}}});assert.equal(state.who,'A');assert.equal(state.records['B::b::c'].writing,'B essay');});
+test('access code is excluded from persisted state',()=>assert.equal(normalize({books:[],code:'private'}).state.code,''));

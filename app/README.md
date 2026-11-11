@@ -1,0 +1,47 @@
+# Chapter Quest V4 — integrated first-lesson candidate
+
+Target: 2026-11-23, Asia/Seoul. Production has not been deployed or modified. Paid resources are not authorized.
+
+## Structure
+
+The repository root contains the only Wrangler configuration and npm lockfile. Runtime code is in `app/worker.mjs` and `app/public/`. Browser behavior is split into classic scripts under `public/js/`; their order preserves the existing state, localStorage keys, IndexedDB databases and backup format. The original ZIP and Git history remain intact.
+
+The build copies the pinned PDF.js renderer/worker/license from the installed dependency into generated `public/vendor/` assets. No CDN is required in the student browser. Only `app/public/` is published as assets; server fixtures, local account credentials and review backups are outside it. Generated local credentials are ignored by Git.
+
+## Learning flow
+
+1. Parent unlocks the device screen and logs in. The server's `cq_is_admin()` result must be true. Switching accounts/logging out clears cached server submissions and PDF/student lists; late responses from an earlier identity are rejected.
+2. Parent registers a local book/chapter and PDF or UTF-8 TXT. PDF text can be extracted for AI source review. TXT retains its original local file and can be rendered into a PDF for the existing private PDF backend without changing the hosted schema. Registering the current chapter links the verified server PDF; its title includes the book name to distinguish chapters across books.
+3. Parent prepares questions/model answers manually, imports a validated JSON draft, or uses the authenticated AI route after Workers Free is verified. Review includes choices, answer keys, vocabulary and writing/speaking prompts. Parent approves, selects students and publishes activities with the verified PDF in one assignment path. The obsolete PDF-only assignment buttons are removed.
+4. New browser profiles open student account mode. Existing local libraries retain demo mode; an explicit mode choice persists across reloads. Separate student accounts claim invitations and wait for parent approval, then choose their assigned chapters.
+5. Student reads the original/converted PDF, reviews vocabulary with reveal/study controls and optional browser speech, answers comprehension/inference questions, writes in English and records speaking. Touch targets, jump navigation and a sticky final-submit bar are included. Malformed server question data produces an error rather than a blank form.
+6. Answer and vocabulary drafts autosave by student UUID and chapter UUID on that device. Reload requires login again; re-login/chapter selection restores the correct draft. Audio is durably saved before submission. Recording stop is a local action, so token refresh cannot prevent stopping it. Upload failure preserves drafts; a lost submit response is checked against the server before retrying.
+7. Final answers are immutable. The parent reads submitted answers/audio and explicitly releases feedback; the assigned student sees released feedback.
+
+Malformed existing browser state is copied to a recovery key before display repair. Existing submitted records/custom metadata are retained. If the recovery copy cannot be stored, normal saving is blocked instead of overwriting the original. A failed runtime asset shows a recovery screen rather than an empty page.
+
+## Verified locally
+
+- 36 Node checks: authenticated AI handling/free-plan lock, origin restrictions, state repair, asset existence and sanitized student question transport.
+- 21 isolated PostgreSQL checks using captured hosted function definitions.
+- 34 local-browser checks including PDF/TXT originals, PDF text extraction, question selection, audio, final submission, feedback, preservation, malformed state and failed-asset recovery.
+- 27 mocked-server browser checks: parent/child invitation, TXT-to-PDF signed upload, PDF binding/publication, vocabulary, touch input, 360/412/800/1280px active-learning layouts, refresh/login draft recovery, same-browser student separation, audio retry/lost-response recovery, parent cache clearing and authorization rejection.
+- 26 real lean-local Auth/PostgreSQL/PostgREST API checks and 6 independent real-local browser checks. In the lean setup, storage objects are SQL fixtures; it does not run Storage API/Edge services.
+- Five previously executed live anonymous denial checks. Hosted authenticated writes have not been used for testing.
+- Root deployment dry-run succeeds. Actual deployment has not run.
+
+Machine-readable results are in `qa-results/`. The new GitHub Actions workflow uses only a standard Linux runner on this public repository, has read-only repository permission, no production secrets and no deploy step. It attempts a complete ephemeral local Supabase stack and `local-supabase/full_browser_test.py` to verify real Auth/Storage/Edge/recording behavior. That suite is pending until an actual successful CI run; adding it is not evidence that it passed.
+
+## Free operation and remaining gates
+
+`AI_FREE_PLAN_CONFIRMED=false` keeps inference disabled until the correct Cloudflare account is verified as Workers Free. The manual/JSON lesson path makes no AI API call. Do not upgrade plans or enable paid inference. See `FREE_LESSON_PREPARATION.md` and `TEST_ENVIRONMENT_PLAN.md`.
+
+Before production readiness: confirm the full local Storage/Edge suite outcome; verify the intended Galaxy device and microphone; identify the actual first-lesson source/approved questions/student assignment; confirm the correct free Cloudflare account; inspect the immediately preceding deployment and obtain explicit user deployment approval. Viewport/touch emulation is not a physical Galaxy test. No synthetic fixtures may be written to production.
+
+## Rollback
+
+Capture the live Cloudflare deployment version/settings immediately before an approved release. If post-release checks fail, restore traffic to that captured version and verify the original page/login. Keep the same browser profile and retain JSON backups plus original PDF/TXT/audio files separately; JSON backup does not include those binary files. Do not clear IndexedDB/localStorage or delete server rows/objects during rollback.
+
+This frontend/Worker candidate does not propose a hosted schema or Edge Function replacement. Local Edge fixtures pin the SDK and use relative signed URLs so the local gateway is reachable from the browser; production's absolute signed URL response remains supported. The historical server repair/rollback files are retained as evidence and must not be applied as part of this release.
+
+Verified Git-history backups exist at `/workspace/chapter-quest-v4-before-changes.bundle` and `/workspace/chapter-quest-v4-before-integration.bundle`. They are source backups, not database backups.
