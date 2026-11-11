@@ -1,0 +1,31 @@
+{
+  "scope": "Chromium app with real loopback Auth/REST requests; synthetic local identities only; hosted, Edge, Storage API and AI are blocked/not tested",
+  "checks": [
+    {
+      "name": "parent app logs into real local Auth and reads RLS-protected snapshot",
+      "pass": true
+    },
+    {
+      "name": "parent browser reads actual submitted answers through PostgREST",
+      "pass": true
+    },
+    {
+      "name": "independent student browser sees only assigned chapter and real released feedback",
+      "pass": true
+    },
+    {
+      "name": "parent browser writes feedback and student independently reads persisted result",
+      "pass": true
+    },
+    {
+      "name": "third real authenticated browser cannot see another student chapter",
+      "pass": true
+    },
+    {
+      "name": "no runtime errors or hosted service requests",
+      "pass": true
+    }
+  ],
+  "page_errors": [],
+  "blocked_external_requests": []
+}

@@ -15,21 +15,27 @@ This continues `review/v4-launch-20261110` (commit `7a2af0e`), preserving its ex
 
 ## Current evidence
 
-- 28 local-browser checks: original PDF/TXT reading, questions, drafts, recording, submission lock, parent feedback, record preservation and mobile/tablet viewport widths.
+- 31 local-browser checks: original PDF/TXT reading, questions, drafts, recording, submission lock, parent feedback, record preservation and mobile/tablet viewport widths.
 - 16 separate parent/student browser integration checks with synthetic HTTP responses, an actual PDF renderer and a virtual microphone. Includes invitation/approval, signed upload/finalize, approval/binding/publication, token refresh, audio playback, failed upload, lost submit response recovery and feedback release.
 - 21 isolated PostgreSQL checks using the current hosted V4 function definitions: authorization, answer secrecy, publication contract, incomplete/invalid answer rejection, immutable duplicates and feedback release.
-- 20 AI Worker tests using mocked identity, role and inference responses.
+- 27 AI Worker/origin-policy tests using mocked identity, role and inference responses.
 - 5 read-only live anonymous HTTP checks: all RPC/Edge endpoints deny missing user authentication.
 - Read-only counts and row-set fingerprints of 17 CQ tables match across this session. No production account or learning row was changed.
 - Wrangler 4.159.0 deployment dry-run succeeds. No deployment upload or traffic change was performed.
 
 Detailed machine-readable results are in `qa-results/`; browser scripts state their mock boundaries. Isolated checks do not establish hosted Auth/Storage correctness, actual model quality, cross-device persistence or real Android microphone behavior.
 
+## Free operation policy
+
+No paid resource, branch or service is authorized. Cloudflare AI is disabled by default until Workers Free is verified. Manual questions and validated JSON draft import provide a no-AI-API lesson preparation path; see [FREE_LESSON_PREPARATION.md](FREE_LESSON_PREPARATION.md). A hosted app cannot target a loopback Supabase instance; only a local app can use the fixed local test port.
+
+The full local Supabase CLI stack hit the workspace disk limit. A smaller real Auth/PostgreSQL/PostgREST setup passes 26 API integration checks and 6 browser checks with new local-only accounts. Storage objects are SQL fixtures in this setup, so this does not establish actual Storage API or Edge runtime correctness. See [local-supabase/README.md](local-supabase/README.md).
+
 ## Remaining release gates
 
 1. Connect the correct Cloudflare account in a secure environment. No Cloudflare identity or token is configured in this session. Do not paste tokens or account passwords into chat or commit them.
-2. Use a fresh development branch with no production data and new test-only parent/student accounts for hosted account/PDF/audio/feedback tests. See [TEST_ENVIRONMENT_PLAN.md](TEST_ENVIRONMENT_PLAN.md). Do not create accounts or fixtures in production.
-3. Verify actual Workers AI generation and review a real lesson's questions and model answers. The Worker uses `@cf/meta/llama-3.3-70b-instruct-fp8-fast`; confirm account availability and usage costs before enabling production traffic.
+2. Continue local tests with synthetic accounts. If hosted tests are necessary, check Free project eligibility first and follow [TEST_ENVIRONMENT_PLAN.md](TEST_ENVIRONMENT_PLAN.md). No paid branch or production test account is authorized.
+3. Verify actual Workers AI generation and review a real lesson's questions and model answers. The Worker uses `@cf/meta/llama-3.3-70b-instruct-fp8-fast`; verify Workers Free and the free quota before enabling `AI_FREE_PLAN_CONFIRMED`. Do not incur paid usage. JSON import/manual questions remain available without inference.
 4. Verify the first lesson's real source PDF, approved activities, target student enrollment and assignment, plus microphone behavior on the intended device.
 5. Record the current Cloudflare deployment version and show the final change/rollback review to the user. Obtain explicit production approval before deployment or traffic changes.
 

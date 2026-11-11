@@ -5,3 +5,5 @@ __pycache__/
 .dev.vars
 .env*
 !.env.example
+review/stage1/local-supabase/lean/runtime/
+review/stage1/local-supabase/supabase/.temp/

@@ -1,0 +1,14 @@
+{
+  "paidResourcesCreated": false,
+  "hostedProjectsCreated": false,
+  "productionAccountsUsed": false,
+  "supabaseOrganizationPlan": "free",
+  "listedActiveProjects": 1,
+  "listedInactiveProjects": 1,
+  "freeProjectEligibility": "Documentation suggests capacity; no project creation attempted",
+  "cloudflarePlan": "not authenticated; unverified",
+  "aiEnabledByDefault": false,
+  "fullLocalStack": "attempted; image extraction failed at 7.9GB workspace disk limit",
+  "leanLocalServices": "real Auth, PostgreSQL, PostgREST; Storage table is SQL fixture; Edge/Storage APIs not run",
+  "storagePolicyFingerprintsMatchHosted": true
+}

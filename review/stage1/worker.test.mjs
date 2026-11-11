@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import worker,{generate,validateDraft} from './worker.mjs';
 const uid='11111111-1111-4111-8111-111111111111';
 const draft={questions:[{kind:'mc',text:'Who helped?',options:['A','B'],correct:0},{kind:'inference',text:'Why?',sample:'To help.'}],vocabulary:[{word:'help',meaning:'돕다',example:'I help.'}],writingPrompt:'Explain.',speakingPrompt:'Summarize.'};
-const env={SUPABASE_URL:'https://testproject.supabase.co',SUPABASE_PUBLISHABLE_KEY:'public-test-key',AI_PARENT_USER_IDS:uid,AI:{run:async()=>({response:JSON.stringify(draft)})}};
+const env={AI_FREE_PLAN_CONFIRMED:'true',SUPABASE_URL:'https://testproject.supabase.co',SUPABASE_PUBLISHABLE_KEY:'public-test-key',AI_PARENT_USER_IDS:uid,AI:{run:async()=>({response:JSON.stringify(draft)})}};
 const req=(body={source:'A chapter about a character helping a friend. '.repeat(10)},headers={},method='POST')=>new Request('https://example.test/api/generate',{method,headers:{'Content-Type':'application/json',Authorization:'Bearer test-token',...headers},...(method==='POST'?{body:JSON.stringify(body)}:{})});
 const user=async url=>Response.json(url.endsWith('/cq_is_admin')?true:{id:uid});
 test('unconfigured server fails closed without model use',async()=>assert.equal((await worker.fetch(req(),{})).status,503));
@@ -27,3 +27,5 @@ test('static asset paths preserve asset delivery',async()=>assert.equal(await (a
 test('server parent role is required even for an allowlisted user',async()=>assert.rejects(generate(req(),env,async url=>Response.json(url.endsWith('/cq_is_admin')?false:{id:uid})),e=>e.status===403));
 test('configured server uses cq_is_admin without a separate editable parent list',async()=>assert.deepEqual(await generate(req(),{...env,AI_PARENT_USER_IDS:''},user),draft));
 test('missing written model answer cannot be approved for publication',()=>assert.throws(()=>validateDraft({...draft,questions:[{kind:'inference',text:'Why?'}]}),e=>e.status===502));
+
+test('AI disabled until free-plan confirmation; no upstream requests',async()=>assert.rejects(generate(req(),{...env,AI_FREE_PLAN_CONFIRMED:'false'},()=>{throw Error('must not fetch')}),e=>e.status===503));

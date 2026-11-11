@@ -1,24 +1,22 @@
-# Hosted authentication test plan — approval pending
+# Zero-additional-cost test and release plan
 
-The user has no separate test accounts. Existing production accounts and student data must never be changed. No hosted test account has been created.
+Paid Supabase branches, paid services, plan upgrades and paid AI usage are not authorized. Do not create them. Existing production users, sessions and student data must not be changed without separate user approval.
 
-## Proposed isolated environment
+## Completed local path
 
-Create one temporary Supabase development branch of `english-v3b-test`, named `cq-v4-isolated-qa-20261111`, in the organization selected by the user. Supabase branching supplies a fresh database without copying production rows. There are currently no existing branches.
+- The organization `우진화이또` is on Supabase Free. The account lists one active and one inactive project. Official billing documentation allows two active Free projects and excludes paused projects. This suggests a spare free slot, but actual eligibility has not been tested by creating a project; no hosted test project is needed for the current local work.
+- Docker is available. The full local CLI stack failed at the execution environment's disk limit; the lean local setup successfully runs real Auth, PostgreSQL and PostgREST. All new users/fixtures are local only. See `local-supabase/README.md` for precise coverage and limits.
+- Parent/student browser mocks cover complete PDF/audio submission and recovery. Real local Auth/REST browser tests additionally verify account isolation and persisted feedback.
 
-Before creating it, retrieve the selected organization's branch price and obtain agreement to the quoted cost. The branch must not be merged or rebased into production. Record the returned branch project ref; abort every setup/test request whose target is the production ref `ftffxetmqditfqdvzjdd`.
+## Free lesson preparation
 
-1. Inspect the branch's schemas and row counts. If migrations do not reproduce the current production functions and policies, install the captured schema/function/Edge sources **only on the branch**. Copy schema and executable code only, never production Auth users, student rows, snapshots, PDFs or recordings. Confirm branch application/Auth/Storage tables contain no production records before adding fixtures.
-2. Generate new random parent/student identities and strong random passwords in the test process. Create these identities through the branch's supported Auth Admin API, with test-only addresses and confirmation handled by the admin API. Do not insert or modify `auth.users` using SQL. Do not print credentials or put them in the repository, chat, test reports or browser storage.
-3. Add only the newly created branch parent to the branch's `cq_admins`. Test invitation claim and explicit parent approval through the same public APIs as the app. Use a third test-only account for access-denial checks.
-4. Configure an isolated local/preview app to use **only the branch URL/public key**, keeping existing user browsers and localStorage/IndexedDB untouched. Register a generated synthetic PDF, publish synthetic activities, record/upload test audio, submit and release feedback. Verify unassigned-account denial, hidden answer keys, expired-session refresh and recovery from a lost response.
-5. Verify actual Workers AI inference separately through a non-production authenticated preview after the correct Cloudflare account and usage costs are confirmed. Review question quality and all answers; no synthetic lesson is assigned to real students.
-6. Save sanitized results. Remove the temporary branch after the agreed test window (target: same day) to stop ongoing charges, if the branch lifecycle approval includes teardown. Otherwise pause and request that separate teardown approval. Do not delete or revoke any production identity, session, row or object.
+Use parent-authored questions/model answers or import a validated JSON lesson draft into the parent review screen. This makes no AI API request and requires explicit parent review and approval. Existing ChatGPT Plus can be used interactively to prepare a JSON draft; a Plus subscription does not supply an API credential to this application.
 
-## Required secure access
+The Cloudflare AI route defaults to disabled (`AI_FREE_PLAN_CONFIRMED=false`). Before enabling it, verify that the target account is on Workers Free, that the model is available, and that account-wide AI usage remains within the published 10,000-neuron/day free allocation. Never upgrade the plan or silently enable paid inference. On Workers Free, requests beyond the free allocation fail instead of being billed. Account-wide usage by other apps must also be considered. Source: https://developers.cloudflare.com/workers-ai/platform/pricing/ .
 
-Branch Auth Admin setup needs a branch-scoped secret in the execution environment, or an authenticated Supabase Dashboard session. Cloudflare inference/preview needs an authenticated Cloudflare environment. The agent will perform setup and commands. The user must not send passwords or API tokens in chat.
+## Remaining gates
 
-## Approval scope to present after pricing
-
-Request approval for the quoted-cost temporary branch, new synthetic identities/data confined to that branch, branch-only schema/Edge setup and its agreed teardown. This is separate from production deployment approval. Production remains unchanged throughout. If branch creation or the required secure access is unavailable, retain the completed mock/isolated tests and report hosted authentication as unverified; do not substitute real production users.
+1. Confirm the correct Cloudflare account and its free plan through a secure authenticated connection. Do not request tokens/passwords in chat. Keep AI disabled until that check is complete.
+2. If hosted integration is still needed, first recheck Free project eligibility. Any project creation must remain explicitly Free, contain only new synthetic identities/data and must not replace, restore, pause or modify an existing project. Stop if free eligibility cannot be established; never substitute a paid resource.
+3. Check actual hosted PDF/recording behavior and the intended student device before declaring the cross-device flow production ready. Local tests do not prove hosted Storage/Edge parity.
+4. Prepare the actual first lesson for 2026-11-23, verify student assignment and obtain explicit user approval before production deployment or production data changes. Record the immediately preceding deployment and rollback steps before approval.

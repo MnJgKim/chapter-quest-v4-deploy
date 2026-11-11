@@ -29,7 +29,7 @@ export async function generate(request,env,fetchImpl=fetch){
  const origin=request.headers.get('origin');if(origin&&origin!==new URL(request.url).origin)throw new RequestError(403,'다른 사이트에서의 요청은 허용하지 않습니다.');
  const url=String(env.SUPABASE_URL||'').replace(/\/$/,'');
  const ids=new Set(String(env.AI_PARENT_USER_IDS||'').split(',').map(x=>x.trim()).filter(x=>/^[0-9a-f-]{36}$/i.test(x)));
- if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)||!env.SUPABASE_PUBLISHABLE_KEY||!env.AI?.run)throw new RequestError(503,'AI 서버 연결이 아직 준비되지 않았습니다. 관리자 연결 검증 후 사용할 수 있습니다.');
+ if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)||!env.SUPABASE_PUBLISHABLE_KEY||!env.AI?.run||env.AI_FREE_PLAN_CONFIRMED!=='true')throw new RequestError(503,'AI 서버 연결이 아직 준비되지 않았습니다. 관리자 연결 검증 후 사용할 수 있습니다.');
  const authorization=request.headers.get('authorization')||'';
  if(!/^Bearer \S+$/.test(authorization))throw new RequestError(401,'부모 Supabase 계정으로 로그인하세요.');
  const authResponse=await fetchImpl(url+'/auth/v1/user',{headers:{apikey:env.SUPABASE_PUBLISHABLE_KEY,Authorization:authorization},signal:AbortSignal.timeout(10000)});
@@ -52,7 +52,7 @@ export async function generate(request,env,fetchImpl=fetch){
 }
 export default {async fetch(request,env){
  const path=new URL(request.url).pathname;
- if(path==='/api/health')return json({service:'chapter-quest-v4',aiConfigured:!!(env.AI?.run&&env.SUPABASE_URL&&env.SUPABASE_PUBLISHABLE_KEY)});
+ if(path==='/api/health')return json({service:'chapter-quest-v4',aiConfigured:!!(env.AI?.run&&env.SUPABASE_URL&&env.SUPABASE_PUBLISHABLE_KEY&&env.AI_FREE_PLAN_CONFIRMED==='true')});
  if(path==='/api/generate'){
   try{return json(await generate(request,env));}catch(error){return json({error:error instanceof RequestError?error.message:'AI 연결 오류입니다. 잠시 후 다시 시도하세요.'},error instanceof RequestError?error.status:502);}
  }
