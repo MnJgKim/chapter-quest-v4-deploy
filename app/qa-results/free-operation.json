@@ -8,7 +8,7 @@
   "freeProjectEligibility": "Documentation suggests capacity; no project creation attempted",
   "cloudflarePlan": "not authenticated; unverified",
   "aiEnabledByDefault": false,
-  "fullLocalStack": "attempted; image extraction failed at 7.9GB workspace disk limit",
+  "fullLocalStack": "managed workspace disk limit; full stack verified successfully on free public GitHub Actions run 42964265817",
   "leanLocalServices": "real Auth, PostgreSQL, PostgREST; Storage table is SQL fixture; Edge/Storage APIs not run",
   "storagePolicyFingerprintsMatchHosted": true
 }

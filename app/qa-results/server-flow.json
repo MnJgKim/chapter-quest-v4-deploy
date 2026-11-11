@@ -74,6 +74,22 @@
       "pass": true
     },
     {
+      "name": "student recording preview and final submit fit 360x800 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "student recording preview and final submit fit 412x915 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "student recording preview and final submit fit 800x1280 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "student recording preview and final submit fit 1280x800 mobile/tablet viewport",
+      "pass": true
+    },
+    {
       "name": "failed audio upload blocks server submission and preserves answers",
       "pass": true
     },
@@ -99,6 +115,22 @@
     },
     {
       "name": "student sees released feedback and cannot edit final submission",
+      "pass": true
+    },
+    {
+      "name": "parent results and recording playback fit 360x800 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "parent results and recording playback fit 412x915 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "parent results and recording playback fit 800x1280 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "parent results and recording playback fit 1280x800 mobile/tablet viewport",
       "pass": true
     },
     {
