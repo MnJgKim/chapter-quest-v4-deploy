@@ -20,6 +20,7 @@ jobs:
         with:
           python-version: '3.12'
       - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: python -m compileall -q -x 'node_modules|runtime' app
       - run: npm test
       - run: npm run build
         env:

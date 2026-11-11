@@ -86,6 +86,10 @@
       "pass": true
     },
     {
+      "name": "missing optional read API uses the frozen published answer context, never an edited local draft",
+      "pass": true
+    },
+    {
       "name": "parent sees submitted answers and releases feedback",
       "pass": true
     },
@@ -143,8 +147,10 @@
     "cq_v4_submit_answers",
     "cq_v4_my_submission",
     "cq_v4_parent_submissions",
+    "cq_v4_parent_lesson",
     "cq_v4_release_feedback",
     "cq_v4_parent_submissions",
+    "cq_v4_parent_lesson",
     "cq_v4_my_submission",
     "cq_v4_my_chapter_activities",
     "cq_is_admin",

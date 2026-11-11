@@ -17,4 +17,6 @@ else:raise SystemExit('Local Auth did not become healthy.')
 if sql("select to_regclass('public.cq_v4_activities') is null;")=='t':
  fixture=next((root.parent/'supabase/migrations').glob('*cq_local_schema.sql'));sql(fixture.read_text())
 sql("create or replace function auth.uid() returns uuid language sql stable as $$ select coalesce(nullif(current_setting('request.jwt.claim.sub',true),''),current_setting('request.jwt.claims',true)::jsonb->>'sub')::uuid $$;notify pgrst,'reload schema';")
+candidate=next((root.parent/'supabase/migrations').glob('*cq_parent_lesson_context.sql'))
+if sql("select to_regprocedure('public.cq_v4_parent_lesson(uuid)') is null;")=='t':sql(candidate.read_text())
 print('Local schema-only fixture and JWT helper ready. No production link is configured.')

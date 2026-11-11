@@ -133,7 +133,25 @@
      pdfParentStatus('오류: '+message+' · 챕터가 생성된 경우 목록에서 PDF 검증을 다시 확인할 수 있습니다.');
    }finally{pdfParentBusy=false;button.disabled=false}
  });
- const feedbackPanel=()=>`<section class="card" id="cqParentFeedback"><h2>학생 제출·피드백 관리 (서버)</h2><p class="muted">로그인한 부모 계정의 제출만 조회합니다. 기존 로컬 제출 기록과는 별개입니다.</p><button data-parent-feedback="list" ${session?'':'disabled'}>제출 기록 불러오기</button><div>${submissions.map((r,i)=>`<div class="book"><h3>${escapeHtml(r.student_name||r.child_user_id)} · ${escapeHtml(r.chapter_title||r.chapter_uuid)}</h3><p>제출: ${escapeHtml(r.submitted_at||'')}</p><details><summary>제출 답변 보기</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(JSON.stringify(r.answers??{},null,2))}</pre></details><label>부모 피드백<textarea data-parent-feedback-text="${i}" rows="3">${escapeHtml(r.feedback||'')}</textarea></label><label><input type="checkbox" data-parent-feedback-release="${i}" ${r.feedback_released?'checked':''}> 학생에게 공개</label><button data-parent-feedback="save" data-index="${i}">피드백 저장</button><button data-parent-feedback="audio" data-index="${i}">녹음 재생</button><div data-audio-player="${i}"></div></div>`).join('')}</div><p id="cqParentFeedbackStatus" class="status"></p></section>`;
+ function localLessonContext(uuid){const value=state.books.flatMap(b=>b.chapters||[]).map(c=>c.serverPublishedContext).find(x=>x?.chapter_uuid===uuid&&x.owner===session?.uid&&x.project===project?.url);return value||null;}
+ function rememberPublication(c,uuid,context){if(!context)return;c.serverPdfUuid=uuid;c.serverPublishedContext={...structuredClone(context),chapter_uuid:uuid,owner:session.uid,project:project.url};save();}
+
+ async function enrichSubmissions(rows){
+  const owner=cloudIdentity(),contexts=new Map();
+  for(const uuid of new Set(rows.map(r=>r.chapter_uuid))){
+   try{const result=await parentRpc('cq_v4_parent_lesson',{p_chapter_uuid:uuid});contexts.set(uuid,Array.isArray(result)?result[0]:null);}
+   catch(error){if(cloudIdentity()!==owner)throw error;contexts.set(uuid,localLessonContext(uuid));}
+  }
+  if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다.');
+  return rows.map(row=>({...row,lessonContext:contexts.get(row.chapter_uuid)||localLessonContext(row.chapter_uuid)}));
+ }
+ function resultDetails(row){
+  const context=row.lessonContext,questions=Array.isArray(context?.questions)?context.questions:[],answers=Array.isArray(row.answers?.answers)?row.answers.answers:[];
+  const display=(q,value)=>value===undefined||value===null||value===''?'미응답':q.kind==='mc'&&Array.isArray(q.options)?q.options[Number(value)]??'미응답':String(value??'미응답');
+  const questionsHtml=questions.map((q,i)=>q?`<li><b>${escapeHtml(q.text||'문제')}</b><p>학생 답변: ${escapeHtml(display(q,answers[i]))}</p><details><summary>기준 답안</summary><p>${escapeHtml(display(q,context.answer_key?.[i]))}</p></details></li>`:'').join('');
+  return `<div class="submitted-lesson">${questionsHtml?'<ol>'+questionsHtml+'</ol>':'<p class="muted">문제·기준 답안을 불러오지 못했습니다. 부모 기기의 학습 자료를 확인하세요.</p>'}<h4>영어 독후감</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.essay||'')}</p><h4>말하기 대본</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.speaking||'')}</p><p>단어 복습 체크: ${Array.isArray(row.answers?.wordsReviewed)?row.answers.wordsReviewed.length:0}개</p></div>`;
+ }
+ const feedbackPanel=()=>`<section class="card" id="cqParentFeedback"><h2>학생 제출·피드백 관리 (서버)</h2><p class="muted">로그인한 부모 계정의 제출만 조회합니다. 기존 로컬 제출 기록과는 별개입니다.</p><button data-parent-feedback="list" ${session?'':'disabled'}>제출 기록 불러오기</button><div>${submissions.map((r,i)=>`<div class="book"><h3>${escapeHtml(r.student_name||r.child_user_id)} · ${escapeHtml(r.chapter_title||r.chapter_uuid)}</h3><p>제출: ${escapeHtml(r.submitted_at||'')}</p>${resultDetails(r)}<details><summary>제출 원본 보기</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(JSON.stringify(r.answers??{},null,2))}</pre></details><label>부모 피드백<textarea data-parent-feedback-text="${i}" rows="3">${escapeHtml(r.feedback||'')}</textarea></label><label><input type="checkbox" data-parent-feedback-release="${i}" ${r.feedback_released?'checked':''}> 학생에게 공개</label><button data-parent-feedback="save" data-index="${i}">피드백 저장</button><button data-parent-feedback="audio" data-index="${i}">녹음 재생</button><div data-audio-player="${i}"></div></div>`).join('')}</div><p id="cqParentFeedbackStatus" class="status"></p></section>`;
  async function parentRpc(name,args={}){
    if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('부모 관리자 로그인이 필요합니다.');
    const owner=cloudIdentity();await refreshIfNeeded();
@@ -177,7 +195,7 @@
    const currentBook=selectedBook,currentChapter=selectedChapter,c=chapter(),owner=cloudIdentity();
    if(!c||c.id!==button.dataset.c){publishStatus('현재 챕터를 다시 선택하세요.');return;}
    publicationBusy=true;button.disabled=true;
-   let pendingApprovalId=null,pendingTargetChildren=[];
+   let pendingApprovalId=null,pendingTargetChildren=[],publicationSnapshot=null,publicationPdf=null;
    try{
      const eligible=await cqPublicationEligibility(c);
      if(!eligible.ok)throw Error(eligible.reason);
@@ -191,7 +209,7 @@
      if(!/^[0-9a-f-]{36}$/i.test(serverPdfUuid)||!pdfServerChapters.some(x=>x.uuid===serverPdfUuid&&x.ready))
        throw Error('검증된 서버 PDF 챕터를 선택하고 서버 PDF 목록을 새로고침하세요.');
      pendingTargetChildren=[...selected];
-     const {questions,answerKey}=publicationPayload(c);
+     const {questions,answerKey}=publicationPayload(c);publicationSnapshot={questions,answer_key:answerKey,vocabulary:structuredClone(c.vocabulary||[])};publicationPdf=serverPdfUuid;
      if(cloudIdentity()!==owner||selectedBook!==currentBook||selectedChapter!==currentChapter||chapter()!==c)throw Error('계정 또는 챕터가 변경되었습니다.');
      if(!await isApprovalCurrent(c))throw Error('게시 중 학습 자료가 변경되었습니다.');
      // Stage98: stable per-account/per-content request key, persisted before network I/O.
@@ -217,7 +235,7 @@
        throw Error('PDF 연결 후 계정 또는 학습 자료가 변경되어 게시를 중단했습니다.');
      const chapterId=await parentRpc('cq_v4_publish_approved',{p_approval_id:approvalId,p_children:selected});
      if(cloudIdentity()!==owner)return;
-     publishStatus('✓ 서버 게시 요청 성공 · 학생 '+selected.length+'명 · 챕터 '+String(chapterId)+'. 실제 학생 조회는 별도 확인이 필요합니다.');
+     rememberPublication(c,serverPdfUuid,publicationSnapshot);publishStatus('✓ 서버 게시 요청 성공 · 학생 '+selected.length+'명 · 챕터 '+String(chapterId)+'. 실제 학생 조회는 별도 확인이 필요합니다.');
    }catch(error){
      if(cloudIdentity()!==owner)return;
      if(pendingApprovalId&&pendingTargetChildren.length){
@@ -227,7 +245,7 @@
            p_approval_id:pendingApprovalId,p_children:pendingTargetChildren
          });
          if(cloudIdentity()!==owner||selectedBook!==currentBook||selectedChapter!==currentChapter||chapter()!==c)return;
-         if(result?.content_matches===true&&result?.all_assigned===true){
+         if(result?.content_matches===true&&result?.all_assigned===true){rememberPublication(c,publicationPdf,publicationSnapshot);
            publishStatus('✓ 서버 게시 확인 완료 · 응답 유실 후 복구 · 학생 '+pendingTargetChildren.length+'명 · 중복 게시 없음.');
          }else if(result?.content_matches===true&&Array.isArray(result?.missing_children)){
            publishStatus('⚠ 게시 상태 확인 · 배정되지 않은 학생 '+result.missing_children.length+'명 · 자동 재게시하지 않았습니다. 다시 확인하세요.');
@@ -292,7 +310,7 @@
    try{
      if(button.dataset.parentFeedback==='list'){
        const rows=await parentRpc('cq_v4_parent_submissions');
-       submissions=Array.isArray(rows)?rows:[];render();parentStatus('제출 '+submissions.length+'건을 불러왔습니다.');
+       submissions=await enrichSubmissions(Array.isArray(rows)?rows:[]);render();parentStatus('제출 '+submissions.length+'건을 불러왔습니다.');
      }else if(button.dataset.parentFeedback==='audio'){
        const i=Number(button.dataset.index),r=submissions[i];if(!r)throw Error('제출 기록을 다시 불러오세요.');
        const uuid=String(r.chapter_uuid||''),uid=String(r.child_user_id||'');
@@ -318,7 +336,7 @@
        await parentRpc('cq_v4_release_feedback',{p_child_user_id:r.child_user_id,p_chapter_uuid:r.chapter_uuid,p_feedback:text,p_release:released});
        r.feedback=text;r.feedback_released=released;
        const rows=await parentRpc('cq_v4_parent_submissions');
-       submissions=Array.isArray(rows)?rows:[];render();parentStatus('서버에서 피드백 저장 상태를 다시 확인했습니다.');
+       submissions=await enrichSubmissions(Array.isArray(rows)?rows:[]);render();parentStatus('서버에서 피드백 저장 상태를 다시 확인했습니다.');
      }
    }catch(error){parentStatus('오류: '+error.message)}finally{feedbackBusy=false;button.disabled=false}
  });

@@ -2,6 +2,18 @@
   "scope": "PGlite isolated PostgreSQL with synthetic data; live DDL metadata and functions; not hosted Auth/Storage integration",
   "checks": [
     {
+      "name": "parent can read only the owned published lesson context",
+      "pass": true
+    },
+    {
+      "name": "student cannot execute privileged parent lesson read",
+      "pass": true
+    },
+    {
+      "name": "different registered parent receives no lesson context",
+      "pass": true
+    },
+    {
       "name": "assigned student sees published questions without answer key",
       "pass": true
     },

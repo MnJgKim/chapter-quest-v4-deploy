@@ -6,7 +6,7 @@
       "pass": true
     },
     {
-      "name": "parent browser reads actual submitted answers through PostgREST",
+      "name": "parent browser reads actual questions, selected choices and written answers through PostgREST",
       "pass": true
     },
     {

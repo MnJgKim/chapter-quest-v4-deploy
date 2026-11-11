@@ -78,6 +78,22 @@
       "pass": true
     },
     {
+      "name": "anonymous caller cannot execute the parent answer-key read API",
+      "pass": true
+    },
+    {
+      "name": "real parent JWT can retrieve owned question text and model answers",
+      "pass": true
+    },
+    {
+      "name": "real student JWT cannot retrieve parent model answers",
+      "pass": true
+    },
+    {
+      "name": "unrelated non-parent account cannot read parent lesson context",
+      "pass": true
+    },
+    {
       "name": "complete authorized student submission succeeds",
       "pass": true
     },

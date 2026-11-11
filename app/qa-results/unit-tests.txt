@@ -7,42 +7,42 @@
 > node build-assets.mjs && node --test *.test.mjs
 
 Pinned PDF renderer copied into application assets.
-✔ all application scripts are bundled local assets in a single entry HTML (2.09378ms)
-✔ hosted Supabase HTTPS remains allowed (1.350219ms)
-✔ hosted app cannot target local Supabase (0.25701ms)
-✔ local app can target only the local Supabase port (0.211082ms)
-✔ other local services are rejected (4.467974ms)
-✔ remote HTTP service is rejected (0.261517ms)
-✔ credentials and paths cannot change a local target (0.378651ms)
-✔ missing state produces a usable library (2.147509ms)
-✔ malformed nested lists cannot crash rendering (0.37837ms)
-✔ existing submissions and custom metadata survive repair (1.651165ms)
-✔ invalid selected student falls back without mixing records (0.373523ms)
-✔ access code is excluded from persisted state (0.207627ms)
-✔ student transport returns only public question fields (30.44107ms)
-✔ malformed question options fail with a clear error before rendering (1.230763ms)
-✔ missing question array cannot produce a blank learning form (0.50008ms)
-✔ unconfigured server fails closed without model use (38.504093ms)
-✔ GET cannot trigger AI billing (0.93176ms)
-✔ cross-origin generation is denied (0.695099ms)
-✔ missing authentication is denied before any upstream request (1.388586ms)
-✔ expired Supabase session is denied (1.237582ms)
-✔ student or unapproved account is denied before model call (2.063295ms)
-✔ untrusted editable metadata cannot grant parent access (1.079378ms)
-✔ short chapter is rejected (1.973793ms)
-✔ oversized chapter is rejected (1.439411ms)
-✔ stream size limit prevents oversized payload (3.882969ms)
-✔ valid authenticated parent receives sanitized draft (3.476057ms)
-✔ markdown JSON output is parsed (1.012259ms)
-✔ malformed model output is blocked (0.69575ms)
-✔ out-of-range MC answer is blocked (0.54019ms)
-✔ literal questions normalize to the server publication contract (0.180948ms)
-✔ unknown API paths return JSON 404 (0.596393ms)
-✔ static asset paths preserve asset delivery (0.374063ms)
-✔ server parent role is required even for an allowlisted user (0.813865ms)
-✔ configured server uses cq_is_admin without a separate editable parent list (0.880083ms)
-✔ missing written model answer cannot be approved for publication (0.427402ms)
-✔ AI disabled until free-plan confirmation; no upstream requests (0.431709ms)
+✔ all application scripts are bundled local assets in a single entry HTML (1.976486ms)
+✔ hosted Supabase HTTPS remains allowed (1.277791ms)
+✔ hosted app cannot target local Supabase (0.241748ms)
+✔ local app can target only the local Supabase port (0.224994ms)
+✔ other local services are rejected (1.283601ms)
+✔ remote HTTP service is rejected (0.215369ms)
+✔ credentials and paths cannot change a local target (0.260906ms)
+✔ missing state produces a usable library (1.656332ms)
+✔ malformed nested lists cannot crash rendering (0.336408ms)
+✔ existing submissions and custom metadata survive repair (1.539168ms)
+✔ invalid selected student falls back without mixing records (0.309479ms)
+✔ access code is excluded from persisted state (0.214508ms)
+✔ student transport returns only public question fields (40.181862ms)
+✔ malformed question options fail with a clear error before rendering (0.931309ms)
+✔ missing question array cannot produce a blank learning form (0.485679ms)
+✔ unconfigured server fails closed without model use (38.392984ms)
+✔ GET cannot trigger AI billing (0.591426ms)
+✔ cross-origin generation is denied (0.807455ms)
+✔ missing authentication is denied before any upstream request (1.015122ms)
+✔ expired Supabase session is denied (0.870599ms)
+✔ student or unapproved account is denied before model call (1.784511ms)
+✔ untrusted editable metadata cannot grant parent access (0.794436ms)
+✔ short chapter is rejected (1.967272ms)
+✔ oversized chapter is rejected (1.491858ms)
+✔ stream size limit prevents oversized payload (3.250742ms)
+✔ valid authenticated parent receives sanitized draft (2.118095ms)
+✔ markdown JSON output is parsed (0.741367ms)
+✔ malformed model output is blocked (0.68895ms)
+✔ out-of-range MC answer is blocked (0.27026ms)
+✔ literal questions normalize to the server publication contract (0.154409ms)
+✔ unknown API paths return JSON 404 (0.439871ms)
+✔ static asset paths preserve asset delivery (0.404268ms)
+✔ server parent role is required even for an allowlisted user (0.680026ms)
+✔ configured server uses cq_is_admin without a separate editable parent list (0.645215ms)
+✔ missing written model answer cannot be approved for publication (0.164734ms)
+✔ AI disabled until free-plan confirmation; no upstream requests (0.460451ms)
 ℹ tests 36
 ℹ suites 0
 ℹ pass 36
@@ -50,15 +50,27 @@ Pinned PDF renderer copied into application assets.
 ℹ cancelled 0
 ℹ skipped 0
 ℹ todo 0
-ℹ duration_ms 528.01654
+ℹ duration_ms 454.051082
 
 > test:current-db
 > node current-db.test.mjs
 
 {
-  "passed": 21,
-  "total": 21,
+  "passed": 24,
+  "total": 24,
   "checks": [
+    {
+      "name": "parent can read only the owned published lesson context",
+      "pass": true
+    },
+    {
+      "name": "student cannot execute privileged parent lesson read",
+      "pass": true
+    },
+    {
+      "name": "different registered parent receives no lesson context",
+      "pass": true
+    },
     {
       "name": "assigned student sees published questions without answer key",
       "pass": true

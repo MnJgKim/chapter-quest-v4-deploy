@@ -596,7 +596,7 @@
      }
      if(!confirmedAudio)throw Error('서버에 녹음 파일이 확인되지 않아 제출할 수 없습니다.');
      assertChildContext(context);
-     await childApi.submit(uuid,{readComplete:true,answers,essay,speaking,hasAudio:confirmedAudio},{signal:submitController.signal});
+     await childApi.submit(uuid,{readComplete:true,answers,essay,speaking,hasAudio:confirmedAudio,wordsReviewed:[...form.querySelectorAll('[data-word-done]:checked')].map(x=>Number(x.dataset.wordDone))},{signal:submitController.signal});
      assertChildContext(context);
      try{submissionGate.markConfirmed(context.uid,uuid)}catch(err){console.warn('Submission marker unavailable:',err?.name||'UNKNOWN');}
      uploadedAudio.delete(session.uid+'/'+uuid);clearRecovery(session.uid,uuid);clearDraft(session.uid,uuid);const audioCleanupOk=await cleanupConfirmedAudio(context.uid,uuid,context);assertChildContext(context);voiceBlob=null;voiceChapter=null;status('제출 완료. 부모 피드백은 공개 후 확인할 수 있습니다.'+(audioCleanupOk?'':' 이 기기의 녹음 파일 정리는 실패했습니다. 저장 공간을 확인하세요.'));
