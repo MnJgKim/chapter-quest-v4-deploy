@@ -31,7 +31,7 @@
 
 확인된 코드 설정: Worker 이름 `chapter-quest-v4`, 자산 `app/public`, 서버 코드 `app/worker.mjs`, `/api/*` 우선 라우팅, 운영 Supabase 공개 설정, `AI_FREE_PLAN_CONFIRMED=false`. 빌드는 dry-run만 실행했습니다. `/api/generate`는 무료 계정/플랜 검증 전 차단됩니다. 수동 작성과 검증된 JSON 초안 가져오기는 AI API를 호출하지 않으므로 첫 학습의 무료 준비 경로로 사용할 수 있습니다.
 
-배포 승인 전에 실제 Cloudflare 계정의 Workers 무료 플랜, `roscabear.workers.dev` 소속 Worker, 현재 설정/배포 ID와 복구 대상 버전을 확인해야 합니다. 계정 기본값만 믿고 배포하지 않습니다. OAuth 조회 권한만으로 Worker 설정을 볼 수 없다면 필요한 최소 권한과 목적을 다시 설명한 뒤 결정받습니다. 토큰은 채팅으로 요청하지 않습니다.
+배포 승인 전에 실제 Cloudflare 계정의 Workers 무료 플랜, `roscabear.workers.dev` 소속 Worker, 현재 설정/배포 ID와 복구 대상 버전을 확인해야 합니다. 계정 기본값만 믿고 배포하지 않습니다. 사용자의 지시에 따라 Cloudflare 인증을 다시 요청하지 않습니다. 계정 조회가 필요한 항목은 미검증으로 유지합니다. 토큰은 채팅으로 요청하지 않습니다.
 
 적용·위험·복구 범위는 `server-review/PDF_REUSE_APPROVAL.md`, `server-review/PARENT_CONTEXT_APPROVAL.md`, `LAUNCH_READINESS.md`에 있습니다. 실제 자료 게시와 학생 배정은 별도 운영 데이터 변경 승인 대상입니다. 코드 검증 성공을 실제 첫 학습 준비 완료로 표시하지 않습니다.
 
@@ -45,3 +45,8 @@
 - 설정 파일에는 유료 자원 생성이나 업그레이드 명령이 없고 AI 호출은 기본 차단입니다. 실제 계정 플랜·AI 사용량·Worker 설정·배포 버전·청구 상태는 미검증입니다. 이 작업에서 모델 호출·계정 업그레이드·유료 자원 생성은 실행하지 않았습니다.
 
 실제 계정·원본의 읽기 전용 확인과 첫 학습 전 최소 준비 항목은 `FIRST_LESSON_HANDOFF.md`를 참조하세요.
+
+
+### 선택 범위 서버 검증 보강
+
+`server-review/PDF_RANGE_APPROVAL.md`에 신규 범위 기록과 원자적 승인 연결, 파생 PDF 해시 검사 및 데이터 보존 복구 절차를 정리했습니다. 이는 기존 PDF 재사용 제안보다 적용 범위가 넓으므로 별도 운영 승인 전 적용하지 않습니다. 실제 기기 검증 목록은 `DEVICE_ACCEPTANCE.md`에 있으며 물리 기기 검증은 아직 수행하지 않았습니다.
