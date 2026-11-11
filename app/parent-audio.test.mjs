@@ -4,7 +4,7 @@ import fs from 'node:fs/promises';
 import vm from 'node:vm';
 import {stripTypeScriptTypes} from 'node:module';
 const parent='11111111-1111-4111-8111-111111111111',student='22222222-2222-4222-8222-222222222222',chapter='44444444-4444-4444-8444-444444444444',origin='https://test.supabase.co';
-const source=(await fs.readFile(new URL('./local-supabase/supabase/functions/cq-v4-pdf-parent/index.ts',import.meta.url),'utf8')).replace(/^import .*?;\s*$/m,'');
+const source=(await fs.readFile(new URL('./local-supabase/supabase/functions/cq-v4-pdf-parent/index.ts',import.meta.url),'utf8')).replace(/^import .*?;\s*$/gm,'');
 function app(settings={}){
  let handler,clients=0;const calls=[];
  const createClient=()=>++clients===1?{auth:{getUser:async()=>({data:{user:{id:parent}}})},rpc(name){calls.push(['rpc',name]);if(name==='cq_is_admin')return Promise.resolve({data:settings.student?false:true});const filters=[];return {eq(k,v){filters.push([k,v]);return this},async maybeSingle(){calls.push(['filters',filters]);return {data:settings.denied?null:{submitted_at:settings.pending?null:'2026-11-11',answers:{hasAudio:!settings.noAudio}},error:settings.rpcError?Error('rpc'):null}}}}}:{storage:{from(bucket){return {async createSignedUrl(path,seconds){calls.push(['sign',bucket,path,seconds]);if(settings.missing||settings.mp4&&path.endsWith('.webm'))return {error:Error('missing')};return {data:{signedUrl:(settings.foreign?'https://evil.test':origin)+'/storage/v1/object/sign/'+bucket+'/'+(settings.wrongPath?'other/file.webm':path)+'?token=synthetic'}}}}}}};

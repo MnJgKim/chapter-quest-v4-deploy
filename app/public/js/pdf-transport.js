@@ -6,7 +6,7 @@
     if(!(globalThis.CQOrigin?.allows(url||'')??/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url||'')))throw Error('INVALID_SUPABASE_ORIGIN');
     if(!['student','parent'].includes(role))throw Error('INVALID_PDF_ROLE');
     if(!anonKey||typeof getAccessToken!=='function'||typeof fetchImpl!=='function')throw Error('INVALID_PDF_TRANSPORT_CONFIG');
-    async function getPdf(chapterUuid,{signal}={}){
+    async function getPdf(chapterUuid,{signal,onMetadata}={}){
       if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(chapterUuid||''))throw Error('INVALID_CHAPTER_UUID');
       if(signal?.aborted)throw Error('PDF_REQUEST_CANCELLED');
       const token=await getAccessToken();
@@ -19,6 +19,8 @@
       const payload=await rpcResponse.json();
       const link=Array.isArray(payload)?payload[0]:payload;
       if(!link?.signed_url||!link?.expires_at)throw Error('PDF_LINK_NOT_AVAILABLE');
+      if(link.page_count!==undefined&&(!Number.isSafeInteger(link.page_count)||link.page_count<1))throw Error('INVALID_VERIFIED_PAGE_COUNT');
+      if(onMetadata)onMetadata({page_count:link.page_count??null});
       const signed=new URL(link.signed_url,url);
       const base=new URL(url);
       if(signed.origin!==base.origin||!signed.pathname.startsWith('/storage/v1/object/sign/cq-v4-originals/'))throw Error('UNTRUSTED_PDF_URL');

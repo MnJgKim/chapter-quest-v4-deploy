@@ -17,15 +17,17 @@
      const project=window.CQProject.read();
      if(!project?.url||!project?.anonKey)throw Error('Supabase 프로젝트 설정이 없습니다.');
      const transport=window.CQServerPDF.createPdfTransport({url:project.url,anonKey:project.anonKey,getAccessToken:()=>session?.uid===uid?childAccessToken():null});
-     const bytes=await transport.getPdf(chapterUuid,{signal:controller.signal});
+     let expectedPages=null;const bytes=await transport.getPdf(chapterUuid,{signal:controller.signal,onMetadata:info=>expectedPages=info.page_count});
      if(!current())return;
+     if(!window.pdfjsLib)throw Error('PDF 렌더러를 불러오지 못했습니다.');
+     const doc=await window.pdfjsLib.getDocument({isEvalSupported:false,data:new Uint8Array(bytes.slice(0))}).promise;
+     if(!current()){await doc.destroy();return;}
+     if(expectedPages!==null&&doc.numPages!==expectedPages){await doc.destroy();throw Error('승인된 범위와 PDF 페이지 수가 다릅니다. 제출할 수 없습니다.');}serverPdfDocument=doc;
      const blob=new Blob([bytes],{type:'application/pdf'});
      serverPdfObjectUrl=URL.createObjectURL(blob);
-     target.innerHTML='<div class="row"><button type="button" data-server-pdf="prev">이전 페이지</button><span data-server-pdf="count">PDF 준비 중</span><button type="button" data-server-pdf="next">다음 페이지</button><button type="button" data-server-pdf="out">축소 −</button><button type="button" data-server-pdf="in">확대 +</button></div><div data-server-pdf="stage" style="overflow:auto;text-align:center;background:#e9edf5;padding:8px"><canvas data-server-pdf="canvas" style="max-width:none;background:white"></canvas></div><p><a data-server-pdf="open" target="_blank" rel="noopener">원본 PDF 새 탭에서 열기</a></p>';
+     target.innerHTML='<div class="row"><button type="button" data-server-pdf="prev">이전 페이지</button><span data-server-pdf="count">PDF 준비 중</span><button type="button" data-server-pdf="next">다음 페이지</button><button type="button" data-server-pdf="out">축소 −</button><button type="button" data-server-pdf="in">확대 +</button></div><div data-server-pdf="stage" style="overflow:auto;text-align:center;background:#e9edf5;padding:8px"><canvas data-server-pdf="canvas" style="max-width:none;background:white"></canvas></div><p><a data-server-pdf="open" target="_blank" rel="noopener">배정된 챕터 PDF 새 탭에서 열기</a></p>';
      target.querySelector('[data-server-pdf="open"]').href=serverPdfObjectUrl;
      if(!window.pdfjsLib){target.querySelector('[data-server-pdf="stage"]').textContent='PDF 렌더러를 불러오지 못했습니다. 새 탭에서 원본 PDF를 열어주세요.';return;}
-     const doc=await window.pdfjsLib.getDocument({isEvalSupported:false,data:new Uint8Array(bytes.slice(0))}).promise;
-     if(!current()){await doc.destroy();return;}serverPdfDocument=doc;
      let pageNumber=1,zoom=1,drawVersion=0,task=null;
      const canvas=target.querySelector('[data-server-pdf="canvas"]');
      async function draw(){

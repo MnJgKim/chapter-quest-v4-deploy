@@ -270,7 +270,7 @@ if(a==='savePDF'){
   const verified=await pdfGet(expectedContext);
   if(pdfContext()!==expectedContext||chapter()!==c)throw Error('저장 중 챕터가 변경되었습니다.');
   if(!verified||verified.size!==file.size)throw Error('원본 파일 저장 확인 실패');
-  invalidateApproval(c);c.pdfStored=true;c.pdfName=file.name;c.readerType=isText?'txt':'pdf';delete c.serverPdfUuid;delete c.serverPdfOrigin;delete c.serverPdfOwner;delete c.serverOriginalCopy;delete c.pdfInspection;delete c.pdfRange;
+  invalidateApproval(c);c.pdfStored=true;c.pdfName=file.name;c.readerType=isText?'txt':'pdf';delete c.serverPdfUuid;delete c.serverPdfOrigin;delete c.serverPdfOwner;delete c.serverOriginalCopy;delete c.serverRangeVerified;delete c.pdfInspection;delete c.pdfRange;
   if(isText)c.source=text;
   save();render();setStatus(isText?'원본 TXT 저장 완료 · AI 문제용 텍스트도 준비됐습니다.':'원본 PDF 저장 완료 · 학생 읽기 화면에 표시됩니다.');
  }catch(err){alert('원본 파일 저장 실패: '+err.message)}finally{if(btn.isConnected)btn.disabled=false;if(addButton?.isConnected)addButton.disabled=false;}return;

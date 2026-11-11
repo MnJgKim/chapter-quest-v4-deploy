@@ -2,6 +2,38 @@
   "scope": "PGlite isolated PostgreSQL with synthetic data; live DDL metadata and functions; not hosted Auth/Storage integration",
   "checks": [
     {
+      "name": "range registry migration grants no direct access to authenticated users",
+      "pass": true
+    },
+    {
+      "name": "client cannot execute the privileged range commit",
+      "pass": true
+    },
+    {
+      "name": "server range commit is atomic and idempotent",
+      "pass": true
+    },
+    {
+      "name": "same range request cannot be reused with different pages",
+      "pass": true
+    },
+    {
+      "name": "range approval atomically binds derived PDF and cannot rebind whole original",
+      "pass": true
+    },
+    {
+      "name": "range approval refuses whole original substituted for derived PDF",
+      "pass": true
+    },
+    {
+      "name": "range approval refuses forged page bounds",
+      "pass": true
+    },
+    {
+      "name": "student cannot register verified range approval",
+      "pass": true
+    },
+    {
       "name": "parent can read only the owned published lesson context",
       "pass": true
     },

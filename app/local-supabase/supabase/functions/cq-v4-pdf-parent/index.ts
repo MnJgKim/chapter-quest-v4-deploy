@@ -2,6 +2,7 @@
 // Parent-only PDF chapter creation, signed upload issuance, and assignment.
 // Requires JWT verification enabled at the function gateway.
 import { createClient } from 'npm:@supabase/supabase-js@2.119.0';
+import { derivePdfRange } from '../_shared/pdf-range.ts';
 const validPdfPath=(path:unknown,parent:string,chapter:string)=>typeof path==='string'&&path===`${parent}/${chapter}.pdf`;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin'};
@@ -26,6 +27,27 @@ Deno.serve(async req=>{
   if(roleError)return respond({error:'PARENT_ACCESS_CHECK_FAILED'},503);
   if(isParent!==true)return respond({error:'PARENT_REQUIRED'},403);
   const admin=createClient(url,service,{auth:{persistSession:false}});
+  if(input.action==='create_range'){
+    const source=input.source_uuid,request=input.request_key,start=input.page_start,end=input.page_end,title=input.title,expected=input.source_sha256;
+    if(typeof source!=='string'||!uuid.test(source)||typeof request!=='string'||!uuid.test(request)||typeof title!=='string'||!title.trim()||title.length>200||!Number.isSafeInteger(start)||!Number.isSafeInteger(end)||Number(start)<1||Number(end)<Number(start)||typeof expected!=='string'||!/^[0-9a-f]{64}$/.test(expected))return respond({error:'INVALID_RANGE_REQUEST'},400);
+    const {data:owned,error:ownerError}=await admin.from('cq_v4_pdf_chapters').select('storage_path,pdf_ready').eq('chapter_id',source).eq('parent_user_id',parent).maybeSingle();
+    if(ownerError)return respond({error:'SOURCE_ACCESS_CHECK_FAILED'},503);
+    if(!owned?.pdf_ready||!validPdfPath(owned.storage_path,parent,source))return respond({error:'VERIFIED_OWNED_SOURCE_REQUIRED'},403);
+    const {data:prior,error:priorError}=await admin.from('cq_v4_pdf_page_ranges').select('*').eq('parent_user_id',parent).eq('request_key',request).maybeSingle();
+    if(priorError)return respond({error:'RANGE_REGISTRY_UNAVAILABLE'},503);
+    if(prior){if(prior.source_pdf_uuid!==source||prior.page_start!==start||prior.page_end!==end||prior.title!==title.trim()||prior.source_sha256!==expected)return respond({error:'RANGE_REQUEST_CONFLICT'},409);return respond({chapter_uuid:prior.derived_pdf_uuid,pdf_ready:true,page_count:prior.page_end-prior.page_start+1,server_verified_range:true});}
+    const {data:file,error:readError}=await admin.storage.from('cq-v4-originals').download(owned.storage_path);
+    if(readError||!file||file.size>50*1024*1024)return respond({error:'SOURCE_DOWNLOAD_FAILED'},503);
+    let derived;try{derived=await derivePdfRange(new Uint8Array(await file.arrayBuffer()),Number(start),Number(end),title.trim());}catch{return respond({error:'INVALID_SOURCE_OR_PAGE_RANGE'},400);}
+    if(derived.source_sha256!==expected)return respond({error:'SOURCE_CHANGED_SINCE_PREVIEW'},409);
+    const id=crypto.randomUUID(),path=`${parent}/${id}.pdf`;
+    const {error:uploadError}=await admin.storage.from('cq-v4-originals').upload(path,derived.bytes,{contentType:'application/pdf',upsert:false});
+    if(uploadError)return respond({error:'DERIVED_UPLOAD_FAILED'},503);
+    const {data:committed,error:commitError}=await admin.rpc('cq_v4_commit_pdf_range',{p_parent:parent,p_request:request,p_source:source,p_derived:id,p_start:start,p_end:end,p_total:derived.source_page_count,p_title:title.trim(),p_source_sha:derived.source_sha256,p_derived_sha:derived.derived_sha256});
+    if(commitError||typeof committed!=='string'){await admin.storage.from('cq-v4-originals').remove([path]);return respond({error:'RANGE_COMMIT_FAILED'},503);}
+    if(committed!==id)await admin.storage.from('cq-v4-originals').remove([path]);
+    return respond({chapter_uuid:committed,pdf_ready:true,page_count:derived.page_count,server_verified_range:true});
+  }
   if(input.action==='list_chapters'){
     const {data,error}=await admin.from('cq_v4_pdf_chapters').select('chapter_id,title,pdf_ready,created_at').eq('parent_user_id',parent).order('created_at',{ascending:false}).limit(201);
     if(error)return respond({error:'CHAPTER_LIST_FAILED'},503);

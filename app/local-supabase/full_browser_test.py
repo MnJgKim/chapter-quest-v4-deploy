@@ -116,12 +116,31 @@ try:
    link=api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':original_uuid},users['parent']['token']);private.append(link['signed_url']);assert link['signed_url'].startswith('/storage/v1/object/sign/cq-v4-originals/')
    with urllib.request.urlopen(urllib.request.Request(base+link['signed_url'],headers={'apikey':anon,'Authorization':'Bearer '+users['parent']['token']}),timeout=30) as r:assert hashlib.sha256(r.read()).hexdigest()==original_sha
    passed('only a derived two-page PDF is registered and the complete server original remains byte-identical')
-  pp.locator('#cqDraftImport').set_input_files(str(draft));expect(pp.locator('[data-act="approve"]')).to_be_visible();pp.locator('[data-act="approve"]').click();pp.locator('[data-publish-child]').check();pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
+  pp.locator('#cqDraftImport').set_input_files(str(draft));expect(pp.locator('[data-act="approve"]')).to_be_visible();pp.locator('[data-act="approve"]').click();pp.locator('[data-publish-child]').check()
+  if original_kind=='range':
+   derived_uuid=pp.locator('#cqPublishVerifiedPdf').input_value();pp.locator('#cqPublishVerifiedPdf').select_option(original_uuid);pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('선택 범위 자료와 서버 PDF가 다릅니다');assert api('/rest/v1/rpc/cq_v4_my_chapters',{},users['student']['token'])==[];pp.locator('#cqPublishVerifiedPdf').select_option(derived_uuid);passed('changing the range lesson binding to the complete original is blocked before publishing or assigning')
+  pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(1);chapter_uuid=sp.locator('[data-child="view"]').get_attribute('data-uuid');context=api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['parent']['token']);assert context[0]['answer_key'][0]==0
   if original_kind=='range':
    try:api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':original_uuid},users['student']['token']);raise AssertionError('Range assignment exposed the complete original PDF')
    except urllib.error.HTTPError as error:assert error.code==403,'The unassigned complete original must remain private'
    passed('a student assigned the selected pages cannot request a download link for the complete original')
+
+   # Only the isolated local database is changed for this integrity fault injection.
+   def local_sql(sql):
+    return subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec','-i','supabase_db_cq-v4-local-qa','psql','-U','postgres','-At','-v','ON_ERROR_STOP=1'],input=sql,env=env,text=True,capture_output=True,check=True).stdout.strip()
+   manifest_hash=local_sql("select derived_sha256 from public.cq_v4_pdf_page_ranges where derived_pdf_uuid='"+chapter_uuid+"';");assert len(manifest_hash)==64
+   local_sql("update public.cq_v4_pdf_page_ranges set derived_sha256='"+'0'*64+"' where derived_pdf_uuid='"+chapter_uuid+"';")
+   try:
+    try:api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Mismatched derived PDF hash was accepted')
+    except urllib.error.HTTPError as error:assert error.code==403 and json.loads(error.read())['error']=='DERIVED_PDF_INTEGRITY_FAILED'
+   finally:local_sql("update public.cq_v4_pdf_page_ranges set derived_sha256='"+manifest_hash+"' where derived_pdf_uuid='"+chapter_uuid+"';")
+   passed('real Edge refuses to sign a derived PDF whose bytes do not match the server range manifest')
+   approval_id=local_sql("select approval_id from public.cq_v4_activities where chapter_uuid='"+chapter_uuid+"';")
+   try:api('/rest/v1/rpc/cq_v4_bind_verified_pdf',{'p_approval_id':approval_id,'p_chapter_uuid':original_uuid},users['parent']['token']);raise AssertionError('Range approval rebound to entire original')
+   except urllib.error.HTTPError as error:assert error.code==409
+   passed('real database prevents rebinding an approved selected range to the complete original')
+
   try:api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student could read parent context')
   except urllib.error.HTTPError as error:assert error.code==403,'Expected local role denial 403, got '+str(error.code)+' '+error.read(400).decode(errors='replace')
   passed('real parent lesson context includes model answers and denies the student')

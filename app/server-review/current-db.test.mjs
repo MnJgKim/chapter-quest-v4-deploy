@@ -6,7 +6,7 @@ const tables=JSON.parse(await fs.readFile(new URL('./fixtures/table_metadata.jso
 const ddl=JSON.parse(await fs.readFile(new URL('./fixtures/ddl_details.json',import.meta.url)));
 const db=new PGlite();const results=[];
 const quote=s=>'"'+s.replaceAll('"','""')+'"';
-await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;CREATE SCHEMA auth;CREATE SCHEMA storage;
+await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;CREATE ROLE service_role BYPASSRLS;CREATE SCHEMA auth;CREATE SCHEMA storage;
  CREATE TABLE auth.users(id uuid PRIMARY KEY);CREATE TABLE storage.buckets(id text PRIMARY KEY, public boolean DEFAULT false);
  CREATE TABLE storage.objects(id uuid DEFAULT gen_random_uuid(),bucket_id text,name text,metadata jsonb DEFAULT '{}'::jsonb);
  CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
@@ -34,6 +34,7 @@ for(const f of schema.functions){const signature='public.'+f.name+'('+f.args+')'
 const migrationDir=new URL('../local-supabase/supabase/migrations/',import.meta.url);
 const parentContextMigration=(await fs.readdir(migrationDir)).find(name=>name.endsWith('_cq_parent_lesson_context.sql'));
 await db.exec(await fs.readFile(new URL(parentContextMigration,migrationDir),'utf8'));
+await db.exec(await fs.readFile(new URL('20261111233341_cq_verified_pdf_ranges.sql',migrationDir),'utf8'));
 const parent='11111111-1111-4111-8111-111111111111',child='22222222-2222-4222-8222-222222222222',outsider='33333333-3333-4333-8333-333333333333',chapter='44444444-4444-4444-8444-444444444444';
 await db.exec(`INSERT INTO auth.users VALUES('${parent}'),('${child}'),('${outsider}');INSERT INTO public.cq_admins(user_id) VALUES('${parent}');
  INSERT INTO public.cq_v4_pdf_chapters(chapter_id,parent_user_id,title,storage_path,pdf_ready,pdf_verified_at) VALUES('${chapter}','${parent}','Synthetic test','${parent}/${chapter}.pdf',true,now());
@@ -46,6 +47,21 @@ async function check(name,fn){try{await fn();results.push({name,pass:true});}cat
 const full={answers:['0','The character helped a friend.'],essay:'The character helped.',speaking:'I can explain.',readComplete:true,hasAudio:true};
 const submit=(payload=full)=>db.query('SELECT * FROM public.cq_v4_submit_answers($1,$2::jsonb)',[chapter,JSON.stringify(payload)]);
 try{
+
+ const derived='77777777-7777-4777-8777-777777777777',rangeRequest='88888888-8888-4888-8888-888888888888';
+ const commitArgs=[parent,rangeRequest,chapter,derived,2,3,4,'Selected chapter','a'.repeat(64),'b'.repeat(64)];
+ const commitSql='select public.cq_v4_commit_pdf_range($1,$2,$3,$4,$5,$6,$7,$8,$9,$10) as id';
+ await check('range registry migration grants no direct access to authenticated users',()=>asUser(parent,async()=>assert.rejects(db.query('select * from public.cq_v4_pdf_page_ranges'),e=>e.code==='42501')));
+ await check('client cannot execute the privileged range commit',()=>asUser(parent,async()=>assert.rejects(db.query(commitSql,commitArgs),e=>e.code==='42501')));
+ await check('server range commit is atomic and idempotent',async()=>{assert.equal((await db.query(commitSql,commitArgs)).rows[0].id,derived);assert.equal((await db.query(commitSql,[...commitArgs.slice(0,3),'99999999-9999-4999-8999-999999999999',...commitArgs.slice(4)])).rows[0].id,derived);assert.equal((await db.query('select count(*)::int as n from public.cq_v4_pdf_page_ranges')).rows[0].n,1);});
+ await check('same range request cannot be reused with different pages',async()=>assert.rejects(db.query(commitSql,[...commitArgs.slice(0,4),1,3,...commitArgs.slice(6)]),e=>e.code==='23505'));
+ const registerSql='select public.cq_v4_register_range_approval_once($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14) as id';
+ const args=['99999999-9999-4999-8999-999999999999','book','range-chapter','Selected chapter','Selected source','[{"kind":"mc","text":"Who?","options":["A","B"]}]','[0]','[]','Explain.','Summarize.',chapter,derived,2,3];
+ await check('range approval atomically binds derived PDF and cannot rebind whole original',()=>asUser(parent,async()=>{const id=(await db.query(registerSql,args)).rows[0].id;await assert.rejects(db.query('select public.cq_v4_bind_verified_pdf($1,$2)',[id,chapter]),e=>e.code==='23505');}));
+ await check('range approval refuses whole original substituted for derived PDF',()=>asUser(parent,async()=>assert.rejects(db.query(registerSql,[...args.slice(0,11),chapter,2,3]),e=>e.code==='42501')));
+ await check('range approval refuses forged page bounds',()=>asUser(parent,async()=>assert.rejects(db.query(registerSql,[...args.slice(0,12),1,3]),e=>e.code==='42501')));
+ await check('student cannot register verified range approval',()=>asUser(child,async()=>assert.rejects(db.query(registerSql,args),e=>e.code==='42501')));
+
  await check('parent can read only the owned published lesson context',()=>asUser(parent,async()=>{const rows=(await db.query('select * from public.cq_v4_parent_lesson($1)',[chapter])).rows;assert.equal(rows.length,1);assert.equal(rows[0].questions.length,2);}));
  await check('student cannot execute privileged parent lesson read',()=>asUser(child,async()=>assert.rejects(db.query('select * from public.cq_v4_parent_lesson($1)',[chapter]),e=>e.code==='42501')));
  await check('different registered parent receives no lesson context',()=>asUser(outsider,async()=>{await db.exec('RESET ROLE;');await db.query('insert into public.cq_admins(user_id) values($1)',[outsider]);await db.exec('SET LOCAL ROLE authenticated;');assert.equal((await db.query('select * from public.cq_v4_parent_lesson($1)',[chapter])).rows.length,0);}));

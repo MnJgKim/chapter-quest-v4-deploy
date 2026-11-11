@@ -82,8 +82,16 @@
        await refreshPdfParentLists();
      }else if(action==='create'||action==='from-local'){
        const localChapter=action==='from-local'?chapter():null,localContext=pdfContext(),owner=cloudIdentity();
-       if(localChapter?.serverPdfUuid&&localChapter.serverPdfOwner===session.uid&&localChapter.serverPdfOrigin===project.url){const linked=await pdfParentCall('list_chapters',{});if(linked.chapters?.some(x=>x.chapter_uuid===localChapter.serverPdfUuid&&x.pdf_ready)){pdfParentStatus('이미 연결된 서버 PDF를 재사용합니다. 원본을 재업로드하지 않았습니다.');return;}}
+       if(localChapter?.serverPdfUuid&&(!localChapter.pdfRange||localChapter.serverRangeVerified)&&localChapter.serverPdfOwner===session.uid&&localChapter.serverPdfOrigin===project.url){const linked=await pdfParentCall('list_chapters',{});if(linked.chapters?.some(x=>x.chapter_uuid===localChapter.serverPdfUuid&&x.pdf_ready)){pdfParentStatus('이미 연결된 서버 PDF를 재사용합니다. 원본을 재업로드하지 않았습니다.');return;}}
        const title=localChapter?((book()?.title||'도서')+' · '+localChapter.title).slice(0,200):document.getElementById('cqPdfChapterTitle')?.value.trim();
+       if(localChapter?.pdfRange){
+         const range=localChapter.pdfRange;if(!range.sourceServerPdfUuid||range.sourceProject!==project.url)throw Error('검증할 서버 원본을 먼저 불러오고 그 원본에서 범위를 준비하세요.');
+         pdfParentStatus('서버에서 원본의 선택 쪽을 직접 추출·검증하는 중…');
+         const verified=await pdfParentCall('create_range',{source_uuid:range.sourceServerPdfUuid,request_key:localChapter.id,page_start:range.start,page_end:range.end,source_sha256:range.sourceSHA256,title});
+         if(cloudIdentity()!==owner||chapter()!==localChapter||pdfContext()!==localContext)throw Error('계정 또는 챕터가 변경되었습니다.');
+         if(!verified.server_verified_range||verified.page_count!==range.end-range.start+1||!verified.chapter_uuid)throw Error('서버 범위 검증 결과를 확인하지 못했습니다.');
+         localChapter.serverPdfUuid=verified.chapter_uuid;localChapter.serverPdfOrigin=project.url;localChapter.serverPdfOwner=session.uid;localChapter.serverRangeVerified=true;save();await refreshPdfParentLists();pdfParentStatus('선택 범위 PDF의 서버 추출 및 검증 완료. 전체 원본은 변경·재업로드하지 않았습니다.');return;
+       }
        let file=localChapter?await pdfGet(localContext):document.getElementById('cqPdfServerFile')?.files?.[0];
        if(cloudIdentity()!==owner||(localChapter&&(chapter()!==localChapter||pdfContext()!==localContext)))throw Error('계정 또는 챕터가 변경되었습니다.');
        if(file&&(file.name?.toLowerCase().endsWith('.txt')||localChapter?.readerType==='txt')){pdfParentStatus('TXT 원문을 PDF로 변환 중…');file=await CQTextPDF.convert(file);}
@@ -229,6 +237,7 @@
      const serverPdfUuid=document.getElementById('cqPublishVerifiedPdf')?.value||'';
      if(!/^[0-9a-f-]{36}$/i.test(serverPdfUuid)||!pdfServerChapters.some(x=>x.uuid===serverPdfUuid&&x.ready))
        throw Error('검증된 서버 PDF 챕터를 선택하고 서버 PDF 목록을 새로고침하세요.');
+     if(c.pdfRange&&(!c.serverRangeVerified||!c.serverPdfUuid||c.serverPdfUuid!==serverPdfUuid||c.serverPdfOwner!==session.uid||c.serverPdfOrigin!==project.url))throw Error('선택 범위 자료와 서버 PDF가 다릅니다. 이 범위의 파생 PDF를 등록하고 연결된 항목을 선택하세요.');
      pendingTargetChildren=[...selected];
      const {questions,answerKey}=publicationPayload(c);publicationSnapshot={questions,answer_key:answerKey,vocabulary:structuredClone(c.vocabulary||[])};publicationPdf=serverPdfUuid;
      if(cloudIdentity()!==owner||selectedBook!==currentBook||selectedChapter!==currentChapter||chapter()!==c)throw Error('계정 또는 챕터가 변경되었습니다.');
@@ -236,11 +245,11 @@
      // Stage98: stable per-account/per-content request key, persisted before network I/O.
      const requestKey=CQPublicationKey.resolve({storage:localStorage,origin:project.url,uid:session.uid,bookId:currentBook,chapterId:currentChapter,pdfUuid:serverPdfUuid,hash:c.approvalReceipt.sha256});
      if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(requestKey))throw Error('서버 승인 요청 키가 손상되었습니다. 임의로 재발급하지 않습니다.');
-     const approvalId=await parentRpc('cq_v4_register_approval_once',{
+     const approvalId=await parentRpc(c.pdfRange?'cq_v4_register_range_approval_once':'cq_v4_register_approval_once',{
        p_request_key:requestKey,p_book_id:currentBook,p_chapter_id:currentChapter,p_title:c.title,p_source:c.source,
        p_questions:questions,p_answer_key:answerKey,
        p_vocabulary:(c.vocabulary||[]).map(v=>({word:String(v.word||v.english||''),meaning:String(v.meaning||v.korean||''),example:String(v.example||'')})),
-       p_writing_prompt:String(c.writingPrompt||''),p_speaking_prompt:String(c.speakingPrompt||'')
+       p_writing_prompt:String(c.writingPrompt||''),p_speaking_prompt:String(c.speakingPrompt||''),...(c.pdfRange?{p_source_pdf_uuid:c.pdfRange.sourceServerPdfUuid,p_derived_pdf_uuid:serverPdfUuid,p_page_start:c.pdfRange.start,p_page_end:c.pdfRange.end}:{})
      });
      if(cloudIdentity()!==owner||selectedBook!==currentBook||selectedChapter!==currentChapter||chapter()!==c||!await isApprovalCurrent(c))throw Error('승인 기록 등록 후 계정 또는 자료가 변경되어 게시를 중단했습니다.');
      if(typeof approvalId!=='string'||!/^[0-9a-f-]{36}$/i.test(approvalId))throw Error('서버 승인 기록 식별자가 올바르지 않습니다.');
