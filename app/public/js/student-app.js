@@ -72,23 +72,22 @@
  const draftId=(uid,uuid)=>uid+'/'+uuid;
  function readDraft(uid,uuid){
    if(!validDraftId(uid)||!validDraftId(uuid))return null;
-   try {const draft=JSON.parse(localStorage.getItem(DRAFT_KEY)||'{}')[draftId(uid,uuid)];
+   try {const draft=CQStudentStore.readMap(localStorage,DRAFT_KEY)[draftId(uid,uuid)];
      return draft?.uid===uid&&draft?.uuid===uuid&&Array.isArray(draft.answers)?draft:null;
    }catch{return null;}
  }
  function writeDraft(uid,uuid,form){
    if(!validDraftId(uid)||!validDraftId(uuid))throw Error('학생 또는 챕터 식별자가 올바르지 않습니다.');
-   const all=JSON.parse(localStorage.getItem(DRAFT_KEY)||'{}');
    const answers=[];
    for(let i=0;form.querySelector(`[name="cqAnswer${i}"]`);i++){
      const checked=form.querySelector(`[name="cqAnswer${i}"]:checked`);
      const field=checked||form.querySelector(`textarea[name="cqAnswer${i}"]`);
      answers.push(field?.value??'');
    }
-   all[draftId(uid,uuid)]={uid,uuid,answers,essay:form.elements.namedItem('essay')?.value||'',
+   return CQStudentStore.updateMap(localStorage,DRAFT_KEY,all=>{all[draftId(uid,uuid)]={uid,uuid,answers,essay:form.elements.namedItem('essay')?.value||'',
      speaking:form.elements.namedItem('speaking')?.value||'',wordsReviewed:[...form.querySelectorAll('[data-word-done]:checked')].map(x=>Number(x.dataset.wordDone)),
      readComplete:!!form.elements.namedItem('readComplete')?.checked,updatedAt:Date.now()};
-   localStorage.setItem(DRAFT_KEY,JSON.stringify(all));
+   });
  }
  function restoreDraft(uid,uuid,form){
    const draft=readDraft(uid,uuid);if(!draft)return false;
@@ -102,13 +101,12 @@
    form.elements.namedItem('essay').value=draft.essay||'';
    form.elements.namedItem('speaking').value=draft.speaking||'';
    form.elements.namedItem('readComplete').checked=!!draft.readComplete;
-   for(const index of draft.wordsReviewed||[]){const done=form.querySelector('[data-word-done="'+Number(index)+'"]');if(done)done.checked=true;}
+   for(const index of Array.isArray(draft.wordsReviewed)?draft.wordsReviewed:[]){const done=form.querySelector('[data-word-done="'+Number(index)+'"]');if(done)done.checked=true;}
    return true;
  }
  function clearDraft(uid,uuid){
    if(!validDraftId(uid)||!validDraftId(uuid))return;
-   try {const all=JSON.parse(localStorage.getItem(DRAFT_KEY)||'{}');
-     delete all[draftId(uid,uuid)];localStorage.setItem(DRAFT_KEY,JSON.stringify(all));}catch{}
+   try {CQStudentStore.updateMap(localStorage,DRAFT_KEY,all=>{delete all[draftId(uid,uuid)];});}catch{}
  }
 
  const recoveryId=(uid,uuid)=>uid+'/'+uuid;
@@ -120,19 +118,16 @@
      .map(x=>x.toString(16).padStart(2,'0')).join('');
  }
  function readRecovery(uid,uuid){
-   try {const r=JSON.parse(localStorage.getItem(AUDIO_RECOVERY_KEY)||'{}')[recoveryId(uid,uuid)];
+   try {const r=CQStudentStore.readMap(localStorage,AUDIO_RECOVERY_KEY)[recoveryId(uid,uuid)];
      return r&&['webm','mp4','ogg'].includes(r.ext)&&r.uid===uid&&r.uuid===uuid&&validAudioHash(r.sha256)?r:null;
    }catch{return null;}
  }
  function writeRecovery(uid,uuid,ext,phase='uploaded',sha256){
-   const all=JSON.parse(localStorage.getItem(AUDIO_RECOVERY_KEY)||'{}');
    if(!validAudioHash(sha256))throw Error('녹음 파일 무결성 정보가 없습니다.');
-   all[recoveryId(uid,uuid)]={uid,uuid,ext,phase,sha256,createdAt:Date.now()};
-   localStorage.setItem(AUDIO_RECOVERY_KEY,JSON.stringify(all));
+   CQStudentStore.updateMap(localStorage,AUDIO_RECOVERY_KEY,all=>{all[recoveryId(uid,uuid)]={uid,uuid,ext,phase,sha256,createdAt:Date.now()};});
  }
  function clearRecovery(uid,uuid){
-   const all=JSON.parse(localStorage.getItem(AUDIO_RECOVERY_KEY)||'{}');
-   delete all[recoveryId(uid,uuid)];localStorage.setItem(AUDIO_RECOVERY_KEY,JSON.stringify(all));
+   CQStudentStore.updateMap(localStorage,AUDIO_RECOVERY_KEY,all=>{delete all[recoveryId(uid,uuid)];});
  }
  async function verifyExistingAudio(uid,uuid,ext,expectedSha256){
    if(!validAudioHash(expectedSha256))throw Error('기존 녹음 파일의 무결성 정보를 확인할 수 없습니다.');
@@ -281,7 +276,7 @@
   const root=el('cqChildAccount');if(!root)return;
   root.innerHTML=`<section class="card"><h2>🔐 학생 계정 로그인</h2>
    <p class="muted">학생 본인의 계정으로 로그인하세요. 부모가 승인하고 배정한 챕터를 학습할 수 있습니다. 기기 데모 기록은 별도로 보관됩니다. 작성 중인 답안은 이 기기에 자동 저장되며 같은 계정으로 다시 로그인하면 이어서 학습할 수 있습니다.</p>
-   ${session?`<p>학생 계정 로그인됨</p><div class="row"><input id="cqChildInvite" placeholder="부모 초대코드 (48자리)" autocomplete="off" style="flex:1"><input id="cqChildInviteName" placeholder="학생 이름" style="max-width:130px"><button data-child="claim">연결 요청</button></div><button data-child="list">내 배정 챕터 불러오기</button><button data-child="logout">로그아웃</button>
+   ${session?`<p>학생 계정 로그인됨 · 계정 확인번호 <strong data-child-reference>${escape(session.uid.slice(-8))}</strong></p><div class="row"><input id="cqChildInvite" placeholder="부모 초대코드 (48자리)" autocomplete="off" style="flex:1"><input id="cqChildInviteName" placeholder="학생 이름" style="max-width:130px"><button data-child="claim">연결 요청</button></div><button data-child="list">내 배정 챕터 불러오기</button><button data-child="logout">로그아웃</button>
     <div>${chapters.map(c=>`<div class="book"><b>${escape(c.chapter_title)}</b><button data-child="view" data-uuid="${escape(c.chapter_uuid)}">원문·문제 보기</button></div>`).join('')}</div><div id="cqChildDetail"></div>`:
     `<div class="grid"><label>학생 이메일<input id="cqChildEmail" type="email" autocomplete="username"></label><label>학생 비밀번호<input id="cqChildPassword" type="password" autocomplete="current-password"></label></div><button data-child="login">학생 계정 로그인</button><button data-child="signup-open">학생 계정 만들기</button><div id="cqChildSignup" hidden><label>비밀번호 확인<input id="cqChildPasswordConfirm" type="password" autocomplete="new-password"></label><p class="muted">학생용 별도 계정을 만들고 부모 초대코드로 연결하세요. 비밀번호는 8자 이상 입력하세요.</p><button data-child="signup">새 학생 계정 생성</button><button data-child="signup-cancel">취소</button></div>`}
    <p id="cqChildStatus" class="status"></p></section>`;
@@ -443,7 +438,7 @@
      invalidateVoiceForNavigation();
      const owner=childContext(),api=childApi;const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)throw Error('학생 계정이 변경되었습니다.');chapters=rows;draw();status(chapters.length+'개 챕터를 불러왔습니다.');
    }
-   if(b.dataset.child==='view'){
+   if(b.dataset.child==='view'||b.dataset.child==='feedback'){
     const c=chapters.find(x=>x.chapter_uuid===b.dataset.uuid);
     if(!c)throw Error('배정된 챕터가 아닙니다.');
     if(!confirmVoiceDeparture())return;
@@ -468,7 +463,7 @@
     const activityHtml=`<section data-learn-section="words"><h4>핵심 단어</h4><ul>${vocabularyHtml||'<li>등록된 단어가 없습니다.</li>'}</ul></section><section data-learn-section="prompts"><h4>영어 독후감 질문</h4><p>${escape(activity.writing_prompt||'')}</p><h4>말하기 질문</h4><p>${escape(activity.speaking_prompt||'')}</p></section>`;
     const form=`${pending?'<p class="muted">이전에 업로드된 녹음이 있습니다. 최종 제출 시 서버에서 파일을 확인합니다. 임시저장된 답변이 있다면 자동으로 복원됩니다.</p>':''}<form id="cqChildWork" novalidate data-uuid="${escape(c.chapter_uuid)}"><nav class="learn-nav" aria-label="학습 순서"><button type="button" data-learn-jump="read">1 원문</button><button type="button" data-learn-jump="words">2 단어</button><button type="button" data-learn-jump="questions">3 문제</button><button type="button" data-learn-jump="writing">4 글쓰기</button><button type="button" data-learn-jump="speaking">5 말하기</button><button type="button" data-learn-jump="submit">6 제출</button></nav><div id="cqServerPdfViewer" data-learn-section="read" class="card" role="region" aria-label="원본 PDF 읽기">원본 PDF 접근 권한을 확인하는 중입니다...</div><div class="note" role="status">원본 PDF를 읽고 문제·독후감·말하기를 완료하세요. PDF를 불러오지 못하면 제출할 수 없습니다.</div>${activityHtml}<label><input type="checkbox" name="readComplete" required disabled> 원문 PDF 연결 대기</label><section data-learn-section="questions">${questionFields}</section><label data-learn-section="writing">영어 독후감<textarea name="essay" rows="5" required></textarea></label><label data-learn-section="speaking">말하기 대본<textarea name="speaking" rows="3" required></textarea></label><div class="row"><button type="button" data-child="voice-start">● 녹음 시작</button><button type="button" data-child="voice-stop">■ 녹음 종료</button><button type="button" data-child="voice-retry">↻ 녹음 저장 재시도</button><button type="button" data-child="voice-download">↓ 미저장 녹음 백업</button><button type="button" data-child="voice-import">↑ 녹음 백업 복원</button><input id="cqVoiceManifestImport" type="file" accept=".json,.cqvoice.json,application/json" hidden><input id="cqVoiceImport" type="file" accept="audio/webm,audio/mp4,audio/ogg" hidden></div><div id="cqVoicePlayback"></div><p class="muted" id="cqVoiceStatus">말하기 녹음은 필수입니다. 녹음 완료 후 이 기기의 IndexedDB에 원본을 저장합니다. 저장에 실패하면 제출할 수 없으며, 최종 제출 시 서버 업로드를 시도합니다. 업로드가 실패하면 제출되지 않습니다.</p><div class="submission-bar" data-learn-section="submit"><span id="cqDraftStatus" role="status">답안은 입력 즉시 이 기기에 저장됩니다.</span><button type="submit" disabled title="서버 PDF 연결 및 접근 권한 검증 후 활성화">최종 제출 (PDF 연결 대기)</button></div></form>`;
     const feedback=submitted?.feedback_released?`<h4>부모 피드백</h4><p>${escape(submitted.feedback||'')}</p>`:'<p>부모 피드백 검토 중입니다.</p>';
-    detail.innerHTML=`<div class="book"><h3>${escape(c.chapter_title)}</h3>${submitted?`<p>제출 완료 · ${escape(submitted.submitted_at||'')}</p>${feedback}<button data-child="view" data-uuid="${escape(c.chapter_uuid)}">피드백 새로고침</button>`:form}</div>`;
+    detail.innerHTML=`<div class="book"><h3>${escape(c.chapter_title)}</h3>${submitted?`<p>제출 완료 · ${escape(submitted.submitted_at||'')}</p>${feedback}<button data-child="feedback" data-uuid="${escape(c.chapter_uuid)}">피드백 새로고침</button>`:form}</div>`;
     if(submitted){clearDraft(viewUid,c.chapter_uuid);clearRecovery(viewUid,c.chapter_uuid)}
     if(submitted)await retryConfirmedCleanup(viewUid,c.chapter_uuid,viewGeneration);
     else if(restoreDraft(viewUid,c.chapter_uuid,el('cqChildWork'))){
@@ -485,8 +480,8 @@
  function saveCurrentDraft(e){
    const form=e.target.closest?.('#cqChildWork');
    if(!form||!session||mode!=='student')return;
-   try{writeDraft(session.uid,form.dataset.uuid,form);const saved=document.getElementById('cqDraftStatus');if(saved)saved.textContent='이 기기에 답안 자동 저장됨';}
-   catch(error){status('임시저장 실패: '+error.message)}
+   try{const result=writeDraft(session.uid,form.dataset.uuid,form);const saved=document.getElementById('cqDraftStatus');if(saved)saved.textContent='이 기기에 답안 자동 저장됨'+(result?.recovered?' · 이전 손상 자료는 복구 사본으로 보존됨':'');}
+   catch(error){const saved=document.getElementById('cqDraftStatus');if(saved)saved.textContent='답안 저장 실패 · 화면을 닫지 말고 기기 저장 공간을 확인하세요.';status('임시저장 실패: '+error.message)}
  }
  document.addEventListener('click',event=>{
   const form=document.getElementById('cqChildWork');if(!form||!session||mode!=='student')return;
@@ -543,7 +538,7 @@
        voiceBlob=null;voiceChapter=null;
        status('서버에 이미 제출된 답변이 확인되었습니다. 중복 제출하지 않았습니다.'+(audioCleanupOk?'':' 이 기기의 녹음 파일 정리는 실패했습니다. 저장 공간을 확인하세요.'));
        const detail=el('cqChildDetail');
-       if(detail)detail.innerHTML='<p>제출 완료. 피드백은 부모 검토 후 공개됩니다.</p>';
+       if(detail)detail.innerHTML='<p>제출 완료. 피드백은 부모 검토 후 공개됩니다.</p><button data-child="feedback" data-uuid="'+escape(uuid)+'">피드백 확인</button>';
        return;
      }
      const pending=readRecovery(context.uid,uuid);
@@ -600,7 +595,7 @@
      assertChildContext(context);
      try{submissionGate.markConfirmed(context.uid,uuid)}catch(err){console.warn('Submission marker unavailable:',err?.name||'UNKNOWN');}
      uploadedAudio.delete(session.uid+'/'+uuid);clearRecovery(session.uid,uuid);clearDraft(session.uid,uuid);const audioCleanupOk=await cleanupConfirmedAudio(context.uid,uuid,context);assertChildContext(context);voiceBlob=null;voiceChapter=null;status('제출 완료. 부모 피드백은 공개 후 확인할 수 있습니다.'+(audioCleanupOk?'':' 이 기기의 녹음 파일 정리는 실패했습니다. 저장 공간을 확인하세요.'));
-     const detail=el('cqChildDetail');if(detail)detail.innerHTML='<p>제출 완료. 피드백은 부모 검토 후 공개됩니다.</p>';
+     const detail=el('cqChildDetail');if(detail)detail.innerHTML='<p>제출 완료. 피드백은 부모 검토 후 공개됩니다.</p><button data-child="feedback" data-uuid="'+escape(uuid)+'">피드백 확인</button>';
    }catch(err){
      if(session?.uid===context.uid&&childGeneration===context.generation){
        status('제출 실패: '+err.message+(readRecovery(context.uid,uuid)?' · 서버에 업로드된 녹음 기록이 보존되었습니다. 다시 로그인해 제출할 수 있습니다.':''));

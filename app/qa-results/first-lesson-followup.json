@@ -1,0 +1,32 @@
+{
+  "productionWrites": false,
+  "paidResourcesCreated": false,
+  "productionReadOnly": {
+    "verifiedPDFs": 1,
+    "enrollmentLinks": 1,
+    "publishedLessons": 0,
+    "assignments": 0,
+    "submissions": 0,
+    "parentContextInstalled": false,
+    "publicHTMLMatchesPreservedOriginal": true,
+    "candidateHealthStatus": 404
+  },
+  "reproducedBeforeFix": {
+    "draftContainer": "[]",
+    "browserChecksBeforeFailure": 13,
+    "afterReloadEssay": "empty despite prior save status"
+  },
+  "afterFix": {
+    "nodeChecks": 71,
+    "isolatedDBChecks": 24,
+    "localBrowserChecks": 34,
+    "mockedServerBrowserChecks": 50
+  },
+  "cloudflare": {
+    "readOnlyDeviceAttempts": 2,
+    "tokenReceived": false,
+    "planVerified": false,
+    "deploymentVersionVerified": false,
+    "secretValuesRequestedInChat": false
+  }
+}

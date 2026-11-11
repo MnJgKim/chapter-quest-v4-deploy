@@ -14,7 +14,19 @@
       "pass": true
     },
     {
+      "name": "parent assignment and the authenticated student show the same account reference before selection",
+      "pass": true
+    },
+    {
       "name": "parent converts local original TXT to PDF, signs upload, verifies and links the selected chapter",
+      "pass": true
+    },
+    {
+      "name": "failed AI generation retains the reviewed source and restores its action button",
+      "pass": true
+    },
+    {
+      "name": "a fresh parent tab restores source saved before a failed AI request",
       "pass": true
     },
     {
@@ -51,6 +63,14 @@
     },
     {
       "name": "active learning form fits 1280x800 mobile/tablet viewport with submit control",
+      "pass": true
+    },
+    {
+      "name": "failed recovery backup visibly blocks overwrite and retains both old raw data and current form",
+      "pass": true
+    },
+    {
+      "name": "damaged draft array is preserved exactly and autosave repairs the map before reload",
       "pass": true
     },
     {
@@ -94,11 +114,19 @@
       "pass": true
     },
     {
+      "name": "damaged audio recovery map is preserved before the durable upload intent is saved",
+      "pass": true
+    },
+    {
       "name": "lost submit response preserves local recovery data",
       "pass": true
     },
     {
       "name": "retry uploads audio and submits full answer contract once",
+      "pass": true
+    },
+    {
+      "name": "submitted student has a direct feedback path before the parent releases feedback",
       "pass": true
     },
     {
@@ -206,6 +234,8 @@
     "cq_v4_my_submission",
     "cq_v4_submit_answers",
     "cq_v4_my_submission",
+    "cq_v4_my_submission",
+    "cq_v4_my_chapter_activities",
     "cq_v4_parent_submissions",
     "cq_v4_parent_lesson",
     "cq_v4_release_feedback",
