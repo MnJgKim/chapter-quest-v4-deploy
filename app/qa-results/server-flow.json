@@ -98,6 +98,14 @@
       "pass": true
     },
     {
+      "name": "fresh parent browser reuses owned PDF with exact bytes and extracted text without server writes",
+      "pass": true
+    },
+    {
+      "name": "reused original PDF and source survive page reload without an active server login",
+      "pass": true
+    },
+    {
       "name": "parent logout clears cached private submission details",
       "pass": true
     },
@@ -153,6 +161,7 @@
     "cq_v4_parent_lesson",
     "cq_v4_my_submission",
     "cq_v4_my_chapter_activities",
+    "cq_is_admin",
     "cq_is_admin",
     "cq_v4_my_chapters",
     "cq_v4_my_submission",

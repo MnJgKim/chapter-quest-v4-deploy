@@ -17,10 +17,12 @@ parent='11111111-1111-4111-8111-111111111111';child='22222222-2222-4222-8222-222
 source='A young reader helped a friend find a lost book. Together they learned to be patient and kind. '*8
 draft={'questions':[{'kind':'mc','text':'What was lost?','options':['A book','A hat'],'correct':0},{'kind':'inference','text':'Why did they work together?','sample':'They wanted to help.'}],'vocabulary':[{'word':'patient','meaning':'참을성 있는','example':'The reader was patient.'}],'writingPrompt':'Explain how they helped.','speakingPrompt':'Summarize the chapter.'}
 state={'students':[{'name':'서우','active':True}],'who':'서우','books':[{'id':'qa-book','title':'QA Book','students':['서우'],'chapters':[{'id':'qa-chapter','title':'QA Chapter','source':source,'pdfStored':True,'questions':[],'vocabulary':[],'writingPrompt':'','speakingPrompt':''}]}],'records':{},'weekly':{},'focus':{},'code':''}
-backend={'claimed':False,'approved':False,'pdf':False,'published':False,'bound':False,'submission':None,'audio':None,'audio_type':'audio/webm','feedback':'','released':False,'fail_upload':True,'submit_count':0,'refresh_count':0,'deny_pdf':False,'lose_submit_response':True,'pdf_bytes':None,'context_missing':False}
+backend={'claimed':False,'approved':False,'pdf':False,'published':False,'bound':False,'submission':None,'audio':None,'audio_type':'audio/webm','feedback':'','released':False,'fail_upload':True,'submit_count':0,'refresh_count':0,'deny_pdf':False,'lose_submit_response':True,'pdf_bytes':None,'context_missing':False,'pdf_actions':[]}
 report={'scope':'isolated Chromium with separate parent/student browser contexts, synthetic Supabase/AI HTTP responses and fake microphone; hosted integration NOT verified','checks':[],'page_errors':[],'unexpected_requests':[],'rpc_calls':[]}
 def passed(name):report['checks'].append({'name':name,'pass':True})
-c=canvas.Canvas(str(out/'fixture.pdf'));c.drawString(50,750,'Synthetic Chapter Quest reading original');c.save();pdf=(out/'fixture.pdf').read_bytes()
+c=canvas.Canvas(str(out/'fixture.pdf'));c.drawString(50,750,'Synthetic Chapter Quest reading original');
+for row in range(8):c.drawString(50,720-row*20,'Mina helped Leo find a book. They searched patiently and thanked each other.');
+c.save();pdf=(out/'fixture.pdf').read_bytes()
 def route(r):
  req=r.request;u=urlparse(req.url);path=u.path
  def reply(data,status=200):r.fulfill(status=status,json=data,headers={'Access-Control-Allow-Origin':'*'})
@@ -39,10 +41,11 @@ def route(r):
   reply({'access_token':'parent-token' if is_parent else 'other-token' if is_other else 'child-token','refresh_token':'refresh-parent' if is_parent else 'refresh-child','expires_in':3600 if is_parent else 1,'user':{'id':parent if is_parent else '33333333-3333-4333-8333-333333333333' if is_other else child}});return
  if path.startswith('/rest/v1/cq_v4_snapshots'):reply([]);return
  if path=='/functions/v1/cq-v4-pdf-parent':
-  action=body.get('action')
+  action=body.get('action');backend['pdf_actions'].append(action)
   if action=='list_students':reply({'students':[{'student_user_id':child}] if backend['approved'] else []})
   elif action=='list_chapters':reply({'chapters':[{'chapter_uuid':chapter,'title':'QA Chapter','pdf_ready':backend['pdf']}] if backend['pdf'] else []})
   elif action=='list_assignments':reply({'assignments':[]})
+  elif action=='download_url':reply({'signed_url':'/storage/v1/object/sign/cq-v4-originals/'+parent+'/'+chapter+'.pdf?token=synthetic','expires_at':__import__('datetime').datetime.fromtimestamp(time.time()+120,__import__('datetime').timezone.utc).isoformat()})
   elif action=='create_chapter':reply({'chapter_uuid':chapter})
   elif action=='upload_url':reply({'path':parent+'/'+chapter+'.pdf','token':'synthetic-upload','bucket':'cq-v4-originals'})
   elif action=='finalize_upload':backend['pdf']=True;reply({'pdf_ready':True})
@@ -131,6 +134,13 @@ try:
   pp.locator('[data-parent-feedback="list"]').click();expect(pp.locator('.submitted-lesson')).to_contain_text('A book');expect(pp.locator('.submitted-lesson')).not_to_contain_text('CHANGED LOCAL DRAFT');backend['context_missing']=False;passed('missing optional read API uses the frozen published answer context, never an edited local draft')
   pp.locator('[data-parent-feedback-text]').fill('Great work, QA Student!');pp.locator('[data-parent-feedback-release]').check();pp.locator('[data-parent-feedback="save"]').click();expect(pp.locator('#cqParentFeedbackStatus')).to_contain_text('다시 확인');passed('parent sees submitted answers and releases feedback')
   sp.locator('[data-child="view"]').click();expect(sp.locator('#cqChildDetail')).to_contain_text('Great work, QA Student!');assert sp.locator('#cqChildWork').count()==0;passed('student sees released feedback and cannot edit final submission')
+  # An independent parent's empty browser reuses an existing vector PDF without uploads or assignments.
+  backend['pdf_bytes']=pdf;old_actions=len(backend['pdf_actions']);old_rpc=len(report['rpc_calls'])
+  rc,rp=context();rp.goto(base);rp.locator('#parentBtn').click();rp.locator('#cloudEmail').fill('parent@example.test');rp.locator('#cloudPassword').fill('synthetic-password');rp.locator('[data-cloud="login"]').click();expect(rp.locator('#cloudStatus')).to_contain_text('로그인 성공');rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(1);rp.locator('[data-pdf-parent="use-existing"]').click();expect(rp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다');expect(rp.locator('#sourceText')).to_have_value(__import__('re').compile('Mina helped Leo'))
+  restored=rp.evaluate("async()=>{const c=chapter(),f=await pdfGet(pdfKey(book().id,c.id));return {uuid:c.serverPdfUuid,bytes:Array.from(new Uint8Array(await f.arrayBuffer())),count:state.books.flatMap(b=>b.chapters).length}}")
+  assert restored['uuid']==chapter and bytes(restored['bytes'])==pdf and restored['count']==1
+  assert backend['pdf_actions'][old_actions:]==['list_chapters','list_students','list_assignments','download_url'];assert all(x=='cq_is_admin' for x in report['rpc_calls'][old_rpc:]);passed('fresh parent browser reuses owned PDF with exact bytes and extracted text without server writes')
+  rp.reload();rp.locator('#parentBtn').click();rp.locator('[data-act="manageBook"]').click();rp.locator('[data-act="editChapter"]').click();expect(rp.locator('#sourceText')).to_have_value(__import__('re').compile('Mina helped Leo'));assert rp.evaluate("async()=>{const f=await pdfGet(pdfKey(book().id,chapter().id));return f.size}")==len(pdf);passed('reused original PDF and source survive page reload without an active server login')
   pp.locator('[data-cloud="logout"]').click();assert 'The friends learned to help each other.' not in pp.locator('#cqParentFeedback').inner_text();passed('parent logout clears cached private submission details')
   pp.locator('#cloudEmail').fill('other@example.test');pp.locator('#cloudPassword').fill('synthetic-password');pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('부모 관리자로 등록된 계정이 아닙니다');expect(pp.locator('[data-parent-feedback="list"]')).to_be_disabled();passed('student account is rejected at the parent login boundary')
   # A second independent student tab receives a denied signed-link response.

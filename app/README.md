@@ -22,10 +22,10 @@ Malformed existing browser state is copied to a recovery key before display repa
 
 ## Verified locally
 
-- 36 Node checks: authenticated AI handling/free-plan lock, origin restrictions, state repair, asset existence and sanitized student question transport.
+- 48 Node checks: authenticated AI handling/free-plan lock, origin restrictions, state repair, asset existence sanitized student question transport, parent PDF ownership/signature denial and original byte integrity.
 - 24 isolated PostgreSQL checks using captured hosted function definitions.
 - 34 local-browser checks including PDF/TXT originals, PDF text extraction, question selection, audio, final submission, feedback, preservation, malformed state and failed-asset recovery.
-- 28 mocked-server browser checks: parent/child invitation, TXT-to-PDF signed upload, PDF binding/publication, vocabulary, touch input, 360/412/800/1280px active-learning layouts, refresh/login draft recovery, same-browser student separation, audio retry/lost-response recovery, parent cache clearing and authorization rejection.
+- 30 mocked-server browser checks: parent/child invitation, TXT-to-PDF signed upload, PDF binding/publication, vocabulary, touch input, 360/412/800/1280px active-learning layouts, refresh/login draft recovery, same-browser student separation, audio retry/lost-response recovery, parent cache clearing authorization rejection, and fresh-browser recovery of an existing PDF with exact bytes/extracted source retained after reload.
 - 30 real lean-local Auth/PostgreSQL/PostgREST API checks and 9 independent real-local browser checks. In the lean setup, storage objects are SQL fixtures; it does not run Storage API/Edge services.
 - Five previously executed live anonymous denial checks. Hosted authenticated writes have not been used for testing.
 - Root deployment dry-run succeeds. Actual deployment has not run.
@@ -36,12 +36,12 @@ Machine-readable results are in `qa-results/`. The new GitHub Actions workflow u
 
 `AI_FREE_PLAN_CONFIRMED=false` keeps inference disabled until the correct Cloudflare account is verified as Workers Free. The manual/JSON lesson path makes no AI API call. Do not upgrade plans or enable paid inference. See `FREE_LESSON_PREPARATION.md` and `TEST_ENVIRONMENT_PLAN.md`.
 
-Before production readiness: confirm the full local Storage/Edge suite outcome; verify the intended Galaxy device and microphone; identify the actual first-lesson source/approved questions/student assignment; confirm the correct free Cloudflare account; inspect the immediately preceding deployment and obtain explicit user deployment approval. Viewport/touch emulation is not a physical Galaxy test. No synthetic fixtures may be written to production.
+Before production readiness: confirm the full local Storage/Edge suite outcome; verify the intended Galaxy device and microphone; review the selected existing `Chapter` PDF and its questions/student assignment; confirm the correct free Cloudflare account; inspect the immediately preceding deployment and obtain explicit user deployment approval. Viewport/touch emulation is not a physical Galaxy test. No synthetic fixtures may be written to production.
 
 ## Rollback
 
 Capture the live Cloudflare deployment version/settings immediately before an approved release. If post-release checks fail, restore traffic to that captured version and verify the original page/login. Keep the same browser profile and retain JSON backups plus original PDF/TXT/audio files separately; JSON backup does not include those binary files. Do not clear IndexedDB/localStorage or delete server rows/objects during rollback.
 
-This candidate additionally proposes one additive parent-only read function, `cq_v4_parent_lesson(uuid)`, for canonical question/model-answer context in parent results. It does not replace existing functions or change existing rows/tables/policies. It is applied locally only and requires explicit production approval; see `server-review/PARENT_CONTEXT_APPROVAL.md`. No hosted Edge replacement is proposed. Local Edge fixtures pin the SDK and use relative signed URLs so the local gateway is reachable from the browser; production's absolute signed URL response remains supported. The historical server repair/rollback files are retained as evidence and must not be applied as part of this release.
+This candidate additionally proposes one additive parent-only read function, `cq_v4_parent_lesson(uuid)`, for canonical question/model-answer context in parent results. It does not replace existing functions or change existing rows/tables/policies. It is applied locally only and requires explicit production approval; see `server-review/PARENT_CONTEXT_APPROVAL.md`. A separate parent Edge addition is proposed for read-only recovery of existing originals; see `server-review/PDF_REUSE_APPROVAL.md`. Its current deployed v2 source is preserved separately from the historical v1 backup. Local Edge fixtures pin the SDK and use relative signed URLs so the local gateway is reachable from the browser; production's absolute signed URL response remains supported. The historical server repair/rollback files are retained as evidence and must not be applied as part of this release.
 
 Verified Git-history backups exist at `/workspace/chapter-quest-v4-before-changes.bundle` and `/workspace/chapter-quest-v4-before-integration.bundle`. They are source backups, not database backups.

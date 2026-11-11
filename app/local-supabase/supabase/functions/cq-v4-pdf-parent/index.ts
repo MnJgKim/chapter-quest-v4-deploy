@@ -62,6 +62,19 @@ Deno.serve(async req=>{
     if(error)return respond({error:'CREATE_FAILED'},503);
     return respond({chapter_uuid:chapter});
   }
+  if(input.action==='download_url'){
+    const chapter=input.chapter_uuid;
+    if(typeof chapter!=='string'||!uuid.test(chapter))return respond({error:'INVALID_CHAPTER'},400);
+    const {data:owned,error:ownerError}=await admin.from('cq_v4_pdf_chapters').select('storage_path,pdf_ready').eq('chapter_id',chapter).eq('parent_user_id',parent).maybeSingle();
+    if(ownerError)return respond({error:'ACCESS_CHECK_FAILED'},503);
+    if(!owned)return respond({error:'FORBIDDEN'},403);
+    if(!owned.pdf_ready||!validPdfPath(owned.storage_path,parent,chapter))return respond({error:'VERIFIED_PDF_REQUIRED'},409);
+    const {data:link,error}=await admin.storage.from('cq-v4-originals').createSignedUrl(owned.storage_path,120);
+    if(error||!link?.signedUrl)return respond({error:'PDF_DOWNLOAD_LINK_FAILED'},503);
+    const signed=new URL(link.signedUrl,url);
+    if(signed.origin!==new URL(url).origin||!signed.pathname.startsWith('/storage/v1/object/sign/cq-v4-originals/'))return respond({error:'INVALID_SIGNED_LINK'},500);
+    return respond({signed_url:signed.pathname+signed.search,expires_at:new Date(Date.now()+120000).toISOString()});
+  }
   if(input.action==='upload_url'){
     const chapter=input.chapter_uuid;
     if(typeof chapter!=='string'||!uuid.test(chapter))return respond({error:'INVALID_CHAPTER'},400);

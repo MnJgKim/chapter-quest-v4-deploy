@@ -42,8 +42,9 @@ try:
   try:
    request=urllib.request.Request(base+'/functions/v1/cq-v4-pdf-parent',method='OPTIONS',headers={'apikey':anon,'Origin':origin,'Access-Control-Request-Method':'POST'})
    with urllib.request.urlopen(request,timeout=3) as ready:
-    if ready.status==204:break
-  except (urllib.error.URLError,TimeoutError):time.sleep(2)
+    if ready.status in (200,204):break
+  except (urllib.error.URLError,TimeoutError):pass
+  time.sleep(2)
  else:raise RuntimeError('Local Edge preflight never became ready')
  users={}
  for role in ['parent','student','outsider']:
@@ -81,6 +82,14 @@ try:
   sp.locator('[data-child="view"]').click();expect(sp.locator('[data-server-pdf="count"]')).to_have_text('1 / 1 페이지',timeout=90000);expect(sp.locator('#cqChildWork [type="submit"]')).to_be_enabled();passed('assigned student downloads and renders PDF through the real signed-link Edge function')
   sp.locator('[data-word-reveal="0"]').click();expect(sp.locator('[data-word-done="0"]')).to_be_checked();sp.locator('[name="readComplete"]').check();sp.locator('[name="cqAnswer0"][value="0"]').check();sp.locator('[name="cqAnswer1"]').fill('They wanted to find the book.');sp.locator('[name="essay"]').fill('Mina helped Leo and they found the book.');sp.locator('[name="speaking"]').fill('I will explain how Mina helped Leo.');sp.locator('[data-child="voice-start"]').click();expect(sp.locator('#cqVoiceStatus')).to_contain_text('녹음 중');sp.wait_for_timeout(900);sp.locator('[data-child="voice-stop"]').click();expect(sp.locator('#cqVoiceStatus')).to_contain_text('원본 저장 완료');sp.locator('#cqChildWork [type="submit"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('제출 완료',timeout=60000);passed('real MediaRecorder audio uploads to private Storage and final answers submit through RPC')
   pp.locator('[data-parent-feedback="list"]').click();expect(pp.locator('#cqParentFeedback')).to_contain_text('Mina helped Leo and they found the book.');pp.locator('[data-parent-feedback="audio"]').click();expect(pp.locator('[data-audio-player] audio')).to_be_visible();passed('parent receives a real authorized signed recording playback link');pp.locator('[data-parent-feedback-text]').fill('Great explanation!');pp.locator('[data-parent-feedback-release]').check();pp.locator('[data-parent-feedback="save"]').click();expect(pp.locator('#cqParentFeedbackStatus')).to_contain_text('다시 확인');sp.locator('[data-child="view"]').click();expect(sp.locator('#cqChildDetail')).to_contain_text('Great explanation!');passed('parent reads real answers and releases feedback visible in independent student browser')
+  # Fresh browser has no local book: recover the parent's existing private original read-only.
+  before=api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])
+  rp=page();rp.locator('#parentBtn').click();rp.locator('#cloudEmail').fill(users['parent']['email']);rp.locator('#cloudPassword').fill(users['parent']['password']);rp.locator('[data-cloud="login"]').click();expect(rp.locator('#cloudStatus')).to_contain_text('로그인 성공');rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(1);rp.locator('[data-pdf-parent="use-existing"]').click();expect(rp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다',timeout=90000)
+  assert rp.evaluate("async()=>{const c=chapter(),f=await pdfGet(pdfKey(book().id,c.id));return c.serverPdfUuid==='"+chapter_uuid+"'&&f.size>5&&(await f.slice(0,5).text())==='%PDF-'}")
+  assert api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])==before
+  try:api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student read parent PDF endpoint')
+  except urllib.error.HTTPError as error:assert error.code==403,'Parent download should deny student, got '+str(error.code)
+  passed('fresh parent browser retrieves real private original without creating a chapter and student is denied')
   op=page();op.locator('#cqChildEmail').fill(users['outsider']['email']);op.locator('#cqChildPassword').fill(users['outsider']['password']);op.locator('[data-child="login"]').click();expect(op.locator('[data-child="list"]')).to_be_visible();op.locator('[data-child="list"]').click();expect(op.locator('#cqChildStatus')).to_contain_text('0개');passed('unassigned real account sees no other student chapter')
   assert not report['page_errors'] and not report['blocked_requests'];passed('no runtime errors or non-local service requests')
   browser.close()

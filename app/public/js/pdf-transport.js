@@ -2,17 +2,18 @@
    Backend Edge Function cq-v4-pdf-link must enforce student assignment and return
    {signed_url, expires_at}. No browser-side access check is a substitute for RLS. */
 (function(root){
-  function createPdfTransport({url,anonKey,getAccessToken,fetchImpl=fetch,now=()=>Date.now()}){
+  function createPdfTransport({url,anonKey,getAccessToken,fetchImpl=fetch,now=()=>Date.now(),role='student'}){
     if(!(globalThis.CQOrigin?.allows(url||'')??/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url||'')))throw Error('INVALID_SUPABASE_ORIGIN');
+    if(!['student','parent'].includes(role))throw Error('INVALID_PDF_ROLE');
     if(!anonKey||typeof getAccessToken!=='function'||typeof fetchImpl!=='function')throw Error('INVALID_PDF_TRANSPORT_CONFIG');
     async function getPdf(chapterUuid,{signal}={}){
       if(!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(chapterUuid||''))throw Error('INVALID_CHAPTER_UUID');
       if(signal?.aborted)throw Error('PDF_REQUEST_CANCELLED');
       const token=await getAccessToken();
       if(!token)throw Error('STUDENT_LOGIN_REQUIRED');
-      const rpcResponse=await fetchImpl(url+'/functions/v1/cq-v4-pdf-link',{
+      const rpcResponse=await fetchImpl(url+'/functions/v1/'+(role==='parent'?'cq-v4-pdf-parent':'cq-v4-pdf-link'),{
         method:'POST',headers:{apikey:anonKey,Authorization:'Bearer '+token,'Content-Type':'application/json'},
-        body:JSON.stringify({chapter_uuid:chapterUuid}),signal
+        body:JSON.stringify({chapter_uuid:chapterUuid,...(role==='parent'?{action:'download_url'}:{})}),signal
       });
       if(!rpcResponse.ok)throw Error('PDF_ACCESS_DENIED_OR_UNAVAILABLE');
       const payload=await rpcResponse.json();
