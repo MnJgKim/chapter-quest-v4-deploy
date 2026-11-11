@@ -283,7 +283,7 @@
    <p class="muted">학생 본인의 계정으로 로그인하세요. 부모가 승인하고 배정한 챕터를 학습할 수 있습니다. 기기 데모 기록은 별도로 보관됩니다. 작성 중인 답안은 이 기기에 자동 저장되며 같은 계정으로 다시 로그인하면 이어서 학습할 수 있습니다.</p>
    ${session?`<p>학생 계정 로그인됨</p><div class="row"><input id="cqChildInvite" placeholder="부모 초대코드 (48자리)" autocomplete="off" style="flex:1"><input id="cqChildInviteName" placeholder="학생 이름" style="max-width:130px"><button data-child="claim">연결 요청</button></div><button data-child="list">내 배정 챕터 불러오기</button><button data-child="logout">로그아웃</button>
     <div>${chapters.map(c=>`<div class="book"><b>${escape(c.chapter_title)}</b><button data-child="view" data-uuid="${escape(c.chapter_uuid)}">원문·문제 보기</button></div>`).join('')}</div><div id="cqChildDetail"></div>`:
-    `<div class="grid"><label>학생 이메일<input id="cqChildEmail" type="email" autocomplete="username"></label><label>학생 비밀번호<input id="cqChildPassword" type="password" autocomplete="current-password"></label></div><button data-child="login">학생 계정 로그인</button>`}
+    `<div class="grid"><label>학생 이메일<input id="cqChildEmail" type="email" autocomplete="username"></label><label>학생 비밀번호<input id="cqChildPassword" type="password" autocomplete="current-password"></label></div><button data-child="login">학생 계정 로그인</button><button data-child="signup-open">학생 계정 만들기</button><div id="cqChildSignup" hidden><label>비밀번호 확인<input id="cqChildPasswordConfirm" type="password" autocomplete="new-password"></label><p class="muted">학생용 별도 계정을 만들고 부모 초대코드로 연결하세요. 비밀번호는 8자 이상 입력하세요.</p><button data-child="signup">새 학생 계정 생성</button><button data-child="signup-cancel">취소</button></div>`}
    <p id="cqChildStatus" class="status"></p></section>`;
  }
  const status=t=>{if(el('cqChildStatus'))el('cqChildStatus').textContent=t};
@@ -306,6 +306,13 @@
   })();childRefreshPromise=pending;
   try{return await pending}finally{if(childRefreshPromise===pending)childRefreshPromise=null}
  }
+ function startChildSession(data){
+  const project=window.CQProject.read();
+  if(!data.access_token||!data.user?.id)throw Error('인증 정보를 확인할 수 없습니다. 다시 로그인하세요.');
+  childGeneration++;childRefreshPromise=null;cancelChildUpload();session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
+  childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:childAccessToken});
+  chapters=[];draw();status('로그인 성공 · 계정 인증과 실제 학생 권한은 서버 정책으로 확인됩니다.');
+ }
  async function login(){
   const project=window.CQProject.read();
   if(!project?.url||!project?.anonKey)throw Error('부모 관리자에서 Supabase 프로젝트 공개 설정을 먼저 저장해야 합니다.');
@@ -315,9 +322,7 @@
    method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
   if(!response.ok)throw Error('학생 로그인 실패 ('+response.status+')');
   const data=await response.json();if(!data.access_token||!data.user?.id)throw Error('인증 정보가 없습니다.');
-  childGeneration++;childRefreshPromise=null;cancelChildUpload();session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
-  childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:childAccessToken});
-  chapters=[];draw();status('로그인 성공 · 계정 인증과 실제 학생 권한은 서버 정책으로 확인됩니다.');
+  startChildSession(data);
  }
  window.CQStudentNavigation=Object.freeze({leave(){if(!confirmVoiceDeparture())return false;invalidateVoiceForNavigation();cancelChildUpload();return true;}});
  document.addEventListener('click',event=>{if(mode==='student'&&event.target.closest('#parentBtn')&&!CQStudentNavigation.leave()){event.preventDefault();event.stopImmediatePropagation();}},true);
@@ -333,6 +338,20 @@
   busy=true;b.disabled=true;
   let viewContext=null;
   try{
+   if(b.dataset.child==='signup-open'||b.dataset.child==='signup-cancel'){
+    el('cqChildSignup').hidden=b.dataset.child==='signup-cancel';el('cqChildPassword').autocomplete=b.dataset.child==='signup-open'?'new-password':'current-password';return;
+   }
+   if(b.dataset.child==='signup'){
+    const project=window.CQProject.read(),email=el('cqChildEmail')?.value.trim(),password=el('cqChildPassword')?.value,confirm=el('cqChildPasswordConfirm')?.value;
+    if(!project?.url||!CQOrigin.allows(project.url)||!project.anonKey)throw Error('학생 계정 서버 설정을 확인하세요.');
+    if(!email||!el('cqChildEmail').checkValidity())throw Error('학생 계정 이메일을 확인하세요.');
+    if(!password||password.length<8||password.length>128||password!==confirm)throw Error('8자 이상 비밀번호와 확인 입력이 일치해야 합니다.');
+    const response=await fetch(project.url+'/auth/v1/signup',{method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
+    const data=await response.json();if(!response.ok)throw Error(data.msg||data.message||data.error_description||'학생 계정 생성에 실패했습니다.');
+    if(data.access_token){startChildSession(data);status('학생 계정 생성 완료. 부모 초대코드로 연결을 요청하세요.');}
+    else status('가입 요청이 처리되었습니다. 이메일 인증이 필요한 경우 인증을 마친 뒤 학생 계정으로 로그인하세요.');
+    return;
+   }
    if(b.dataset.child==='login')await login();
    else if(session&&['claim','list','view'].includes(b.dataset.child))await childAccessToken();
    if(b.dataset.child==='claim'){

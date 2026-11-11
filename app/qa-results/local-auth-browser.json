@@ -22,6 +22,18 @@
       "pass": true
     },
     {
+      "name": "student sign-up rejects a mismatched confirmation before any creation",
+      "pass": true
+    },
+    {
+      "name": "student registration UI creates and authenticates a new local-only account",
+      "pass": true
+    },
+    {
+      "name": "newly registered student requests a real invitation and receives parent approval",
+      "pass": true
+    },
+    {
       "name": "no runtime errors or hosted service requests",
       "pass": true
     }

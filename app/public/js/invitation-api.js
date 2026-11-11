@@ -1,7 +1,7 @@
 /* Stage42 standalone client bridge. Requires a signed-in Supabase Auth session. */
 (function(root){
   async function rpc({url,anonKey,getAccessToken},fn,params={}){
-    if(!/^https:\/\//.test(url||''))throw Error('HTTPS Supabase URL required');
+    if(!(globalThis.CQOrigin?.allows(url||'')??/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url||'')))throw Error('HTTPS Supabase URL required');
     if(!anonKey)throw Error('Supabase publishable/anon key required');
     const token=await getAccessToken?.();
     if(!token)throw Error('Authentication required');

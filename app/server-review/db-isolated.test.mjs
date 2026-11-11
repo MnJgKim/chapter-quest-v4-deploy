@@ -1,8 +1,6 @@
 import fs from 'node:fs/promises';
-import {createRequire} from 'node:module';
+import {PGlite} from '@electric-sql/pglite';
 import assert from 'node:assert/strict';
-const require=createRequire(import.meta.url);
-let PGlite;try{({PGlite}=require('@electric-sql/pglite'));}catch{({PGlite}=require('../qa-db/node_modules/@electric-sql/pglite'));}
 const schema=JSON.parse(await fs.readFile(new URL('./fixtures/live_schema.json',import.meta.url)));
 const tables=JSON.parse(await fs.readFile(new URL('./fixtures/table_metadata.json',import.meta.url)));
 const ddl=JSON.parse(await fs.readFile(new URL('./fixtures/ddl_details.json',import.meta.url)));
