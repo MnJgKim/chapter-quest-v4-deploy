@@ -47,10 +47,10 @@ try:
   time.sleep(2)
  else:raise RuntimeError('Local Edge preflight never became ready')
  users={}
- for role in ['parent','student','outsider']:
+ for role in ['parent','student','outsider','otherparent']:
   email=role+'-'+secrets.token_hex(6)+'@example.test';password=secrets.token_urlsafe(24);private.append(password)
   api('/auth/v1/signup',{'email':email,'password':password});login=api('/auth/v1/token?grant_type=password',{'email':email,'password':password});private.append(login['access_token']);private.append(login['refresh_token']);users[role]={'token':login['access_token'],'email':email,'password':password,'uid':str(uuid.UUID(login['user']['id']))}
- passed('three synthetic accounts sign up and log in on the full local stack')
+ passed('four synthetic accounts sign up and log in on the full local stack')
  # Kong can answer OPTIONS before the replacement Edge runtime is ready. Probe a read-only
  # authenticated action and retry gateway startup errors only; never hide a role/auth failure.
  for attempt in range(60):
@@ -64,7 +64,7 @@ try:
  passed('real Edge parent endpoint denies a non-parent account before privileged writes')
  env=os.environ.copy()
  for k in ['DOCKER_HOST','DOCKER_CONTEXT','DOCKER_TLS','DOCKER_TLS_VERIFY','DOCKER_CERT_PATH']:env.pop(k,None)
- query="insert into public.cq_admins(user_id) values('"+users['parent']['uid']+"');"
+ query="insert into public.cq_admins(user_id) values('"+users['parent']['uid']+"'),('"+users['otherparent']['uid']+"');"
  subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec','-i','supabase_db_cq-v4-local-qa','psql','-U','postgres','-v','ON_ERROR_STOP=1'],input=query,env=env,text=True,capture_output=True,check=True)
  source='Mina helped Leo find a lost book. They searched the library together. Leo thanked Mina for being patient and kind. '*8
  fixture={'questions':[{'kind':'mc','text':'Who helped Leo?','options':['Mina','Nobody'],'correct':0},{'kind':'inference','text':'Why did they search together?','sample':'They wanted to find the book.'}],'vocabulary':[{'word':'patient','meaning':'참을성 있는','example':'Mina was patient.'}],'writingPrompt':'Explain how Mina helped.','speakingPrompt':'Summarize the chapter.'}
@@ -89,7 +89,7 @@ try:
   passed('real parent lesson context includes model answers and denies the student')
   sp.locator('[data-child="view"]').click();expect(sp.locator('[data-server-pdf="count"]')).to_have_text('1 / 1 페이지',timeout=90000);expect(sp.locator('#cqChildWork [type="submit"]')).to_be_enabled();passed('assigned student downloads and renders PDF through the real signed-link Edge function')
   sp.locator('[data-word-reveal="0"]').click();expect(sp.locator('[data-word-done="0"]')).to_be_checked();sp.locator('[name="readComplete"]').check();sp.locator('[name="cqAnswer0"][value="0"]').check();sp.locator('[name="cqAnswer1"]').fill('They wanted to find the book.');sp.locator('[name="essay"]').fill('Mina helped Leo and they found the book.');sp.locator('[name="speaking"]').fill('I will explain how Mina helped Leo.');sp.locator('[data-child="voice-start"]').click();expect(sp.locator('#cqVoiceStatus')).to_contain_text('녹음 중');sp.wait_for_timeout(900);sp.locator('[data-child="voice-stop"]').click();expect(sp.locator('#cqVoiceStatus')).to_contain_text('원본 저장 완료');sp.locator('#cqChildWork [type="submit"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('제출 완료',timeout=60000);passed('real MediaRecorder audio uploads to private Storage and final answers submit through RPC')
-  pp.locator('[data-parent-feedback="list"]').click();expect(pp.locator('#cqParentFeedback')).to_contain_text('Mina helped Leo and they found the book.');pp.locator('[data-parent-feedback="audio"]').click();expect(pp.locator('[data-audio-player] audio')).to_be_visible();passed('parent receives a real authorized signed recording playback link');pp.locator('[data-parent-feedback-text]').fill('Great explanation!');pp.locator('[data-parent-feedback-release]').check();pp.locator('[data-parent-feedback="save"]').click();expect(pp.locator('#cqParentFeedbackStatus')).to_contain_text('다시 확인');sp.locator('[data-child="view"]').click();expect(sp.locator('#cqChildDetail')).to_contain_text('Great explanation!');passed('parent reads real answers and releases feedback visible in independent student browser')
+  pp.locator('[data-parent-feedback="list"]').click();expect(pp.locator('#cqParentFeedback')).to_contain_text('Mina helped Leo and they found the book.');pp.locator('[data-parent-feedback="audio"]').click();expect(pp.locator('[data-audio-player] audio')).to_be_visible();expect(pp.locator('[data-audio-player] audio')).to_have_js_property('readyState',4);passed('parent receives a real authorized signed recording playback link');pp.locator('[data-parent-feedback-text]').fill('Great explanation!');pp.locator('[data-parent-feedback-release]').check();pp.locator('[data-parent-feedback="save"]').click();expect(pp.locator('#cqParentFeedbackStatus')).to_contain_text('다시 확인');sp.locator('[data-child="view"]').click();expect(sp.locator('#cqChildDetail')).to_contain_text('Great explanation!');passed('parent reads real answers and releases feedback visible in independent student browser')
   # Fresh browser has no local book: recover the parent's existing private original read-only.
   before=api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])
   rp=page();rp.locator('#parentBtn').click();rp.locator('#cloudEmail').fill(users['parent']['email']);rp.locator('#cloudPassword').fill(users['parent']['password']);rp.locator('[data-cloud="login"]').click();expect(rp.locator('#cloudStatus')).to_contain_text('로그인 성공');rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(1);rp.locator('[data-pdf-parent="use-existing"]').click();expect(rp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다',timeout=90000)
@@ -98,6 +98,12 @@ try:
   try:api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student read parent PDF endpoint')
   except urllib.error.HTTPError as error:assert error.code==403,'Parent download should deny student, got '+str(error.code)
   passed('fresh parent browser retrieves real private original without creating a chapter and student is denied')
+  for action in ['download_url','audio_download_url']:
+   try:api('/functions/v1/cq-v4-pdf-parent',{'action':action,'chapter_uuid':chapter_uuid,'student_user_id':users['student']['uid']},users['otherparent']['token']);raise AssertionError('Other registered parent received private link')
+   except urllib.error.HTTPError as error:assert error.code==403,'Other parent must be denied, got '+str(error.code)
+  assert api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['otherparent']['token'])==[]
+  passed('another registered parent cannot obtain this PDF, recording or answer context')
+
   op=page();op.locator('#cqChildEmail').fill(users['outsider']['email']);op.locator('#cqChildPassword').fill(users['outsider']['password']);op.locator('[data-child="login"]').click();expect(op.locator('[data-child="list"]')).to_be_visible();op.locator('[data-child="list"]').click();expect(op.locator('#cqChildStatus')).to_contain_text('0개');passed('unassigned real account sees no other student chapter')
   assert not report['page_errors'] and not report['blocked_requests'];passed('no runtime errors or non-local service requests')
   browser.close()

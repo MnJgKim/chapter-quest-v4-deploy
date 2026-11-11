@@ -335,18 +335,12 @@
        const i=Number(button.dataset.index),r=submissions[i];if(!r)throw Error('제출 기록을 다시 불러오세요.');
        const uuid=String(r.chapter_uuid||''),uid=String(r.child_user_id||'');
        if(!/^[0-9a-f-]{36}$/i.test(uuid)||!/^[0-9a-f-]{36}$/i.test(uid))throw Error('녹음 경로 정보가 올바르지 않습니다.');
-       await refreshIfNeeded();
-       let signed=null;
-       for(const ext of ['webm','mp4','ogg']){
-         const response=await fetch(project.url+'/storage/v1/object/sign/cq-v4-speaking/'+uid+'/'+uuid+'.'+ext,{
-           method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+session.token,'Content-Type':'application/json'},
-           body:JSON.stringify({expiresIn:120})
-         });
-         if(response.ok){signed=await response.json();break;}
-       }
-       if(!signed?.signedURL)throw Error('녹음 파일이 없거나 접근 권한이 없습니다.');
+       const signed=await pdfParentCall('audio_download_url',{chapter_uuid:uuid,student_user_id:uid});
+       if(!signed?.signed_url||!signed?.expires_at)throw Error('녹음 파일이 없거나 접근 권한이 없습니다.');
+       const link=new URL(signed.signed_url,project.url),expires=Date.parse(signed.expires_at);
+       if(link.origin!==new URL(project.url).origin||!['webm','mp4','ogg'].some(ext=>link.pathname==='/storage/v1/object/sign/cq-v4-speaking/'+uid+'/'+uuid+'.'+ext)||!link.searchParams.has('token')||!Number.isFinite(expires)||expires<=Date.now()+5000||expires>Date.now()+10*60*1000)throw Error('녹음 재생 주소가 올바르지 않습니다.');
        const player=document.querySelector(`[data-audio-player="${i}"]`);
-       if(player){player.replaceChildren();const audio=document.createElement('audio');audio.controls=true;audio.src=new URL(signed.signedURL,project.url).href;player.appendChild(audio);}
+       if(player){player.replaceChildren();const audio=document.createElement('audio');audio.controls=true;audio.src=link.href;player.appendChild(audio);}
        parentStatus('녹음 재생 링크를 생성했습니다. 2분 후 만료됩니다.');
      }else if(button.dataset.parentFeedback==='save'){
        const i=Number(button.dataset.index),r=submissions[i];if(!r)throw Error('제출 기록을 다시 불러오세요.');

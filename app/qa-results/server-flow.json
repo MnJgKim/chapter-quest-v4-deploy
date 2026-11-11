@@ -94,11 +94,19 @@
       "pass": true
     },
     {
+      "name": "parent playback uses a short owned-submission link and loads the actual recorded audio",
+      "pass": true
+    },
+    {
       "name": "student sees released feedback and cannot edit final submission",
       "pass": true
     },
     {
       "name": "recovering converted server PDF preserves the original local TXT and reviewed chapter",
+      "pass": true
+    },
+    {
+      "name": "parent reviews the recovered original in the bundled PDF viewer before approving questions",
       "pass": true
     },
     {
@@ -111,6 +119,10 @@
     },
     {
       "name": "reused original PDF and source survive page reload without an active server login",
+      "pass": true
+    },
+    {
+      "name": "replacing a recovered PDF with a local TXT clears the old server association and recovery marker",
       "pass": true
     },
     {

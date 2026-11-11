@@ -62,6 +62,24 @@ Deno.serve(async req=>{
     if(error)return respond({error:'CREATE_FAILED'},503);
     return respond({chapter_uuid:chapter});
   }
+  if(input.action==='audio_download_url'){
+    const chapter=input.chapter_uuid,student=input.student_user_id;
+    if(typeof chapter!=='string'||!uuid.test(chapter)||typeof student!=='string'||!uuid.test(student))return respond({error:'INVALID_RECORDING'},400);
+    // Reuse the existing caller-JWT RPC: ownership, current assignment, enrollment and
+    // final submission are authoritative here. Do not broaden Storage/table policies.
+    const {data:submitted,error:accessError}=await caller.rpc('cq_v4_parent_submissions').eq('chapter_uuid',chapter).eq('child_user_id',student).maybeSingle();
+    if(accessError)return respond({error:'RECORDING_ACCESS_CHECK_FAILED'},503);
+    if(!submitted?.submitted_at||submitted.answers?.hasAudio!==true)return respond({error:'FORBIDDEN'},403);
+    for(const ext of ['webm','mp4','ogg']){
+      const path=`${student}/${chapter}.${ext}`;
+      const {data:link,error}=await admin.storage.from('cq-v4-speaking').createSignedUrl(path,120);
+      if(error||!link?.signedUrl)continue;
+      const signed=new URL(link.signedUrl,url);
+      if(signed.origin!==new URL(url).origin||signed.pathname!==`/storage/v1/object/sign/cq-v4-speaking/${path}`||!signed.searchParams.has('token'))return respond({error:'INVALID_SIGNED_LINK'},500);
+      return respond({signed_url:signed.pathname+signed.search,expires_at:new Date(Date.now()+120000).toISOString()});
+    }
+    return respond({error:'RECORDING_NOT_AVAILABLE'},404);
+  }
   if(input.action==='download_url'){
     const chapter=input.chapter_uuid;
     if(typeof chapter!=='string'||!uuid.test(chapter))return respond({error:'INVALID_CHAPTER'},400);
