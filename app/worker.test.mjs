@@ -29,3 +29,10 @@ test('configured server uses cq_is_admin without a separate editable parent list
 test('missing written model answer cannot be approved for publication',()=>assert.throws(()=>validateDraft({...draft,questions:[{kind:'inference',text:'Why?'}]}),e=>e.status===502));
 
 test('AI disabled until free-plan confirmation; no upstream requests',async()=>assert.rejects(generate(req(),{...env,AI_FREE_PLAN_CONFIRMED:'false'},()=>{throw Error('must not fetch')}),e=>e.status===503));
+
+// Inspect the model request only; no hosted model or billing.
+test('generation requests the reviewed grade-3 lesson structure for every chapter',async()=>{
+ let prompt;await generate(req(),{...env,AI:{run:async(_model,args)=>{prompt=args.messages[0].content;return {response:JSON.stringify(draft)}}}},user);
+ for(const text of ['grade 3','5 items: 3 mc comprehension','2 inference','6 relevant words','3-5 sentences','30-60 seconds','later chapters'])assert.ok(prompt.includes(text),text);
+ assert.ok(!prompt.includes('8 items'));assert.ok(!prompt.includes('10 relevant words'));
+});

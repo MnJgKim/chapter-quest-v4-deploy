@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test edge-parent.test.mjs && node db-isolated.test.mjs",
-    "test:current-db": "node current-db.test.mjs"
+    "test:current-db": "node current-db.test.mjs && node migration-preservation.test.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.16"
