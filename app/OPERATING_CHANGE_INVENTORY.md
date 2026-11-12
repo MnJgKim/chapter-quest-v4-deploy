@@ -13,6 +13,7 @@
 | `app/local-supabase/supabase/migrations/20261111233341_cq_verified_pdf_ranges.sql` | 새 `cq_v4_pdf_page_ranges` 테이블/인덱스/RLS 및 `cq_v4_commit_pdf_range`, `cq_v4_register_range_approval_once` 함수. 생성 시 기존 데이터 DML 없음. 이후 호출하면 범위/새 챕터 또는 승인 자료를 기록하므로 별도 쓰기 승인 필요. |
 | `app/local-supabase/supabase/functions/cq-v4-pdf-parent/index.ts` | 소유 부모만 원본/녹음 접근, 범위 검증·재사용, 승인된 게시 자료만 배정. 기존 create/upload/finalize/assign/unassign도 쓰기 기능이며 조회 승인으로 실행하지 않는다. |
 | `app/local-supabase/supabase/functions/cq-v4-pdf-link/index.ts` | 현재 학생 연결·배정·게시·범위/파일 해시 검사 후 짧은 서명 URL 반환. |
+| `app/local-supabase/supabase/functions/_shared/pdf-download.ts` | 서버 전용 인증 다운로드. 리다이렉트 거부·30초 제한·스트림 50MiB 제한·잘린 응답/PDF 헤더 검사. 실패하면 범위 등록·학생 링크 발급 중단. 서비스 키는 서버 환경에서만 사용. |
 | `app/local-supabase/supabase/functions/_shared/pdf-range.ts` | 페이지 수/범위/해시 검증. 전체 범위는 원본 바이트 그대로 반환, 부분 범위는 별도 파일 생성. |
 
 웹앱 정적 파일의 정확한 빌드 목록은 `node app/build-assets.mjs` 후 `app/public/` 파일 목록과 SHA-256으로 고정한다. 서버 정의/Edge와 프런트의 버전 호환성을 먼저 확인한다.
@@ -30,3 +31,5 @@
 ## 복구 원칙
 
 적용 전 현재 Worker 버전/설정과 Edge 소스/JWT, 변경 대상 SQL 정의/권한을 비공개로 보관하고 실제 복구 접근을 확인한다. DB/Storage 전체 백업이 없으면 있다고 표시하지 않는다. 실패한 SQL 트랜잭션은 롤백한다. 커밋 후에는 새 데이터를 삭제하지 말고 호환성을 확인한 코드/설정을 복원한다. 과거 버전의 범위 보안 약화와 manifest 비호환을 평가한다. 이미 발급한 URL의 즉시 무효화나 이미 쓴 제출/녹음 취소를 코드 복구로 보장하지 않는다. 실기기 저장소를 지우지 않는다.
+
+대용량 다운로드 보완은 기존 Blob 전체 수신 후 검사하던 두 Edge 경로를 제한된 스트림으로 바꾼다. 원본 전체의 해시/승인/배정 검사를 생략하거나 파일/계정/테이블을 변경하지 않는다. 실패 시 503으로 중단하며 자동 업로드/게시 fallback은 없다. 시간 제한은 네트워크에 적용되고 PDF 파싱의 운영 CPU/메모리 성공을 보장하지 않는다. 이 변경 자체는 새 SQL을 요구하지 않으며 기존 SQL2개와 PDF Edge2개 및 공통모듈2개를 한 호환 릴리스로 적용한다.

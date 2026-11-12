@@ -2,6 +2,7 @@
 // Requires SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_SERVICE_ROLE_KEY.
 import { createClient } from 'npm:@supabase/supabase-js@2.119.0';
 import { pdfSha256 } from '../_shared/pdf-range.ts';
+import { downloadPdfBytes } from '../_shared/pdf-download.ts';
 const validPdfPath=(path:unknown,parent:string,chapter:string)=>typeof path==='string'&&path===`${parent}/${chapter}.pdf`;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin'};
@@ -46,8 +47,8 @@ Deno.serve(async req=>{
     const {data:published,error:publishedError}=await admin.from('cq_v4_activities').select('approval_id').eq('chapter_uuid',chapter).maybeSingle();
     const {data:approved,error:approvedError}=await admin.from('cq_v4_approval_requests').select('chapter_uuid,parent_user_id').eq('id',published?.approval_id).maybeSingle();
     if(publishedError||approvedError||approved?.chapter_uuid!==chapter||approved?.parent_user_id!==chapterRow.parent_user_id)return json({error:'APPROVED_RANGE_REQUIRED'},403);
-    const {data:file,error:fileError}=await admin.storage.from('cq-v4-originals').download(chapterRow.storage_path);
-    if(fileError||!file||file.size>50*1024*1024||await pdfSha256(new Uint8Array(await file.arrayBuffer()))!==range.derived_sha256)return json({error:'DERIVED_PDF_INTEGRITY_FAILED'},403);
+    let bytes;try{bytes=await downloadPdfBytes(url,service,chapterRow.storage_path);}catch{return json({error:'DERIVED_PDF_DOWNLOAD_FAILED'},503);}
+    if(await pdfSha256(bytes)!==range.derived_sha256)return json({error:'DERIVED_PDF_INTEGRITY_FAILED'},403);
     pageCount=range.page_end-range.page_start+1;
   }
   const {data:link,error:signError}=await admin.storage.from('cq-v4-originals').createSignedUrl(chapterRow.storage_path,120);

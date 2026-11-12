@@ -3,6 +3,7 @@
 // Requires JWT verification enabled at the function gateway.
 import { createClient } from 'npm:@supabase/supabase-js@2.119.0';
 import { derivePdfRange } from '../_shared/pdf-range.ts';
+import { downloadPdfBytes } from '../_shared/pdf-download.ts';
 const validPdfPath=(path:unknown,parent:string,chapter:string)=>typeof path==='string'&&path===`${parent}/${chapter}.pdf`;
 const uuid=/^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const cors={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, apikey, content-type, x-client-info','Access-Control-Allow-Methods':'POST, OPTIONS','Vary':'Origin'};
@@ -36,9 +37,8 @@ Deno.serve(async req=>{
     const {data:prior,error:priorError}=await admin.from('cq_v4_pdf_page_ranges').select('*').eq('parent_user_id',parent).eq('request_key',request).maybeSingle();
     if(priorError)return respond({error:'RANGE_REGISTRY_UNAVAILABLE'},503);
     if(prior){if(prior.source_pdf_uuid!==source||prior.page_start!==start||prior.page_end!==end||prior.title!==title.trim()||prior.source_sha256!==expected)return respond({error:'RANGE_REQUEST_CONFLICT'},409);return respond({chapter_uuid:prior.derived_pdf_uuid,pdf_ready:true,page_count:prior.page_end-prior.page_start+1,server_verified_range:true});}
-    const {data:file,error:readError}=await admin.storage.from('cq-v4-originals').download(owned.storage_path);
-    if(readError||!file||file.size>50*1024*1024)return respond({error:'SOURCE_DOWNLOAD_FAILED'},503);
-    let derived;try{derived=await derivePdfRange(new Uint8Array(await file.arrayBuffer()),Number(start),Number(end),title.trim());}catch{return respond({error:'INVALID_SOURCE_OR_PAGE_RANGE'},400);}
+    let bytes;try{bytes=await downloadPdfBytes(url,service,owned.storage_path);}catch{return respond({error:'SOURCE_DOWNLOAD_FAILED'},503);}
+    let derived;try{derived=await derivePdfRange(bytes,Number(start),Number(end),title.trim());}catch{return respond({error:'INVALID_SOURCE_OR_PAGE_RANGE'},400);}
     if(derived.source_sha256!==expected)return respond({error:'SOURCE_CHANGED_SINCE_PREVIEW'},409);
     const reuseOriginal=start===1&&end===derived.source_page_count;
     const id=reuseOriginal?source:crypto.randomUUID(),path=`${parent}/${id}.pdf`;
