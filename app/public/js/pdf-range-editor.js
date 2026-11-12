@@ -13,7 +13,7 @@
   if(mode!=='parent'||!parentUnlocked){notice('부모 관리자 화면에서 준비하세요.');return;}
   const c=chapter(),b=book(),key=pdfContext(),action=button.dataset.pdfRange;
   if(!c?.pdfStored||c.readerType==='txt'){notice('PDF 원본을 먼저 등록하거나 기존 서버 PDF를 불러오세요. TXT 원본은 그대로 보존됩니다.');return;}
-  busy=true;button.disabled=true;let doc=null;
+  busy=true;document.querySelectorAll('[data-pdf-range]').forEach(item=>item.disabled=true);let doc=null;
   try{
    const original=await pdfGet(key);fence(c,key);if(!original)throw Error('이 기기에 PDF 원본이 없습니다. 기존 서버 원본을 먼저 불러오세요.');
    if(action==='pick-start'||action==='pick-end'){
@@ -58,6 +58,6 @@
     pending=null;render();setStatus('선택 범위만 이 기기에 등록했습니다. 원본은 재업로드하지 않았습니다. 문제 검토·승인 후 범위 PDF만 서버에 등록·배정하세요.'+(item.text.trim().length<250?' 스캔 PDF라면 해당 범위의 AI용 텍스트를 별도로 준비하세요.':''));
    }
   }catch(error){notice('범위 준비 실패: '+error.message);}
-  finally{if(doc)await doc.destroy();busy=false;if(button.isConnected)button.disabled=button.dataset.pdfRange==='prepare'&&(!pending||!element('cqRangeConfirmed')?.checked);}
+  finally{if(doc)await doc.destroy();busy=false;document.querySelectorAll('[data-pdf-range]').forEach(item=>item.disabled=item.dataset.pdfRange==='prepare'&&(!pending||!element('cqRangeConfirmed')?.checked));}
  });
 })();
