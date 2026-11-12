@@ -2,6 +2,13 @@
 (()=>{
  let session=null, childApi=null, chapters=[],busy=false, voiceRecorder=null, voiceStream=null, voiceChunks=[], voiceBlob=null, voiceChapter=null, uploadedAudio=new Set(), childGeneration=0, activeChildUpload=null, activeChildSubmit=null;
  let serverPdfController=null,serverPdfDocument=null,serverPdfObjectUrl=null;
+ const sameProject=(a,b)=>!!a&&!!b&&a.url===b.url&&a.anonKey===b.anonKey;
+ function studentProject(){
+  const current=window.CQProject.read();
+  if(session?.project&&!sameProject(session.project,current))throw Error('프로젝트 설정이 변경되었습니다. 기존 계정·답안은 유지하며 서버 요청을 중단합니다. 원래 프로젝트 설정을 확인하세요.');
+  return session?.project||current;
+ }
+
  function clearServerPdf(){
    if(serverPdfController){serverPdfController.abort();serverPdfController=null;}
    if(serverPdfObjectUrl){URL.revokeObjectURL(serverPdfObjectUrl);serverPdfObjectUrl=null;}
@@ -12,9 +19,9 @@
    clearServerPdf();
    const target=document.getElementById('cqServerPdfViewer');if(!target)return;
    const controller=new AbortController();serverPdfController=controller;
-   const current=()=>!controller.signal.aborted&&session?.uid===uid&&childGeneration===generation&&document.getElementById('cqChildWork')?.dataset.uuid===chapterUuid&&target.isConnected;
+   const current=()=>!controller.signal.aborted&&session?.uid===uid&&childGeneration===generation&&document.getElementById('cqChildWork')?.dataset.uuid===chapterUuid&&target.isConnected&&sameProject(session?.project,window.CQProject.read());
    try{
-     const project=window.CQProject.read();
+     const project=studentProject();
      if(!project?.url||!project?.anonKey)throw Error('Supabase 프로젝트 설정이 없습니다.');
      const transport=window.CQServerPDF.createPdfTransport({url:project.url,anonKey:project.anonKey,getAccessToken:()=>session?.uid===uid?childAccessToken():null});
      let expectedPages=null;const bytes=await transport.getPdf(chapterUuid,{signal:controller.signal,onMetadata:info=>expectedPages=info.page_count});
@@ -66,7 +73,7 @@
    }catch(error){if(current()){target.textContent='원본 PDF를 불러오지 못했습니다: '+error.message;target.insertAdjacentHTML('beforeend','<p><button type="button" data-child="pdf-retry">답안을 유지하고 PDF 다시 불러오기</button></p>');}}
  }
  const childContext=()=>({uid:session?.uid,generation:childGeneration});
- const assertChildContext=ctx=>{if(!session||session.uid!==ctx.uid||childGeneration!==ctx.generation)throw Error('학생 계정이 변경되어 이전 요청 결과를 폐기했습니다.');};
+ const assertChildContext=ctx=>{if(!session||session.uid!==ctx.uid||childGeneration!==ctx.generation)throw Error('학생 계정이 변경되어 이전 요청 결과를 폐기했습니다.');studentProject();};
  function cancelChildUpload(){clearServerPdf();if(activeChildUpload){activeChildUpload.abort();activeChildUpload=null;}if(activeChildSubmit){activeChildSubmit.abort();activeChildSubmit=null;}}
  const AUDIO_RECOVERY_KEY='cq_v4_pending_audio_v1';
  const DRAFT_KEY='cq_v4_child_drafts_v1';
@@ -133,7 +140,7 @@
  }
  async function verifyExistingAudio(uid,uuid,ext,expectedSha256){
    if(!validAudioHash(expectedSha256))throw Error('기존 녹음 파일의 무결성 정보를 확인할 수 없습니다.');
-   const project=window.CQProject.read();
+   const project=studentProject();
    if(!project?.url||!project?.anonKey||!session?.token||session.uid!==uid)throw Error('학생 인증이 필요합니다.');
    const response=await fetch(project.url+'/storage/v1/object/sign/cq-v4-speaking/'+uid+'/'+uuid+'.'+ext,{
      method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+session.token,'Content-Type':'application/json'},
@@ -289,30 +296,32 @@
  let childRefreshPromise=null;
  async function childAccessToken(){
   if(!session)throw Error('학생 계정으로 다시 로그인하세요.');
+  studentProject();
   if(session.resumedExisting){if(Date.now()<session.expiresAt-5000)return session.token;throw Error('기존 세션이 만료되었습니다. 계정을 바꾸거나 자동 갱신하지 않았습니다. 같은 계정 세션 다시 확인을 눌러 유효한 기존 기록을 확인하세요. 자동 갱신은 하지 않습니다.');}
   if(Date.now()<session.expiresAt-60000)return session.token;
   if(childRefreshPromise)return childRefreshPromise;
-  const owner=session,generation=childGeneration,project=window.CQProject.read();
+  const owner=session,generation=childGeneration,project=studentProject();
   const pending=(async()=>{
    if(!owner.refreshToken)throw Error('학생 로그인이 만료되었습니다. 다시 로그인하세요. 임시 답변은 보존됩니다.');
    const response=await fetch(project.url+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:owner.refreshToken})});
    const data=await response.json();
    if(session!==owner||generation!==childGeneration)throw Error('학생 계정이 변경되었습니다.');
+   studentProject();
    if(!response.ok||!data.access_token||!data.refresh_token)throw Error('학생 로그인 갱신에 실패했습니다. 다시 로그인하세요. 임시 답변은 보존됩니다.');
    owner.token=data.access_token;owner.refreshToken=data.refresh_token;owner.expiresAt=Date.now()+(data.expires_in||3600)*1000;
    return owner.token;
   })();childRefreshPromise=pending;
   try{return await pending}finally{if(childRefreshPromise===pending)childRefreshPromise=null}
  }
- function startChildSession(data){
-  const project=window.CQProject.read();
+ function startChildSession(data,project){
+  if(!sameProject(project,window.CQProject.read()))throw Error('로그인 중 프로젝트가 변경되어 이전 인증 결과를 적용하지 않았습니다.');
   if(!data.access_token||!data.user?.id)throw Error('인증 정보를 확인할 수 없습니다. 다시 로그인하세요.');
-  childGeneration++;childRefreshPromise=null;cancelChildUpload();session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
+  childGeneration++;childRefreshPromise=null;cancelChildUpload();session={project:Object.freeze({...project}),token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
   childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:childAccessToken});
   chapters=[];draw();status('로그인 성공 · 계정 인증과 실제 학생 권한은 서버 정책으로 확인됩니다.');
  }
  async function login(){
-  const project=window.CQProject.read();
+  const project=window.CQProject.read(),generation=childGeneration;
   if(!project?.url||!project?.anonKey)throw Error('부모 관리자에서 Supabase 프로젝트 공개 설정을 먼저 저장해야 합니다.');
   const email=el('cqChildEmail').value.trim(),password=el('cqChildPassword').value;
   if(!email||!password)throw Error('학생 이메일과 비밀번호를 입력하세요.');
@@ -320,7 +329,8 @@
    method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
   if(!response.ok)throw Error('학생 로그인 실패 ('+response.status+')');
   const data=await response.json();if(!data.access_token||!data.user?.id)throw Error('인증 정보가 없습니다.');
-  startChildSession(data);
+  if(generation!==childGeneration||mode!=='student')throw Error('로그인 화면이 변경되어 이전 인증 결과를 적용하지 않았습니다.');
+  startChildSession(data,project);
  }
  window.CQStudentNavigation=Object.freeze({leave(){if(!confirmVoiceDeparture())return false;invalidateVoiceForNavigation();cancelChildUpload();return true;}});
  document.addEventListener('click',event=>{if(mode==='student'&&event.target.closest('#parentBtn')&&!CQStudentNavigation.leave()){event.preventDefault();event.stopImmediatePropagation();}},true);
@@ -338,7 +348,7 @@
   try{
    if(b.dataset.child==='recheck-existing'){
     if(!session?.resumedExisting)throw Error('기존 익명 계정 확인 후 사용할 수 있습니다.');
-    const owner=childContext(),project=window.CQProject.read();
+    const owner=childContext(),project=studentProject();
     const result=await CQExistingStudentSession.inspect({project,storage:localStorage});
     assertChildContext(owner);const currentProject=window.CQProject.read();
     if(currentProject?.url!==project?.url||currentProject?.anonKey!==project?.anonKey)throw Error('프로젝트가 변경되어 확인 결과를 적용하지 않았습니다.');
@@ -357,7 +367,7 @@
     const currentProject=window.CQProject.read();
     if(generation!==childGeneration||session||mode!=='student'||currentProject?.url!==project?.url||currentProject?.anonKey!==project?.anonKey)return;
     if(result.status==='ready'){
-     childGeneration++;childRefreshPromise=null;session={...result.session,resumedExisting:true};
+     childGeneration++;childRefreshPromise=null;session={...result.session,project:Object.freeze({...project}),resumedExisting:true};
      childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:childAccessToken});chapters=[];draw();
      const owner=childContext(),api=childApi;
      try{const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)return;chapters=rows;session.assignmentCount=rows.length;draw();}catch(err){if(session?.uid===owner.uid&&childGeneration===owner.generation)status('인증·부모 연결은 확인됐지만 배정 조회에 실패했습니다. 내 배정 챕터 불러오기로 재시도하세요.');return;}
@@ -371,13 +381,14 @@
     el('cqChildSignup').hidden=b.dataset.child==='signup-cancel';el('cqChildPassword').autocomplete=b.dataset.child==='signup-open'?'new-password':'current-password';return;
    }
    if(b.dataset.child==='signup'){
-    const project=window.CQProject.read(),email=el('cqChildEmail')?.value.trim(),password=el('cqChildPassword')?.value,confirm=el('cqChildPasswordConfirm')?.value;
+    const project=window.CQProject.read(),generation=childGeneration,email=el('cqChildEmail')?.value.trim(),password=el('cqChildPassword')?.value,confirm=el('cqChildPasswordConfirm')?.value;
     if(!project?.url||!CQOrigin.allows(project.url)||!project.anonKey)throw Error('학생 계정 서버 설정을 확인하세요.');
     if(!email||!el('cqChildEmail').checkValidity())throw Error('학생 계정 이메일을 확인하세요.');
     if(!password||password.length<8||password.length>128||password!==confirm)throw Error('8자 이상 비밀번호와 확인 입력이 일치해야 합니다.');
     const response=await fetch(project.url+'/auth/v1/signup',{method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
     const data=await response.json();if(!response.ok)throw Error(data.msg||data.message||data.error_description||'학생 계정 생성에 실패했습니다.');
-    if(data.access_token){startChildSession(data);status('학생 계정 생성 완료. 부모 초대코드로 연결을 요청하세요.');}
+    if(generation!==childGeneration||mode!=='student'||!sameProject(project,window.CQProject.read()))throw Error('계정 요청 중 화면/프로젝트가 변경되어 결과를 적용하지 않았습니다.');
+    if(data.access_token){startChildSession(data,project);status('학생 계정 생성 완료. 부모 초대코드로 연결을 요청하세요.');}
     else status('가입 요청이 처리되었습니다. 이메일 인증이 필요한 경우 인증을 마친 뒤 학생 계정으로 로그인하세요.');
     return;
    }
@@ -389,7 +400,7 @@
      const code=el('cqChildInvite')?.value.trim(),name=el('cqChildInviteName')?.value.trim();
      if(!/^[0-9a-f]{48}$/.test(code||''))throw Error('초대코드 형식을 확인하세요.');
      if(!name||name.length>80)throw Error('학생 이름을 입력하세요.');
-     const project=window.CQProject.read();
+     const project=studentProject();
      const ok=await CQInvitationAPI.claim({url:project?.url,anonKey:project?.anonKey,getAccessToken:childAccessToken},code,name);
      if(!ok)throw Error('초대코드가 만료됐거나 이미 사용됐습니다.');
      draw();status('연결 요청 완료. 부모 승인을 기다리세요.');
@@ -588,7 +599,7 @@
      }
      if(voiceBlob&&!confirmedAudio){
        if(voiceBlob.size>10485760)throw Error('녹음 파일은 10MB 이하여야 합니다.');
-       const config=window.CQProject.read();
+       const config=studentProject();
        if(!config?.url||!config?.anonKey)throw Error('Supabase 프로젝트 설정이 없습니다.');
        const ext=voiceBlob.type.includes('mp4')?'mp4':voiceBlob.type.includes('ogg')?'ogg':'webm';
        if(pending&&pending.ext!==ext)throw Error('이전 업로드 시도와 녹음 형식이 다릅니다. 안전을 위해 제출을 중단합니다.');
