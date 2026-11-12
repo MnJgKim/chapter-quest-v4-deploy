@@ -278,9 +278,9 @@
   const root=el('cqChildAccount');if(!root)return;
   root.innerHTML=`<section class="card"><h2>🔐 학생 계정 로그인</h2>
    <p class="muted">학생 본인의 계정으로 로그인하세요. 부모가 승인하고 배정한 챕터를 학습할 수 있습니다. 기기 데모 기록은 별도로 보관됩니다. 작성 중인 답안은 이 기기에 자동 저장되며 같은 계정으로 다시 로그인하면 이어서 학습할 수 있습니다.</p>
-   ${session?`<p>학생 계정 로그인됨 · 계정 확인번호 <strong data-child-reference>${escape(session.uid.slice(-8))}</strong></p><div class="row"><input id="cqChildInvite" placeholder="부모 초대코드 (48자리)" autocomplete="off" style="flex:1"><input id="cqChildInviteName" placeholder="학생 이름" style="max-width:130px"><button data-child="claim">연결 요청</button></div><button data-child="list">내 배정 챕터 불러오기</button><button data-child="logout">로그아웃</button>
+   ${session?`<p>학생 계정 로그인됨 · 계정 확인번호 <strong data-child-reference>${escape(session.uid.slice(-8))}</strong></p>${session.resumedExisting?'<p>기존 부모 연결 유지 · 재초대하지 마세요.</p>':`<div class="row"><input id="cqChildInvite" placeholder="부모 초대코드 (48자리)" autocomplete="off" style="flex:1"><input id="cqChildInviteName" placeholder="학생 이름" style="max-width:130px"><button data-child="claim">연결 요청</button></div>`}<button data-child="list">내 배정 챕터 불러오기</button>${session.resumedExisting?'':'<button data-child="logout">로그아웃</button>'}
     <div>${chapters.map(c=>`<div class="book"><b>${escape(c.chapter_title)}</b><button data-child="view" data-uuid="${escape(c.chapter_uuid)}">원문·문제 보기</button></div>`).join('')}</div><div id="cqChildDetail"></div>`:
-    `<div class="grid"><label>학생 이메일<input id="cqChildEmail" type="email" autocomplete="username"></label><label>학생 비밀번호<input id="cqChildPassword" type="password" autocomplete="current-password"></label></div><button data-child="login">학생 계정 로그인</button><button data-child="signup-open">학생 계정 만들기</button><div id="cqChildSignup" hidden><label>비밀번호 확인<input id="cqChildPasswordConfirm" type="password" autocomplete="new-password"></label><p class="muted">학생용 별도 계정을 만들고 부모 초대코드로 연결하세요. 비밀번호는 8자 이상 입력하세요.</p><button data-child="signup">새 학생 계정 생성</button><button data-child="signup-cancel">취소</button></div>`}
+    `<div class="grid"><label>학생 이메일<input id="cqChildEmail" type="email" autocomplete="username"></label><label>학생 비밀번호<input id="cqChildPassword" type="password" autocomplete="current-password"></label></div><button data-child="inspect-existing">이 기기의 기존 익명 계정 확인 · 읽기 전용</button><p class="muted">기존 저장 세션만 확인합니다. 새 가입·토큰 갱신·계정 전환은 하지 않습니다. 기록이 없거나 만료됐으면 원래 계정을 유지하고 중단합니다.</p><button data-child="login">학생 계정 로그인</button><button data-child="signup-open">학생 계정 만들기</button><div id="cqChildSignup" hidden><label>비밀번호 확인<input id="cqChildPasswordConfirm" type="password" autocomplete="new-password"></label><p class="muted">학생용 별도 계정을 만들고 부모 초대코드로 연결하세요. 비밀번호는 8자 이상 입력하세요.</p><button data-child="signup">새 학생 계정 생성</button><button data-child="signup-cancel">취소</button></div>`}
    <p id="cqChildStatus" class="status"></p></section>`;
  }
  const status=t=>{if(el('cqChildStatus'))el('cqChildStatus').textContent=t};
@@ -289,6 +289,7 @@
  let childRefreshPromise=null;
  async function childAccessToken(){
   if(!session)throw Error('학생 계정으로 다시 로그인하세요.');
+  if(session.resumedExisting){if(Date.now()<session.expiresAt-5000)return session.token;throw Error('기존 세션이 만료되었습니다. 계정을 바꾸거나 자동 갱신하지 않았습니다. 승인된 복구 절차가 필요합니다.');}
   if(Date.now()<session.expiresAt-60000)return session.token;
   if(childRefreshPromise)return childRefreshPromise;
   const owner=session,generation=childGeneration,project=window.CQProject.read();
@@ -335,6 +336,19 @@
   busy=true;b.disabled=true;
   let viewContext=null;
   try{
+   if(b.dataset.child==='inspect-existing'){
+    const generation=childGeneration,project=window.CQProject.read(),result=await CQExistingStudentSession.inspect({project,storage:localStorage});
+    const currentProject=window.CQProject.read();
+    if(generation!==childGeneration||session||mode!=='student'||currentProject?.url!==project?.url||currentProject?.anonKey!==project?.anonKey)return;
+    if(result.status==='ready'){
+     childGeneration++;childRefreshPromise=null;session={...result.session,resumedExisting:true};
+     childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:childAccessToken});chapters=[];draw();
+     status('기존 익명 계정과 부모 연결을 읽기로 확인했습니다. 계정 확인번호를 부모와 대조한 뒤 내 배정 챕터를 불러오세요. 토큰 갱신·계정 변경은 하지 않았습니다.');
+    }else{
+     const messages={absent:'이 브라우저에서 지원되는 기존 세션 기록을 찾지 못했습니다. 계정이 삭제됐다는 뜻은 아닙니다.',expired:'기존 세션으로 인증되지 않거나 만료되었습니다. 자동 갱신하지 않았습니다.',unlinked:'이 계정의 기존 부모 연결을 확인하지 못했습니다. 임의로 연결하지 않았습니다.','not-anonymous':'저장된 세션을 기존 익명 학생으로 확인할 수 없습니다. 다른 계정으로 전환하지 않았습니다.',configuration:'프로젝트 공개 설정을 확인하세요.',unreadable:'기존 세션 기록을 안전하게 읽지 못했습니다. 원본은 보존했습니다.',invalid:'기존 세션 형식/유효 기간을 확인하지 못했습니다. 원본은 보존했습니다.',unavailable:'읽기 확인에 실패했습니다. 계정·세션 기록은 변경하지 않았습니다.'};
+     status((messages[result.status]||messages.unavailable)+' 가입·로그아웃·저장소 삭제를 하지 말고 지원 절차로 확인하세요.');
+    }return;
+   }
    if(b.dataset.child==='signup-open'||b.dataset.child==='signup-cancel'){
     el('cqChildSignup').hidden=b.dataset.child==='signup-cancel';el('cqChildPassword').autocomplete=b.dataset.child==='signup-open'?'new-password':'current-password';return;
    }
@@ -351,6 +365,7 @@
    }
    if(b.dataset.child==='login')await login();
    else if(session&&['claim','list','view'].includes(b.dataset.child))await childAccessToken();
+   if(b.dataset.child==='claim'&&session?.resumedExisting)throw Error('기존 연결을 유지합니다. 재초대하지 않습니다.');
    if(b.dataset.child==='claim'){
      if(!session)throw Error('학생 로그인 후 요청하세요.');
      const code=el('cqChildInvite')?.value.trim(),name=el('cqChildInviteName')?.value.trim();
