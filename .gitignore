@@ -12,3 +12,8 @@ review/stage1/local-supabase/supabase/.temp/
 **/supabase/.temp/
 
 app/public/vendor/
+
+# Never stage private source-review material.
+private-transcripts/
+private-lesson/
+*.transcript-private.*
