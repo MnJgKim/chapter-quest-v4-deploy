@@ -87,16 +87,18 @@
  }
  function writeDraft(uid,uuid,form){
    if(!validDraftId(uid)||!validDraftId(uuid))throw Error('학생 또는 챕터 식별자가 올바르지 않습니다.');
+   form.dataset.draftDirty='true';
    const answers=[];
    for(let i=0;form.querySelector(`[name="cqAnswer${i}"]`);i++){
      const checked=form.querySelector(`[name="cqAnswer${i}"]:checked`);
      const field=checked||form.querySelector(`textarea[name="cqAnswer${i}"]`);
      answers.push(field?.value??'');
    }
-   return CQStudentStore.updateMap(localStorage,DRAFT_KEY,all=>{all[draftId(uid,uuid)]={uid,uuid,answers,essay:form.elements.namedItem('essay')?.value||'',
+   const result=CQStudentStore.updateMap(localStorage,DRAFT_KEY,all=>{all[draftId(uid,uuid)]={uid,uuid,answers,essay:form.elements.namedItem('essay')?.value||'',
      speaking:form.elements.namedItem('speaking')?.value||'',wordsReviewed:[...form.querySelectorAll('[data-word-done]:checked')].map(x=>Number(x.dataset.wordDone)),
      readComplete:!!form.elements.namedItem('readComplete')?.checked,updatedAt:Date.now()};
    });
+   form.dataset.draftDirty='false';return result;
  }
  function restoreDraft(uid,uuid,form){
    const draft=readDraft(uid,uuid);if(!draft)return false;
@@ -183,8 +185,10 @@
  const finishVoiceSave=()=>{voiceSaveCount=Math.max(0,voiceSaveCount-1);voiceSavePending=voiceSaveCount>0;};
  const discardUnsavedVoice=()=>{unsavedVoice=null;};
  const hasAtRiskVoice=()=>!!unsavedVoice||voiceSavePending||voiceRecorder?.state==='recording';
+ const hasAtRiskDraft=()=>document.getElementById('cqChildWork')?.dataset.draftDirty==='true';
+ const confirmLessonDeparture=()=>{if(hasAtRiskDraft()){status('답안이 아직 저장되지 않아 이동을 중단했습니다. 화면을 유지하고 답안 저장 재시도를 누르세요.');return false;}return confirmVoiceDeparture();};
  const confirmVoiceDeparture=()=>!hasAtRiskVoice()||window.confirm('아직 기기에 안전하게 저장되지 않은 녹음이 있습니다. 이동하면 녹음이 사라질 수 있습니다. 계속하시겠습니까?');
- window.addEventListener('beforeunload',event=>{if(!hasAtRiskVoice())return;event.preventDefault();event.returnValue='';});
+ window.addEventListener('beforeunload',event=>{if(!hasAtRiskVoice()&&!hasAtRiskDraft())return;event.preventDefault();event.returnValue='';});
  function invalidateVoiceForNavigation(){
    clearVoicePreview();
    childGeneration++;discardUnsavedVoice();
@@ -332,20 +336,31 @@
   if(generation!==childGeneration||mode!=='student')throw Error('로그인 화면이 변경되어 이전 인증 결과를 적용하지 않았습니다.');
   startChildSession(data,project);
  }
- window.CQStudentNavigation=Object.freeze({leave(){if(!confirmVoiceDeparture())return false;invalidateVoiceForNavigation();cancelChildUpload();return true;}});
- document.addEventListener('click',event=>{if(mode==='student'&&event.target.closest('#parentBtn')&&!CQStudentNavigation.leave()){event.preventDefault();event.stopImmediatePropagation();}},true);
+ window.CQStudentNavigation=Object.freeze({leave(){if(!confirmLessonDeparture())return false;invalidateVoiceForNavigation();cancelChildUpload();return true;}});
+ document.addEventListener('click',event=>{
+  if(mode!=='student')return;
+  if(event.target.closest('#studentBtn')&&el('cqChildWork')){event.preventDefault();event.stopImmediatePropagation();return;}
+  if(event.target.closest('#parentBtn')&&!CQStudentNavigation.leave()){event.preventDefault();event.stopImmediatePropagation();}
+ },true);
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-child]');if(!b||mode!=='student')return;
   if(b.dataset.child==='logout'){
-    if(!confirmVoiceDeparture())return;
+    if(!confirmLessonDeparture())return;
     invalidateVoiceForNavigation();cancelChildUpload();uploadedAudio.clear();session=null;childRefreshPromise=null;childApi=null;chapters=[];
     draw();status('로그아웃했습니다. 진행 중인 녹음 업로드는 취소를 요청했습니다.');return;
   }
   if(b.dataset.child==='voice-stop'){if(voiceRecorder?.state==='recording')voiceRecorder.stop();return;}
   if(busy)return;
+  if(['list','view','feedback'].includes(b.dataset.child)&&!confirmLessonDeparture())return;
   busy=true;b.disabled=true;
   let viewContext=null;
   try{
+   if(b.dataset.child==='draft-retry'){
+    const form=el('cqChildWork');if(!session||!form)throw Error('현재 학습 답안을 확인하세요.');
+    writeDraft(session.uid,form.dataset.uuid,form);
+    const saved=el('cqDraftStatus');if(saved)saved.textContent='이 기기에 답안 자동 저장됨';
+    status('현재 답안을 기기에 저장했습니다. 같은 계정으로 다시 진입하면 이어서 학습할 수 있습니다.');return;
+   }
    if(b.dataset.child==='recheck-existing'){
     if(!session?.resumedExisting)throw Error('기존 익명 계정 확인 후 사용할 수 있습니다.');
     const owner=childContext(),project=studentProject();
@@ -480,14 +495,12 @@
      }finally{finishVoiceSave();}
    }
    if(b.dataset.child==='list'){
-     if(!confirmVoiceDeparture())return;
      invalidateVoiceForNavigation();
      const owner=childContext(),api=childApi;const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)throw Error('학생 계정이 변경되었습니다.');chapters=rows;if(session.resumedExisting)session.assignmentCount=rows.length;draw();status(chapters.length+'개 챕터를 불러왔습니다.');
    }
    if(b.dataset.child==='view'||b.dataset.child==='feedback'){
     const c=chapters.find(x=>x.chapter_uuid===b.dataset.uuid);
     if(!c)throw Error('배정된 챕터가 아닙니다.');
-    if(!confirmVoiceDeparture())return;
     invalidateVoiceForNavigation();clearServerPdf();
     const viewUid=session.uid,viewGeneration=childGeneration,viewApi=childApi;
     viewContext={uid:viewUid,generation:viewGeneration,api:viewApi};
@@ -507,7 +520,7 @@
     const vocabulary=Array.isArray(activity.vocabulary)?activity.vocabulary:[];
     const vocabularyHtml=vocabulary.map((v,i)=>`<li class="word-card"><strong>${escape(v.word||'')}</strong><div class="row"><button type="button" data-word-reveal="${i}" aria-expanded="false">뜻 보기</button><button type="button" data-word-speak="${escape(v.word||'')}">단어 듣기</button><label><input type="checkbox" data-word-done="${i}"> 학습 완료</label></div><p data-word-meaning="${i}" hidden>${escape(v.meaning||'')} ${v.example?`<small>${escape(v.example)}</small>`:''}</p></li>`).join('');
     const activityHtml=`<section data-learn-section="words"><h4>핵심 단어</h4><ul>${vocabularyHtml||'<li>등록된 단어가 없습니다.</li>'}</ul></section><section data-learn-section="prompts"><h4>영어 독후감 질문</h4><p>${escape(activity.writing_prompt||'')}</p><h4>말하기 질문</h4><p>${escape(activity.speaking_prompt||'')}</p></section>`;
-    const form=`${pending?'<p class="muted">이전에 업로드된 녹음이 있습니다. 최종 제출 시 서버에서 파일을 확인합니다. 임시저장된 답변이 있다면 자동으로 복원됩니다.</p>':''}<form id="cqChildWork" novalidate data-uuid="${escape(c.chapter_uuid)}"><nav class="learn-nav" aria-label="학습 순서"><button type="button" data-learn-jump="read">1 원문</button><button type="button" data-learn-jump="words">2 단어</button><button type="button" data-learn-jump="questions">3 문제</button><button type="button" data-learn-jump="writing">4 글쓰기</button><button type="button" data-learn-jump="speaking">5 말하기</button><button type="button" data-learn-jump="submit">6 제출</button></nav><div id="cqServerPdfViewer" data-learn-section="read" class="card" role="region" aria-label="원본 PDF 읽기">원본 PDF 접근 권한을 확인하는 중입니다...</div><div class="note" role="status">원본 PDF를 읽고 문제·독후감·말하기를 완료하세요. PDF를 불러오지 못하면 제출할 수 없습니다.</div>${activityHtml}<label><input type="checkbox" name="readComplete" required disabled> 원문 PDF 연결 대기</label><section data-learn-section="questions">${questionFields}</section><label data-learn-section="writing">영어 독후감<textarea name="essay" rows="5" required></textarea></label><label data-learn-section="speaking">말하기 대본<textarea name="speaking" rows="3" required></textarea></label><div class="row"><button type="button" data-child="voice-start">● 녹음 시작</button><button type="button" data-child="voice-stop">■ 녹음 종료</button><button type="button" data-child="voice-retry">↻ 녹음 저장 재시도</button><button type="button" data-child="voice-download">↓ 미저장 녹음 백업</button><button type="button" data-child="voice-import">↑ 녹음 백업 복원</button><input id="cqVoiceManifestImport" type="file" accept=".json,.cqvoice.json,application/json" hidden><input id="cqVoiceImport" type="file" accept="audio/webm,audio/mp4,audio/ogg" hidden></div><div id="cqVoicePlayback"></div><p class="muted" id="cqVoiceStatus">말하기 녹음은 필수입니다. 녹음 완료 후 이 기기의 IndexedDB에 원본을 저장합니다. 저장에 실패하면 제출할 수 없으며, 최종 제출 시 서버 업로드를 시도합니다. 업로드가 실패하면 제출되지 않습니다.</p><div class="submission-bar" data-learn-section="submit"><span id="cqDraftStatus" role="status">답안은 입력 즉시 이 기기에 저장됩니다.</span><button type="submit" disabled title="서버 PDF 연결 및 접근 권한 검증 후 활성화">최종 제출 (PDF 연결 대기)</button></div></form>`;
+    const form=`${pending?'<p class="muted">이전에 업로드된 녹음이 있습니다. 최종 제출 시 서버에서 파일을 확인합니다. 임시저장된 답변이 있다면 자동으로 복원됩니다.</p>':''}<form id="cqChildWork" novalidate data-uuid="${escape(c.chapter_uuid)}"><nav class="learn-nav" aria-label="학습 순서"><button type="button" data-learn-jump="read">1 원문</button><button type="button" data-learn-jump="words">2 단어</button><button type="button" data-learn-jump="questions">3 문제</button><button type="button" data-learn-jump="writing">4 글쓰기</button><button type="button" data-learn-jump="speaking">5 말하기</button><button type="button" data-learn-jump="submit">6 제출</button></nav><div id="cqServerPdfViewer" data-learn-section="read" class="card" role="region" aria-label="원본 PDF 읽기">원본 PDF 접근 권한을 확인하는 중입니다...</div><div class="note" role="status">원본 PDF를 읽고 문제·독후감·말하기를 완료하세요. PDF를 불러오지 못하면 제출할 수 없습니다.</div>${activityHtml}<label><input type="checkbox" name="readComplete" required disabled> 원문 PDF 연결 대기</label><section data-learn-section="questions">${questionFields}</section><label data-learn-section="writing">영어 독후감<textarea name="essay" rows="5" required></textarea></label><label data-learn-section="speaking">말하기 대본<textarea name="speaking" rows="3" required></textarea></label><div class="row"><button type="button" data-child="voice-start">● 녹음 시작</button><button type="button" data-child="voice-stop">■ 녹음 종료</button><button type="button" data-child="voice-retry">↻ 녹음 저장 재시도</button><button type="button" data-child="voice-download">↓ 미저장 녹음 백업</button><button type="button" data-child="voice-import">↑ 녹음 백업 복원</button><input id="cqVoiceManifestImport" type="file" accept=".json,.cqvoice.json,application/json" hidden><input id="cqVoiceImport" type="file" accept="audio/webm,audio/mp4,audio/ogg" hidden></div><div id="cqVoicePlayback"></div><p class="muted" id="cqVoiceStatus">말하기 녹음은 필수입니다. 녹음 완료 후 이 기기의 IndexedDB에 원본을 저장합니다. 저장에 실패하면 제출할 수 없으며, 최종 제출 시 서버 업로드를 시도합니다. 업로드가 실패하면 제출되지 않습니다.</p><div class="submission-bar" data-learn-section="submit"><span id="cqDraftStatus" role="status">답안은 입력 즉시 이 기기에 저장됩니다.</span><button type="button" data-child="draft-retry">답안 저장 재시도</button><button type="submit" disabled title="서버 PDF 연결 및 접근 권한 검증 후 활성화">최종 제출 (PDF 연결 대기)</button></div></form>`;
     const feedback=submitted?.feedback_released?`<h4>부모 피드백</h4><p>${escape(submitted.feedback||'')}</p>`:'<p>부모 피드백 검토 중입니다.</p>';
     detail.innerHTML=`<div class="book"><h3>${escape(c.chapter_title)}</h3>${submitted?`<p>제출 완료 · ${escape(submitted.submitted_at||'')}</p>${feedback}<button data-child="feedback" data-uuid="${escape(c.chapter_uuid)}">피드백 새로고침</button>`:form}</div>`;
     if(submitted){clearDraft(viewUid,c.chapter_uuid);clearRecovery(viewUid,c.chapter_uuid)}
