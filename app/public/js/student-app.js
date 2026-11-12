@@ -495,22 +495,31 @@
      }finally{finishVoiceSave();}
    }
    if(b.dataset.child==='list'){
-     invalidateVoiceForNavigation();
-     const owner=childContext(),api=childApi;const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)throw Error('학생 계정이 변경되었습니다.');chapters=rows;if(session.resumedExisting)session.assignmentCount=rows.length;draw();status(chapters.length+'개 챕터를 불러왔습니다.');
+     const owner=childContext(),api=childApi;const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)throw Error('학생 계정이 변경되었습니다.');
+     if(hasAtRiskDraft()){status('조회 중 답안 저장에 실패해 이동을 중단했습니다. 답안 저장 재시도를 누르세요.');return;}
+     invalidateVoiceForNavigation();clearServerPdf();chapters=rows;if(session.resumedExisting)session.assignmentCount=rows.length;draw();status(chapters.length+'개 챕터를 불러왔습니다.');
    }
    if(b.dataset.child==='view'||b.dataset.child==='feedback'){
     const c=chapters.find(x=>x.chapter_uuid===b.dataset.uuid);
     if(!c)throw Error('배정된 챕터가 아닙니다.');
-    invalidateVoiceForNavigation();clearServerPdf();
-    const viewUid=session.uid,viewGeneration=childGeneration,viewApi=childApi;
-    viewContext={uid:viewUid,generation:viewGeneration,api:viewApi};
+    const viewUid=session.uid,requestGeneration=childGeneration,viewApi=childApi;
+    viewContext={uid:viewUid,generation:requestGeneration,api:viewApi};
     const previous=await viewApi.submission(c.chapter_uuid);
-    const activityRows=await viewApi.chapterActivities(c.chapter_uuid);
-    if(!Array.isArray(activityRows)||activityRows.length!==1)throw Error('챕터 학습 활동을 조회할 수 없습니다.');
-    const activity=activityRows[0];
-    // Never apply an old lookup (or delete a draft) after logout/account switch.
-    if(!session||session.uid!==viewUid||childGeneration!==viewGeneration||childApi!==viewApi)return;
+    assertChildContext(viewContext);if(childApi!==viewApi)return;
     const submitted=Array.isArray(previous)?previous[0]:previous;
+    let activity={};
+    if(!submitted){
+     const activityRows=await viewApi.chapterActivities(c.chapter_uuid);
+     if(!Array.isArray(activityRows)||activityRows.length!==1)throw Error('챕터 학습 활동을 조회할 수 없습니다.');
+     activity=activityRows[0];
+    }
+    // Commit navigation only after all required reads succeed. Failed reads keep
+    // the current form, active PDF and durable/in-memory recording intact.
+    assertChildContext(viewContext);if(childApi!==viewApi)return;
+    if(!el('cqChildDetail'))return;
+    if(hasAtRiskDraft()){status('조회 중 답안 저장에 실패해 이동을 중단했습니다. 답안 저장 재시도를 누르세요.');return;}
+    invalidateVoiceForNavigation();clearServerPdf();
+    const viewGeneration=childGeneration;viewContext={uid:viewUid,generation:viewGeneration,api:viewApi};
     const pending=submitted?null:readRecovery(viewUid,c.chapter_uuid);
     const detail=el('cqChildDetail');if(!detail)return;
     const questionFields=(c.questions||[]).map((q,i)=>{
