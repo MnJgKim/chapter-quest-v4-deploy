@@ -7,8 +7,8 @@ import json,threading,functools,sys,secrets,urllib.request,urllib.error,subproce
 from playwright.sync_api import sync_playwright,expect
 ROOT=Path(__file__).resolve().parents[1];out=Path(sys.argv[2]);out.parent.mkdir(parents=True,exist_ok=True)
 original_kind=sys.argv[3] if len(sys.argv)>3 else 'txt'
-assert original_kind in ('txt','pdf','range'),'Only local PDF/TXT fixtures are supported'
-lesson_pages=2 if original_kind=='range' else 1
+assert original_kind in ('txt','pdf','range','whole'),'Only local PDF/TXT fixtures are supported'
+lesson_pages=11 if original_kind=='whole' else 2 if original_kind=='range' else 1
 expected_server_pdfs=2 if original_kind=='range' else 1
 status=json.loads(Path(sys.argv[1]).read_text())
 def public_key(value):
@@ -72,12 +72,12 @@ try:
  subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec','-i','supabase_db_cq-v4-local-qa','psql','-U','postgres','-v','ON_ERROR_STOP=1'],input=query,env=env,text=True,capture_output=True,check=True)
  source='Mina helped Leo find a lost book. They searched the library together. Leo thanked Mina for being patient and kind. '*8
  fixture={'questions':[{'kind':'mc','text':'Who helped Leo?','options':['Mina','Nobody'],'correct':0},{'kind':'inference','text':'Why did they search together?','sample':'They wanted to find the book.'}],'vocabulary':[{'word':'patient','meaning':'참을성 있는','example':'Mina was patient.'}],'writingPrompt':'Explain how Mina helped.','speakingPrompt':'Summarize the chapter.'}
- original=out.parent/('cq-original.'+('pdf' if original_kind=='range' else original_kind))
+ original=out.parent/('cq-original.'+('pdf' if original_kind in ('range','whole') else original_kind))
  if original_kind=='txt':original.write_text(source)
  else:
   from reportlab.pdfgen import canvas
   document=canvas.Canvas(str(original));document.setTitle('Synthetic QA Volume')
-  for page_index in range(1,5 if original_kind=='range' else 2):
+  for page_index in range(1,12 if original_kind=='whole' else 5 if original_kind=='range' else 2):
    if original_kind=='range' and page_index in (2,4):document.bookmarkPage('part'+str(page_index));document.addOutlineEntry('Synthetic Chapter 1' if page_index==2 else 'Synthetic Chapter 2','part'+str(page_index),0)
    page_source=source if original_kind!='range' or page_index in (2,3) else 'OUTSIDE_SELECTED_CHAPTER original page '+str(page_index)
    for i,line in enumerate(textwrap.wrap(page_source,width=85)):document.drawString(40,790-i*18,line)
@@ -108,11 +108,21 @@ try:
   else:
    pp.locator('[data-act="extractSource"]').click();expect(pp.locator('#sourceText')).to_have_value(__import__('re').compile('Mina helped Leo'));pp.locator('[data-act="saveSource"]').click()
   pp.locator('[data-act="previewOriginal"]').click()
-  if original_kind!='txt':expect(pp.locator('#cqParentPdfViewer [data-pdf="count"]')).to_have_text('1 / '+('4' if original_kind=='range' else '1')+' 페이지')
+  if original_kind!='txt':expect(pp.locator('#cqParentPdfViewer [data-pdf="count"]')).to_have_text('1 / '+('11' if original_kind=='whole' else '4' if original_kind=='range' else '1')+' 페이지')
   else:expect(pp.locator('#cqParentPdfViewer [data-original-text]')).to_have_text(source)
   passed('parent verifies the actual local '+original_kind.upper()+' original and source before question approval')
   pp.locator('[data-pdf-parent="from-local"]').click();expect(pp.locator('#cqPdfParentStatus')).to_contain_text('検' if False else '検証' if False else '검증 완료',timeout=90000);expect(pp.locator('#cqPublishVerifiedPdf')).not_to_have_value('');passed(original_kind.upper()+' original uploads through real signed Storage URL and Edge verification')
   local_sha=pp.evaluate("async()=>{const f=await pdfGet(pdfKey(book().id,chapter().id));return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await f.arrayBuffer()))).map(x=>x.toString(16).padStart(2,'0')).join('')}");assert local_sha==original_sha;passed('server registration preserves exact bytes of the original local '+original_kind.upper())
+  if original_kind=='whole':
+   original_uuid=pp.locator('#cqPublishVerifiedPdf').input_value()
+   pp.locator('[data-pdf-parent="use-existing"]').click();expect(pp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다')
+   pp.locator('[data-pdf-range="inspect"]').click();expect(pp.locator('#cqPdfStructure')).to_contain_text('파일 11쪽')
+   pp.locator('#cqRangeTitle').fill('The Dark Woods — synthetic 11-page QA')
+   pp.locator('#cqRangeStart').fill('1');pp.locator('#cqRangeEnd').fill('11');pp.locator('[data-pdf-range="preview"]').click();expect(pp.locator('#cqRangePreview [data-pdf="count"]')).to_have_text('1 / 11 페이지');pp.locator('#cqRangeConfirmed').check();pp.locator('#cqRangePrepare').click();expect(pp.locator('#notice')).to_contain_text('선택 범위만 이 기기에 등록')
+   selected_sha=pp.evaluate("async()=>{const f=await pdfGet(pdfKey(book().id,chapter().id));return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',await f.arrayBuffer()))).map(x=>x.toString(16).padStart(2,'0')).join('')}");assert selected_sha==original_sha
+   pp.locator('[data-pdf-parent="from-local"]').click();expect(pp.locator('#cqPdfParentStatus')).to_contain_text('전체 범위 검증 완료',timeout=90000);assert pp.locator('#cqPublishVerifiedPdf').input_value()==original_uuid
+   assert len(api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])['chapters'])==1
+   passed('confirmed pages 1-11 reuse byte-identical complete original UUID without upload, replacement or duplicate chapter')
   if original_kind=='range':
    original_uuid=pp.locator('#cqPublishVerifiedPdf').input_value();original_rows=api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token']);assert len(original_rows['chapters'])==1
    pp.locator('[data-pdf-parent="use-existing"]').click();expect(pp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다');expect(pp.locator('#cqRangeStart')).to_have_value('');expect(pp.locator('#cqRangeEnd')).to_have_value('')
@@ -123,7 +133,7 @@ try:
    link=api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':original_uuid},users['parent']['token']);private.append(link['signed_url']);assert link['signed_url'].startswith('/storage/v1/object/sign/cq-v4-originals/')
    with urllib.request.urlopen(urllib.request.Request(base+link['signed_url'],headers={'apikey':anon,'Authorization':'Bearer '+users['parent']['token']}),timeout=30) as r:assert hashlib.sha256(r.read()).hexdigest()==original_sha
    passed('only a derived two-page PDF is registered and the complete server original remains byte-identical')
-  if original_kind=='range':
+  if original_kind in ('range','whole'):
    pp.locator('[data-act="generate"]').click();expect(pp.locator('[data-act="approve"]')).to_be_visible();assert pp.evaluate('chapter().questions.length')==0;passed('selected chapter source reaches authenticated generation UI; synthetic response remains unapproved until parent review (no model call)')
   else:pp.locator('#cqDraftImport').set_input_files(str(draft));expect(pp.locator('[data-act="approve"]')).to_be_visible()
   pp.locator('[data-act="approve"]').click();pp.locator('[data-publish-child]').check()
@@ -131,6 +141,14 @@ try:
    derived_uuid=pp.locator('#cqPublishVerifiedPdf').input_value();pp.locator('#cqPublishVerifiedPdf').select_option(original_uuid);pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('선택 범위 자료와 서버 PDF가 다릅니다');assert api('/rest/v1/rpc/cq_v4_my_chapters',{},users['student']['token'])==[];pp.locator('#cqPublishVerifiedPdf').select_option(derived_uuid);passed('changing the range lesson binding to the complete original is blocked before publishing or assigning')
   pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(1);chapter_uuid=sp.locator('[data-child="view"]').get_attribute('data-uuid');context=api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['parent']['token']);assert context[0]['answer_key'][0]==0
+  if original_kind=='whole':
+   assert chapter_uuid==original_uuid
+   link=api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':chapter_uuid},users['student']['token']);assert link['page_count']==11;private.append(link['signed_url'])
+   with urllib.request.urlopen(urllib.request.Request(base+link['signed_url'],headers={'apikey':anon}),timeout=30) as result:assert hashlib.sha256(result.read()).hexdigest()==original_sha
+   passed('approved assigned student receives all 11 original pages with exact original PDF bytes')
+   try:api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':chapter_uuid},users['outsider']['token']);raise AssertionError('Whole original exposed to an unassigned user')
+   except urllib.error.HTTPError as error:assert error.code==403
+   passed('whole-original authorization still denies an unassigned account')
   if original_kind=='range':
    try:api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':original_uuid},users['student']['token']);raise AssertionError('Range assignment exposed the complete original PDF')
    except urllib.error.HTTPError as error:assert error.code==403,'The unassigned complete original must remain private'

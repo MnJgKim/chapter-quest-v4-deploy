@@ -42,7 +42,7 @@ Deno.serve(async req=>{
   if(rangeError)return json({error:'RANGE_ACCESS_CHECK_FAILED'},503);
   let pageCount=null;
   if(range){
-    if(range.parent_user_id!==chapterRow.parent_user_id||range.derived_pdf_uuid===range.source_pdf_uuid||!Number.isSafeInteger(range.page_start)||!Number.isSafeInteger(range.page_end)||range.page_start<1||range.page_end<range.page_start||range.page_end>range.source_page_count)return json({error:'INVALID_VERIFIED_RANGE'},403);
+    if(range.parent_user_id!==chapterRow.parent_user_id||(range.derived_pdf_uuid===range.source_pdf_uuid&&(range.page_start!==1||range.page_end!==range.source_page_count||range.source_sha256!==range.derived_sha256))||!Number.isSafeInteger(range.page_start)||!Number.isSafeInteger(range.page_end)||range.page_start<1||range.page_end<range.page_start||range.page_end>range.source_page_count)return json({error:'INVALID_VERIFIED_RANGE'},403);
     const {data:published,error:publishedError}=await admin.from('cq_v4_activities').select('approval_id').eq('chapter_uuid',chapter).maybeSingle();
     const {data:approved,error:approvedError}=await admin.from('cq_v4_approval_requests').select('chapter_uuid,parent_user_id').eq('id',published?.approval_id).maybeSingle();
     if(publishedError||approvedError||approved?.chapter_uuid!==chapter||approved?.parent_user_id!==chapterRow.parent_user_id)return json({error:'APPROVED_RANGE_REQUIRED'},403);

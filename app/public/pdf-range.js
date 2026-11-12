@@ -9,7 +9,9 @@
   if(!pdfLib?.PDFDocument)throw Error('PDF 범위 도구를 불러오지 못했습니다. 연결을 확인하고 다시 불러와 주세요.');
   if(!(bytes instanceof Uint8Array)||bytes.length<5||bytes.length>50*1024*1024||String.fromCharCode(...bytes.slice(0,5))!=='%PDF-')throw Error('50MB 이하의 유효한 PDF 원본이 필요합니다.');
   let source;try{source=await pdfLib.PDFDocument.load(bytes,{updateMetadata:false});}catch(error){throw Error(/encrypt/i.test(error.message)?'암호화된 PDF는 범위를 만들 수 없습니다. 원본을 보존하고 암호 없는 사본을 준비하세요.':'PDF 원본을 읽지 못했습니다. 파일을 확인하세요.');}
-  const range=validate(start,end,source.getPageCount()),output=await pdfLib.PDFDocument.create();
+  const range=validate(start,end,source.getPageCount());
+  if(range.start===1&&range.end===range.total)return {bytes:bytes.slice(),...range};
+  const output=await pdfLib.PDFDocument.create();
   const pages=await output.copyPages(source,Array.from({length:range.count},(_,i)=>range.start+i-1));
   for(const page of pages)output.addPage(page);
   output.setTitle(String(title).slice(0,200));output.setProducer('Chapter Quest V4');

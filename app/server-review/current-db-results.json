@@ -34,6 +34,22 @@
       "pass": true
     },
     {
+      "name": "whole-range commit reuses original without duplicate chapter",
+      "pass": true
+    },
+    {
+      "name": "partial range cannot claim the original UUID",
+      "pass": true
+    },
+    {
+      "name": "whole original reuse requires identical source and result hashes",
+      "pass": true
+    },
+    {
+      "name": "parent approval accepts only verified complete original bounds",
+      "pass": true
+    },
+    {
       "name": "parent can read only the owned published lesson context",
       "pass": true
     },

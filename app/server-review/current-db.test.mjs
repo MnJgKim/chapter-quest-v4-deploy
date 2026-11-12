@@ -62,6 +62,14 @@ try{
  await check('range approval refuses forged page bounds',()=>asUser(parent,async()=>assert.rejects(db.query(registerSql,[...args.slice(0,12),1,3]),e=>e.code==='42501')));
  await check('student cannot register verified range approval',()=>asUser(child,async()=>assert.rejects(db.query(registerSql,args),e=>e.code==='42501')));
 
+
+ const whole='aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',wholeRequest='bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb';
+ await db.query('insert into public.cq_v4_pdf_chapters(chapter_id,parent_user_id,title,storage_path,pdf_ready,pdf_verified_at) values($1,$2,$3,$4,true,now())',[whole,parent,'Whole original',parent+'/'+whole+'.pdf']);
+ const wholeArgs=[parent,wholeRequest,whole,whole,1,11,11,'The Dark Woods','c'.repeat(64),'c'.repeat(64)];
+ await check('whole-range commit reuses original without duplicate chapter',async()=>{assert.equal((await db.query(commitSql,wholeArgs)).rows[0].id,whole);assert.equal((await db.query('select count(*)::int as n from public.cq_v4_pdf_chapters where chapter_id=$1',[whole])).rows[0].n,1);});
+ await check('partial range cannot claim the original UUID',async()=>assert.rejects(db.query(commitSql,[...wholeArgs.slice(0,4),2,11,...wholeArgs.slice(6)]),e=>e.code==='22023'));
+ await check('whole original reuse requires identical source and result hashes',async()=>assert.rejects(db.query(commitSql,[...wholeArgs.slice(0,9),'d'.repeat(64)]),e=>e.code==='22023'));
+ await check('parent approval accepts only verified complete original bounds',()=>asUser(parent,async()=>{const a=['cccccccc-cccc-4ccc-8ccc-cccccccccccc',...args.slice(1,10),whole,whole,1,11];assert.ok((await db.query(registerSql,a)).rows[0].id);}));
  await check('parent can read only the owned published lesson context',()=>asUser(parent,async()=>{const rows=(await db.query('select * from public.cq_v4_parent_lesson($1)',[chapter])).rows;assert.equal(rows.length,1);assert.equal(rows[0].questions.length,2);}));
  await check('student cannot execute privileged parent lesson read',()=>asUser(child,async()=>assert.rejects(db.query('select * from public.cq_v4_parent_lesson($1)',[chapter]),e=>e.code==='42501')));
  await check('different registered parent receives no lesson context',()=>asUser(outsider,async()=>{await db.exec('RESET ROLE;');await db.query('insert into public.cq_admins(user_id) values($1)',[outsider]);await db.exec('SET LOCAL ROLE authenticated;');assert.equal((await db.query('select * from public.cq_v4_parent_lesson($1)',[chapter])).rows.length,0);}));

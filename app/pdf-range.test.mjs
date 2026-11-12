@@ -5,3 +5,5 @@ test('selected middle pages retain order/dimensions while source bytes stay unch
 for(const [start,end] of [[0,1],[3,2],[1,6],[1.5,3],['',2],['wrong',2]])test('invalid range '+start+'..'+end+' is rejected',async()=>{await assert.rejects(range.extract(await fixture(),start,end,{pdfLib:PDFLib}),/페이지/);});
 test('a one-page range works at the end of the original',async()=>{const out=await range.extract(await fixture(),5,5,{pdfLib:PDFLib});assert.equal((await PDFDocument.load(out.bytes)).getPageCount(),1);});
 test('a non-PDF original is rejected before extraction',async()=>{await assert.rejects(range.extract(new TextEncoder().encode('Original TXT'),1,1,{pdfLib:PDFLib}),/유효한 PDF/);});
+
+test('whole 11-page range preserves exact original bytes including covers and contents',async()=>{const d=await PDFDocument.create();for(let i=1;i<=11;i++)d.addPage([200+i,300+i]);const bytes=await d.save(),r=await range.extract(bytes,1,11,{pdfLib:PDFLib,title:'The Dark Woods'});assert.deepEqual(r.bytes,bytes);assert.equal(r.count,11);assert.equal((await PDFDocument.load(r.bytes)).getPageCount(),11);});

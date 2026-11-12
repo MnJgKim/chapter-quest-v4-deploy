@@ -40,12 +40,13 @@ Deno.serve(async req=>{
     if(readError||!file||file.size>50*1024*1024)return respond({error:'SOURCE_DOWNLOAD_FAILED'},503);
     let derived;try{derived=await derivePdfRange(new Uint8Array(await file.arrayBuffer()),Number(start),Number(end),title.trim());}catch{return respond({error:'INVALID_SOURCE_OR_PAGE_RANGE'},400);}
     if(derived.source_sha256!==expected)return respond({error:'SOURCE_CHANGED_SINCE_PREVIEW'},409);
-    const id=crypto.randomUUID(),path=`${parent}/${id}.pdf`;
-    const {error:uploadError}=await admin.storage.from('cq-v4-originals').upload(path,derived.bytes,{contentType:'application/pdf',upsert:false});
+    const reuseOriginal=start===1&&end===derived.source_page_count;
+    const id=reuseOriginal?source:crypto.randomUUID(),path=`${parent}/${id}.pdf`;
+    const {error:uploadError}=reuseOriginal?{error:null}:await admin.storage.from('cq-v4-originals').upload(path,derived.bytes,{contentType:'application/pdf',upsert:false});
     if(uploadError)return respond({error:'DERIVED_UPLOAD_FAILED'},503);
     const {data:committed,error:commitError}=await admin.rpc('cq_v4_commit_pdf_range',{p_parent:parent,p_request:request,p_source:source,p_derived:id,p_start:start,p_end:end,p_total:derived.source_page_count,p_title:title.trim(),p_source_sha:derived.source_sha256,p_derived_sha:derived.derived_sha256});
-    if(commitError||typeof committed!=='string'){await admin.storage.from('cq-v4-originals').remove([path]);return respond({error:'RANGE_COMMIT_FAILED'},503);}
-    if(committed!==id)await admin.storage.from('cq-v4-originals').remove([path]);
+    if(commitError||typeof committed!=='string'){if(!reuseOriginal)await admin.storage.from('cq-v4-originals').remove([path]);return respond({error:'RANGE_COMMIT_FAILED'},503);}
+    if(!reuseOriginal&&committed!==id)await admin.storage.from('cq-v4-originals').remove([path]);
     return respond({chapter_uuid:committed,pdf_ready:true,page_count:derived.page_count,server_verified_range:true});
   }
   if(input.action==='list_chapters'){

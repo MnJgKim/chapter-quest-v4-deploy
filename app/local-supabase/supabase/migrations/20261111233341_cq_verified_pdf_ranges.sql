@@ -12,7 +12,7 @@ CREATE TABLE public.cq_v4_pdf_page_ranges (
  title text NOT NULL CHECK(length(title) BETWEEN 1 AND 200),
  created_at timestamptz NOT NULL DEFAULT now(),
  UNIQUE(parent_user_id,request_key),
- CHECK(derived_pdf_uuid<>source_pdf_uuid)
+ CHECK(derived_pdf_uuid<>source_pdf_uuid OR (page_start=1 AND page_end=source_page_count AND source_sha256=derived_sha256))
 );
 CREATE INDEX cq_v4_pdf_page_ranges_source_idx ON public.cq_v4_pdf_page_ranges(source_pdf_uuid);
 ALTER TABLE public.cq_v4_pdf_page_ranges ENABLE ROW LEVEL SECURITY;
@@ -23,7 +23,8 @@ CREATE FUNCTION public.cq_v4_commit_pdf_range(p_parent uuid,p_request uuid,p_sou
 RETURNS uuid LANGUAGE plpgsql SECURITY INVOKER SET search_path='' AS $fn$
 DECLARE prior public.cq_v4_pdf_page_ranges%ROWTYPE;
 BEGIN
- IF p_parent IS NULL OR p_request IS NULL OR p_source IS NULL OR p_derived IS NULL OR p_source=p_derived
+ IF p_parent IS NULL OR p_request IS NULL OR p_source IS NULL OR p_derived IS NULL
+ OR (p_source=p_derived AND (p_start<>1 OR p_end<>p_total OR p_source_sha<>p_derived_sha))
  OR p_start IS NULL OR p_end IS NULL OR p_total IS NULL OR p_start<1 OR p_end<p_start OR p_total<p_end
  OR p_title IS NULL OR length(p_title) NOT BETWEEN 1 AND 200 OR p_source_sha IS NULL OR p_derived_sha IS NULL
  OR p_source_sha !~ '^[0-9a-f]{64}$' OR p_derived_sha !~ '^[0-9a-f]{64}$' THEN RAISE EXCEPTION 'Invalid PDF range' USING ERRCODE='22023'; END IF;
@@ -36,8 +37,10 @@ BEGIN
   IF prior.source_pdf_uuid<>p_source OR prior.page_start<>p_start OR prior.page_end<>p_end OR prior.source_page_count<>p_total OR prior.source_sha256<>p_source_sha OR prior.title<>p_title THEN RAISE EXCEPTION 'Range request key conflict' USING ERRCODE='23505'; END IF;
   RETURN prior.derived_pdf_uuid;
  END IF;
+ IF p_source<>p_derived THEN
  INSERT INTO public.cq_v4_pdf_chapters(chapter_id,parent_user_id,title,storage_path,pdf_ready,pdf_verified_at)
  VALUES(p_derived,p_parent,p_title,p_parent::text||'/'||p_derived::text||'.pdf',true,now());
+ END IF;
  INSERT INTO public.cq_v4_pdf_page_ranges(derived_pdf_uuid,parent_user_id,source_pdf_uuid,request_key,page_start,page_end,source_page_count,source_sha256,derived_sha256,title)
  VALUES(p_derived,p_parent,p_source,p_request,p_start,p_end,p_total,p_source_sha,p_derived_sha,p_title);
  RETURN p_derived;

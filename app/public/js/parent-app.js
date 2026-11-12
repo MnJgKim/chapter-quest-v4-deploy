@@ -90,7 +90,7 @@
          const verified=await pdfParentCall('create_range',{source_uuid:range.sourceServerPdfUuid,request_key:localChapter.id,page_start:range.start,page_end:range.end,source_sha256:range.sourceSHA256,title});
          if(cloudIdentity()!==owner||chapter()!==localChapter||pdfContext()!==localContext)throw Error('계정 또는 챕터가 변경되었습니다.');
          if(!verified.server_verified_range||verified.page_count!==range.end-range.start+1||!verified.chapter_uuid)throw Error('서버 범위 검증 결과를 확인하지 못했습니다.');
-         localChapter.serverPdfUuid=verified.chapter_uuid;localChapter.serverPdfOrigin=project.url;localChapter.serverPdfOwner=session.uid;localChapter.serverRangeVerified=true;save();await refreshPdfParentLists();pdfParentStatus('선택 범위 PDF의 서버 추출 및 검증 완료. 전체 원본은 변경·재업로드하지 않았습니다.');return;
+         localChapter.serverPdfUuid=verified.chapter_uuid;localChapter.serverPdfOrigin=project.url;localChapter.serverPdfOwner=session.uid;localChapter.serverRangeVerified=true;save();await refreshPdfParentLists();pdfParentStatus(range.start===1&&range.end===range.total?'전체 범위 검증 완료. 기존 원본 PDF를 그대로 재사용하며 파일 변경·재업로드·복제하지 않았습니다.':'선택 범위 PDF의 서버 추출 및 검증 완료. 전체 원본은 변경·재업로드하지 않았습니다.');return;
        }
        let file=localChapter?await pdfGet(localContext):document.getElementById('cqPdfServerFile')?.files?.[0];
        if(cloudIdentity()!==owner||(localChapter&&(chapter()!==localChapter||pdfContext()!==localContext)))throw Error('계정 또는 챕터가 변경되었습니다.');
