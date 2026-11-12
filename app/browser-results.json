@@ -1,0 +1,133 @@
+{
+  "scope": "isolated localhost Chromium; synthetic records only; only pinned PDF.js CDN allowed; no live Supabase or AI calls",
+  "target": "/workspaces/cq-v4-stage1-20261110T104634Z/candidate/public/index.html",
+  "checks": [
+    {
+      "name": "initial student screen",
+      "pass": true
+    },
+    {
+      "name": "original PDF upload and IndexedDB verification",
+      "pass": true
+    },
+    {
+      "name": "manual question parent approval",
+      "pass": true
+    },
+    {
+      "name": "student opens original PDF, not reconstructed text",
+      "pass": true
+    },
+    {
+      "name": "PDF.js renders real two-page PDF",
+      "pass": true
+    },
+    {
+      "name": "PDF page navigation",
+      "pass": true
+    },
+    {
+      "name": "PDF zoom remains on the current page",
+      "pass": true
+    },
+    {
+      "name": "incomplete submission blocked",
+      "pass": true
+    },
+    {
+      "name": "MediaRecorder records and stores audio in IndexedDB",
+      "pass": true
+    },
+    {
+      "name": "submission succeeds and locks answers",
+      "pass": true
+    },
+    {
+      "name": "submission and answers persist after reload",
+      "pass": true
+    },
+    {
+      "name": "audio playback reloads from IndexedDB",
+      "pass": true
+    },
+    {
+      "name": "parent views submitted answers",
+      "pass": true
+    },
+    {
+      "name": "released parent feedback visible to student",
+      "pass": true
+    },
+    {
+      "name": "feedback release persists after reload",
+      "pass": true
+    },
+    {
+      "name": "student switch preserves records and filters unassigned books",
+      "pass": true
+    },
+    {
+      "name": "viewport 360x800 has no page overflow",
+      "pass": true
+    },
+    {
+      "name": "viewport 412x915 has no page overflow",
+      "pass": true
+    },
+    {
+      "name": "viewport 800x1280 has no page overflow",
+      "pass": true
+    },
+    {
+      "name": "UTF-8 TXT original registration also prepares AI source",
+      "pass": true
+    },
+    {
+      "name": "AI UI rejects generation without parent Supabase login",
+      "pass": true
+    },
+    {
+      "name": "AI response review and approval UI works with mocked API; live generation NOT verified",
+      "pass": true
+    },
+    {
+      "name": "TXT reader preserves original text and renders HTML as inert text",
+      "pass": true
+    },
+    {
+      "name": "approved vocabulary visible to student",
+      "pass": true
+    },
+    {
+      "name": "multiple-choice and inference drafts persist after reload",
+      "pass": true
+    },
+    {
+      "name": "adding a chapter preserves previously submitted records",
+      "pass": true
+    },
+    {
+      "name": "local mode correctly remains device-local; not claimed as cloud sync",
+      "pass": true
+    },
+    {
+      "name": "no application JavaScript runtime errors",
+      "pass": true
+    }
+  ],
+  "dialogs": [
+    "부모 관리자용 숫자 PIN 6~12자리를 새로 설정하세요. 이 PIN은 기기 내 화면 잠금용이며 서버 인증을 대체하지 않습니다.",
+    "부모 PIN을 다시 입력하세요.",
+    "문제 내용을 입력하세요.",
+    "현재 챕터의 문제 1개를 검토하고 승인하시겠습니까?",
+    "현재 문제의 부모 승인이 완료됐습니다. 서버 게시 및 다른 기기 동기화는 별도입니다.",
+    "원문 읽기를 완료한 뒤 읽기 완료에 체크해 주세요.",
+    "학습 답변이 제출되었습니다.",
+    "부모 관리자 PIN을 입력하세요.",
+    "부모 관리자 PIN을 입력하세요.",
+    "AI 생성 실패: 문제 생성 전에 부모 Supabase 계정으로 로그인하세요.",
+    "이 기기의 학생 화면에 문제가 공개되었습니다. 다른 기기·서버 동기화는 별도 검증이 필요합니다."
+  ],
+  "external_requests": [],
+  "page_errors": []
+}

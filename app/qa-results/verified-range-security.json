@@ -1,0 +1,466 @@
+{
+  "scope": "Development only; synthetic fixtures and users. Operating reads were SELECT metadata only.",
+  "runtimeCommit": "6951f54463eec701d46250d968d4fb99619261ed",
+  "ciRun": "https://github.com/MnJgKim/chapter-quest-v4-deploy/actions/runs/43121923230",
+  "local": {
+    "nodeTests": 108,
+    "isolatedPostgres": 32,
+    "browser": {
+      "local": 34,
+      "mockedServer": 53,
+      "pageSelection": 20
+    },
+    "dryRunBuild": "passed"
+  },
+  "fullLocalSupabase": [
+    {
+      "originalKind": "txt",
+      "checks": [
+        {
+          "name": "five synthetic accounts sign up and log in on the full local stack",
+          "pass": true
+        },
+        {
+          "name": "real Edge parent endpoint denies a non-parent account before privileged writes",
+          "pass": true
+        },
+        {
+          "name": "parent browser is authorized through real Auth and admin RPC",
+          "pass": true
+        },
+        {
+          "name": "real invitation claim and parent enrollment approval",
+          "pass": true
+        },
+        {
+          "name": "parent verifies the actual local TXT original and source before question approval",
+          "pass": true
+        },
+        {
+          "name": "TXT original uploads through real signed Storage URL and Edge verification",
+          "pass": true
+        },
+        {
+          "name": "server registration preserves exact bytes of the original local TXT",
+          "pass": true
+        },
+        {
+          "name": "approved lesson binds to the real verified PDF and assigns through RPC",
+          "pass": true
+        },
+        {
+          "name": "real parent lesson context includes model answers and denies the student",
+          "pass": true
+        },
+        {
+          "name": "assigned student downloads and renders PDF through the real signed-link Edge function",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 360x800",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 412x915",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 800x1280",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 1280x800",
+          "pass": true
+        },
+        {
+          "name": "real Auth re-login after reload restores vocabulary and all answer drafts before recording",
+          "pass": true
+        },
+        {
+          "name": "recorded audio survives reload and real re-login on the tablet viewport before final upload",
+          "pass": true
+        },
+        {
+          "name": "real MediaRecorder audio uploads to private Storage and final answers submit through RPC",
+          "pass": true
+        },
+        {
+          "name": "parent receives a real authorized signed recording playback link",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 360x800",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 412x915",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 800x1280",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 1280x800",
+          "pass": true
+        },
+        {
+          "name": "parent reads real answers and releases feedback visible in independent student browser",
+          "pass": true
+        },
+        {
+          "name": "fresh parent browser retrieves real private original without creating a chapter and student is denied",
+          "pass": true
+        },
+        {
+          "name": "another registered parent cannot obtain this PDF, recording or answer context",
+          "pass": true
+        },
+        {
+          "name": "unassigned real account sees no other student chapter",
+          "pass": true
+        },
+        {
+          "name": "parent re-login assigns the same approved chapter to a second real student without duplicate binding or removing the first assignment",
+          "pass": true
+        },
+        {
+          "name": "second assigned student starts without the first result and submits independent answers and real recorded audio",
+          "pass": true
+        },
+        {
+          "name": "parent receives two distinct submissions and released feedback remains scoped to each real student",
+          "pass": true
+        },
+        {
+          "name": "two students assigned to the same chapter cannot sign each other private recording",
+          "pass": true
+        },
+        {
+          "name": "no runtime errors or non-local service requests",
+          "pass": true
+        }
+      ],
+      "page_errors": [],
+      "blocked_requests": []
+    },
+    {
+      "originalKind": "pdf",
+      "checks": [
+        {
+          "name": "five synthetic accounts sign up and log in on the full local stack",
+          "pass": true
+        },
+        {
+          "name": "real Edge parent endpoint denies a non-parent account before privileged writes",
+          "pass": true
+        },
+        {
+          "name": "parent browser is authorized through real Auth and admin RPC",
+          "pass": true
+        },
+        {
+          "name": "real invitation claim and parent enrollment approval",
+          "pass": true
+        },
+        {
+          "name": "parent verifies the actual local PDF original and source before question approval",
+          "pass": true
+        },
+        {
+          "name": "PDF original uploads through real signed Storage URL and Edge verification",
+          "pass": true
+        },
+        {
+          "name": "server registration preserves exact bytes of the original local PDF",
+          "pass": true
+        },
+        {
+          "name": "approved lesson binds to the real verified PDF and assigns through RPC",
+          "pass": true
+        },
+        {
+          "name": "real parent lesson context includes model answers and denies the student",
+          "pass": true
+        },
+        {
+          "name": "assigned student downloads and renders PDF through the real signed-link Edge function",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 360x800",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 412x915",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 800x1280",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 1280x800",
+          "pass": true
+        },
+        {
+          "name": "real Auth re-login after reload restores vocabulary and all answer drafts before recording",
+          "pass": true
+        },
+        {
+          "name": "recorded audio survives reload and real re-login on the tablet viewport before final upload",
+          "pass": true
+        },
+        {
+          "name": "real MediaRecorder audio uploads to private Storage and final answers submit through RPC",
+          "pass": true
+        },
+        {
+          "name": "parent receives a real authorized signed recording playback link",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 360x800",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 412x915",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 800x1280",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 1280x800",
+          "pass": true
+        },
+        {
+          "name": "parent reads real answers and releases feedback visible in independent student browser",
+          "pass": true
+        },
+        {
+          "name": "fresh parent browser retrieves real private original without creating a chapter and student is denied",
+          "pass": true
+        },
+        {
+          "name": "another registered parent cannot obtain this PDF, recording or answer context",
+          "pass": true
+        },
+        {
+          "name": "unassigned real account sees no other student chapter",
+          "pass": true
+        },
+        {
+          "name": "parent re-login assigns the same approved chapter to a second real student without duplicate binding or removing the first assignment",
+          "pass": true
+        },
+        {
+          "name": "second assigned student starts without the first result and submits independent answers and real recorded audio",
+          "pass": true
+        },
+        {
+          "name": "parent receives two distinct submissions and released feedback remains scoped to each real student",
+          "pass": true
+        },
+        {
+          "name": "two students assigned to the same chapter cannot sign each other private recording",
+          "pass": true
+        },
+        {
+          "name": "no runtime errors or non-local service requests",
+          "pass": true
+        }
+      ],
+      "page_errors": [],
+      "blocked_requests": []
+    },
+    {
+      "originalKind": "range",
+      "checks": [
+        {
+          "name": "five synthetic accounts sign up and log in on the full local stack",
+          "pass": true
+        },
+        {
+          "name": "real Edge parent endpoint denies a non-parent account before privileged writes",
+          "pass": true
+        },
+        {
+          "name": "parent browser is authorized through real Auth and admin RPC",
+          "pass": true
+        },
+        {
+          "name": "real invitation claim and parent enrollment approval",
+          "pass": true
+        },
+        {
+          "name": "parent verifies the actual local RANGE original and source before question approval",
+          "pass": true
+        },
+        {
+          "name": "RANGE original uploads through real signed Storage URL and Edge verification",
+          "pass": true
+        },
+        {
+          "name": "server registration preserves exact bytes of the original local RANGE",
+          "pass": true
+        },
+        {
+          "name": "existing server original is reused without duplicate upload or a new server chapter",
+          "pass": true
+        },
+        {
+          "name": "unconfirmed original chapter range cannot publish or assign learning material",
+          "pass": true
+        },
+        {
+          "name": "parent chooses visible original pages and prepares only confirmed selected text locally",
+          "pass": true
+        },
+        {
+          "name": "only a derived two-page PDF is registered and the complete server original remains byte-identical",
+          "pass": true
+        },
+        {
+          "name": "changing the range lesson binding to the complete original is blocked before publishing or assigning",
+          "pass": true
+        },
+        {
+          "name": "approved lesson binds to the real verified PDF and assigns through RPC",
+          "pass": true
+        },
+        {
+          "name": "a student assigned the selected pages cannot request a download link for the complete original",
+          "pass": true
+        },
+        {
+          "name": "real Edge refuses to sign a derived PDF whose bytes do not match the server range manifest",
+          "pass": true
+        },
+        {
+          "name": "real database prevents rebinding an approved selected range to the complete original",
+          "pass": true
+        },
+        {
+          "name": "real parent lesson context includes model answers and denies the student",
+          "pass": true
+        },
+        {
+          "name": "assigned student downloads and renders PDF through the real signed-link Edge function",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 360x800",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 412x915",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 800x1280",
+          "pass": true
+        },
+        {
+          "name": "real learning controls accept touch and text at 1280x800",
+          "pass": true
+        },
+        {
+          "name": "real Auth re-login after reload restores vocabulary and all answer drafts before recording",
+          "pass": true
+        },
+        {
+          "name": "recorded audio survives reload and real re-login on the tablet viewport before final upload",
+          "pass": true
+        },
+        {
+          "name": "real MediaRecorder audio uploads to private Storage and final answers submit through RPC",
+          "pass": true
+        },
+        {
+          "name": "parent receives a real authorized signed recording playback link",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 360x800",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 412x915",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 800x1280",
+          "pass": true
+        },
+        {
+          "name": "real parent results and recording controls fit 1280x800",
+          "pass": true
+        },
+        {
+          "name": "parent reads real answers and releases feedback visible in independent student browser",
+          "pass": true
+        },
+        {
+          "name": "fresh parent browser retrieves real private original without creating a chapter and student is denied",
+          "pass": true
+        },
+        {
+          "name": "another registered parent cannot obtain this PDF, recording or answer context",
+          "pass": true
+        },
+        {
+          "name": "unassigned real account sees no other student chapter",
+          "pass": true
+        },
+        {
+          "name": "parent re-login assigns the same approved chapter to a second real student without duplicate binding or removing the first assignment",
+          "pass": true
+        },
+        {
+          "name": "second assigned student starts without the first result and submits independent answers and real recorded audio",
+          "pass": true
+        },
+        {
+          "name": "parent receives two distinct submissions and released feedback remains scoped to each real student",
+          "pass": true
+        },
+        {
+          "name": "two students assigned to the same chapter cannot sign each other private recording",
+          "pass": true
+        },
+        {
+          "name": "no runtime errors or non-local service requests",
+          "pass": true
+        }
+      ],
+      "page_errors": [],
+      "blocked_requests": []
+    }
+  ],
+  "operating": {
+    "pdfTitle": "Chapter",
+    "bytes": 29306963,
+    "private": true,
+    "pageCount": null,
+    "outline": null,
+    "actualChapter1Range": null,
+    "links": 1,
+    "anonymousLinkedStudents": 1,
+    "confirmedAsSeowoo": false,
+    "published": 0,
+    "assignments": 0,
+    "writes": false,
+    "deployments": false,
+    "paidResourcesCreated": false
+  },
+  "remaining": [
+    "Actual original PDF body inaccessible through current connected tools; metadata has no page count/outline.",
+    "Actual Chapter 1 bounds remain undetermined.",
+    "Existing anonymous session and identity as Seowoo unverified; no conversion/login/account changes performed.",
+    "29.3MB operating Edge extraction capacity and physical Galaxy audio/background behavior unverified.",
+    "Actual AI calls/quality and Cloudflare account free-plan state unverified; AI stays gated.",
+    "Additive schema, both Edge candidates and frontend require separate production approval."
+  ]
+}

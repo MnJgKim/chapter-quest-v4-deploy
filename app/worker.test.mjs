@@ -1,0 +1,38 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import worker,{generate,validateDraft} from './worker.mjs';
+const uid='11111111-1111-4111-8111-111111111111';
+const draft={questions:[{kind:'mc',text:'Who helped?',options:['A','B'],correct:0},{kind:'inference',text:'Why?',sample:'To help.'}],vocabulary:[{word:'help',meaning:'돕다',example:'I help.'}],writingPrompt:'Explain.',speakingPrompt:'Summarize.'};
+const env={AI_FREE_PLAN_CONFIRMED:'true',SUPABASE_URL:'https://testproject.supabase.co',SUPABASE_PUBLISHABLE_KEY:'public-test-key',AI_PARENT_USER_IDS:uid,AI:{run:async()=>({response:JSON.stringify(draft)})}};
+const req=(body={source:'A chapter about a character helping a friend. '.repeat(10)},headers={},method='POST')=>new Request('https://example.test/api/generate',{method,headers:{'Content-Type':'application/json',Authorization:'Bearer test-token',...headers},...(method==='POST'?{body:JSON.stringify(body)}:{})});
+const user=async url=>Response.json(url.endsWith('/cq_is_admin')?true:{id:uid});
+test('unconfigured server fails closed without model use',async()=>assert.equal((await worker.fetch(req(),{})).status,503));
+test('GET cannot trigger AI billing',async()=>assert.equal((await worker.fetch(req({}, {},'GET'),env)).status,405));
+test('cross-origin generation is denied',async()=>assert.equal((await worker.fetch(req({}, {Origin:'https://foreign.test'}),env)).status,403));
+test('missing authentication is denied before any upstream request',async()=>assert.rejects(generate(req({}, {Authorization:''}),env,()=>{throw Error('must not fetch')}),e=>e.status===401));
+test('expired Supabase session is denied',async()=>assert.rejects(generate(req(),env,async()=>new Response('',{status:401})),e=>e.status===401));
+test('student or unapproved account is denied before model call',async()=>assert.rejects(generate(req(),{...env,AI:{run(){throw Error('must not run')}}},async()=>Response.json({id:'22222222-2222-4222-8222-222222222222'})),e=>e.status===403));
+test('untrusted editable metadata cannot grant parent access',async()=>assert.rejects(generate(req(),env,async()=>Response.json({id:'22222222-2222-4222-8222-222222222222',user_metadata:{role:'parent'}})),e=>e.status===403));
+test('short chapter is rejected',async()=>assert.rejects(generate(req({source:'short'}),env,user),e=>e.status===400));
+test('oversized chapter is rejected',async()=>assert.rejects(generate(req({source:'x'.repeat(45001)}),env,user),e=>e.status===400));
+test('stream size limit prevents oversized payload',async()=>assert.rejects(generate(req({source:'x'.repeat(200001)}),env,user),e=>e.status===413));
+test('valid authenticated parent receives sanitized draft',async()=>assert.deepEqual(await generate(req(),env,user),draft));
+test('markdown JSON output is parsed',async()=>assert.deepEqual(await generate(req(),{...env,AI:{run:async()=>({response:'```json\n'+JSON.stringify(draft)+'\n```'})}},user),draft));
+test('malformed model output is blocked',async()=>assert.rejects(generate(req(),{...env,AI:{run:async()=>({response:'not-json'})}},user),e=>e.status===502));
+test('out-of-range MC answer is blocked',()=>assert.throws(()=>validateDraft({...draft,questions:[{...draft.questions[0],correct:3}]}),e=>e.status===502));
+test('literal questions normalize to the server publication contract',()=>assert.equal(validateDraft({...draft,questions:[{kind:'literal',text:'What happened?',sample:'The character helped.'}]}).questions[0].kind,'comprehension'));
+test('unknown API paths return JSON 404',async()=>assert.equal((await worker.fetch(new Request('https://example.test/api/unknown'),env)).status,404));
+test('static asset paths preserve asset delivery',async()=>assert.equal(await (await worker.fetch(new Request('https://example.test/'),{ASSETS:{fetch:async()=>new Response('asset')}})).text(),'asset'));
+
+test('server parent role is required even for an allowlisted user',async()=>assert.rejects(generate(req(),env,async url=>Response.json(url.endsWith('/cq_is_admin')?false:{id:uid})),e=>e.status===403));
+test('configured server uses cq_is_admin without a separate editable parent list',async()=>assert.deepEqual(await generate(req(),{...env,AI_PARENT_USER_IDS:''},user),draft));
+test('missing written model answer cannot be approved for publication',()=>assert.throws(()=>validateDraft({...draft,questions:[{kind:'inference',text:'Why?'}]}),e=>e.status===502));
+
+test('AI disabled until free-plan confirmation; no upstream requests',async()=>assert.rejects(generate(req(),{...env,AI_FREE_PLAN_CONFIRMED:'false'},()=>{throw Error('must not fetch')}),e=>e.status===503));
+
+// Inspect the model request only; no hosted model or billing.
+test('generation requests the reviewed grade-3 lesson structure for every chapter',async()=>{
+ let prompt;await generate(req(),{...env,AI:{run:async(_model,args)=>{prompt=args.messages[0].content;return {response:JSON.stringify(draft)}}}},user);
+ for(const text of ['grade 3','5 items: 3 mc comprehension','2 inference','6 relevant words','3-5 sentences','30-60 seconds','later chapters'])assert.ok(prompt.includes(text),text);
+ assert.ok(!prompt.includes('8 items'));assert.ok(!prompt.includes('10 relevant words'));
+});
