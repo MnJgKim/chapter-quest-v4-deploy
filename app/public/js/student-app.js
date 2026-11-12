@@ -63,7 +63,7 @@
        const submit=form.querySelector('[type="submit"]');submit.disabled=false;submit.textContent='최종 제출';submit.title='모든 활동을 마친 뒤 제출하세요.';
        target.insertAdjacentHTML('beforeend','<p class="muted">원본 PDF 연결 완료. 읽기와 모든 활동을 마친 뒤 제출하세요.</p>');
      }
-   }catch(error){if(current())target.textContent='원본 PDF를 불러오지 못했습니다: '+error.message;}
+   }catch(error){if(current()){target.textContent='원본 PDF를 불러오지 못했습니다: '+error.message;target.insertAdjacentHTML('beforeend','<p><button type="button" data-child="pdf-retry">답안을 유지하고 PDF 다시 불러오기</button></p>');}}
  }
  const childContext=()=>({uid:session?.uid,generation:childGeneration});
  const assertChildContext=ctx=>{if(!session||session.uid!==ctx.uid||childGeneration!==ctx.generation)throw Error('학생 계정이 변경되어 이전 요청 결과를 폐기했습니다.');};
@@ -278,7 +278,7 @@
   const root=el('cqChildAccount');if(!root)return;
   root.innerHTML=`<section class="card"><h2>🔐 학생 계정 로그인</h2>
    <p class="muted">학생 본인의 계정으로 로그인하세요. 부모가 승인하고 배정한 챕터를 학습할 수 있습니다. 기기 데모 기록은 별도로 보관됩니다. 작성 중인 답안은 이 기기에 자동 저장되며 같은 계정으로 다시 로그인하면 이어서 학습할 수 있습니다.</p>
-   ${session?`<p>학생 계정 로그인됨 · 계정 확인번호 <strong data-child-reference>${escape(session.uid.slice(-8))}</strong></p>${session.resumedExisting?`<div role="status" aria-live="polite" data-session-summary><p>인증: 기존 익명 계정 확인됨</p><p>부모 연결: 기존 연결 확인됨 · 재초대하지 마세요.</p><p>승인·배정: ${session.assignmentCount==null?'조회 전 또는 조회 실패':session.assignmentCount+'개 학습 가능'}</p>${session.assignmentCount===0?'<p>학습 가능한 챕터가 없습니다. 미승인인지 미배정인지는 부모 관리자에서 확인해야 합니다.</p>':''}</div>`:`<div class="row"><input id="cqChildInvite" placeholder="부모 초대코드 (48자리)" autocomplete="off" style="flex:1"><input id="cqChildInviteName" placeholder="학생 이름" style="max-width:130px"><button data-child="claim">연결 요청</button></div>`}<button data-child="list">내 배정 챕터 불러오기</button>${session.resumedExisting?'':'<button data-child="logout">로그아웃</button>'}
+   ${session?`<p>학생 계정 로그인됨 · 계정 확인번호 <strong data-child-reference>${escape(session.uid.slice(-8))}</strong></p>${session.resumedExisting?`<div role="status" aria-live="polite" data-session-summary><p>인증: 기존 익명 계정 확인됨</p><p>부모 연결: 기존 연결 확인됨 · 재초대하지 마세요.</p><p>승인·배정: ${session.assignmentCount==null?'조회 전 또는 조회 실패':session.assignmentCount+'개 학습 가능'}</p>${session.assignmentCount===0?'<p>학습 가능한 챕터가 없습니다. 미승인인지 미배정인지는 부모 관리자에서 확인해야 합니다.</p>':''}</div>`:`<div class="row"><input id="cqChildInvite" placeholder="부모 초대코드 (48자리)" autocomplete="off" style="flex:1"><input id="cqChildInviteName" placeholder="학생 이름" style="max-width:130px"><button data-child="claim">연결 요청</button></div>`}<button data-child="list">내 배정 챕터 불러오기</button>${session.resumedExisting?'<button data-child="recheck-existing">같은 계정 세션 다시 확인 · 답안 유지</button>':'<button data-child="logout">로그아웃</button>'}
     <div>${chapters.map(c=>`<div class="book"><b>${escape(c.chapter_title)}</b><button data-child="view" data-uuid="${escape(c.chapter_uuid)}">원문·문제 보기</button></div>`).join('')}</div><div id="cqChildDetail"></div>`:
     `<div class="grid"><label>학생 이메일<input id="cqChildEmail" type="email" autocomplete="username"></label><label>학생 비밀번호<input id="cqChildPassword" type="password" autocomplete="current-password"></label></div><button data-child="inspect-existing">이 기기의 기존 익명 계정 확인 · 읽기 전용</button><p class="muted">기존 저장 세션만 확인합니다. 새 가입·토큰 갱신·계정 전환은 하지 않습니다. 기록이 없거나 만료됐으면 원래 계정을 유지하고 중단합니다.</p><details><summary>기존 계정으로 다시 들어가는 방법</summary><p>기존에 쓰던 브라우저와 프로필에서 확인하세요. 이메일 계정이었던 경우에만 아래 기존 이메일 로그인을 사용하세요. 익명 계정은 이메일 입력이나 새 가입으로 복구되지 않습니다. 저장 세션이 없거나 만료되면 계정을 바꾸지 말고 부모와 기존 계정 확인번호를 대조한 뒤 복구 절차를 요청하세요. 비밀번호·인증 토큰은 공유하지 마세요.</p></details><button data-child="login">학생 계정 로그인</button><button data-child="signup-open">학생 계정 만들기</button><div id="cqChildSignup" hidden><label>비밀번호 확인<input id="cqChildPasswordConfirm" type="password" autocomplete="new-password"></label><p class="muted">학생용 별도 계정을 만들고 부모 초대코드로 연결하세요. 비밀번호는 8자 이상 입력하세요.</p><button data-child="signup">새 학생 계정 생성</button><button data-child="signup-cancel">취소</button></div>`}
    <p id="cqChildStatus" class="status"></p></section>`;
@@ -289,7 +289,7 @@
  let childRefreshPromise=null;
  async function childAccessToken(){
   if(!session)throw Error('학생 계정으로 다시 로그인하세요.');
-  if(session.resumedExisting){if(Date.now()<session.expiresAt-5000)return session.token;throw Error('기존 세션이 만료되었습니다. 계정을 바꾸거나 자동 갱신하지 않았습니다. 승인된 복구 절차가 필요합니다.');}
+  if(session.resumedExisting){if(Date.now()<session.expiresAt-5000)return session.token;throw Error('기존 세션이 만료되었습니다. 계정을 바꾸거나 자동 갱신하지 않았습니다. 같은 계정 세션 다시 확인을 눌러 유효한 기존 기록을 확인하세요. 자동 갱신은 하지 않습니다.');}
   if(Date.now()<session.expiresAt-60000)return session.token;
   if(childRefreshPromise)return childRefreshPromise;
   const owner=session,generation=childGeneration,project=window.CQProject.read();
@@ -336,6 +336,22 @@
   busy=true;b.disabled=true;
   let viewContext=null;
   try{
+   if(b.dataset.child==='recheck-existing'){
+    if(!session?.resumedExisting)throw Error('기존 익명 계정 확인 후 사용할 수 있습니다.');
+    const owner=childContext(),project=window.CQProject.read();
+    const result=await CQExistingStudentSession.inspect({project,storage:localStorage});
+    assertChildContext(owner);const currentProject=window.CQProject.read();
+    if(currentProject?.url!==project?.url||currentProject?.anonKey!==project?.anonKey)throw Error('프로젝트가 변경되어 확인 결과를 적용하지 않았습니다.');
+    if(result.status!=='ready')throw Error('기존 세션을 다시 확인하지 못했습니다. 답안·녹음을 유지했습니다. 자동 갱신·가입·계정 변경은 하지 않았습니다.');
+    if(result.session.uid!==owner.uid)throw Error('다른 계정의 세션입니다. 전환하지 않고 현재 답안·녹음을 유지했습니다.');
+    session.token=result.session.token;session.expiresAt=result.session.expiresAt;
+    status('같은 계정의 유효 세션을 확인했습니다. 작성 중인 답안·녹음은 그대로이며 자동 갱신은 하지 않았습니다.');return;
+   }
+   if(b.dataset.child==='pdf-retry'){
+    const form=el('cqChildWork'),uuid=form?.dataset.uuid;
+    if(!session||!uuid||!chapters.some(c=>c.chapter_uuid===uuid))throw Error('현재 배정 챕터를 확인하세요.');
+    await loadServerPdf(uuid,session.uid,childGeneration);return;
+   }
    if(b.dataset.child==='inspect-existing'){
     const generation=childGeneration,project=window.CQProject.read(),result=await CQExistingStudentSession.inspect({project,storage:localStorage});
     const currentProject=window.CQProject.read();
