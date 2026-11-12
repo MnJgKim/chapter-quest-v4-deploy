@@ -61,6 +61,8 @@ async function requestParentAccess(){
  }
  parentUnlocked=true;return true;
 }
+const pendingOriginalSaves=new Set();
+function isOriginalSavePending(){return pendingOriginalSaves.has(pdfContext());}
 let state,mode='student',view='home',tab='read',selectedBook='',selectedChapter='',draft=null,recording=null,recordChunks=[],audioBlob=null;
 // PDF originals are stored separately from AI extraction text in IndexedDB.
 const CQPDFDB='cq_v4_pdf_originals_v1';
@@ -268,6 +270,7 @@ if(a==='savePDF'){
  const c=chapter(),file=$('#cqOriginalPDF')?.files?.[0];
  if(!file)return alert('PDF 또는 TXT 파일을 선택하세요.');
  const isText=file.name.toLowerCase().endsWith('.txt'),expectedContext=pdfContext(),addButton=$('[data-act="addChapter"]');btn.disabled=true;if(addButton)addButton.disabled=true;
+ const locked=[...document.querySelectorAll('[data-pdf-parent="from-local"],[data-parent-publish]')].map(el=>({el,disabled:el.disabled}));pendingOriginalSaves.add(expectedContext);locked.forEach(x=>x.el.disabled=true);
  try{
   let text='';
   if(isText)text=await originalText(file);
@@ -284,8 +287,8 @@ if(a==='savePDF'){
   if(!verified||verified.size!==file.size)throw Error('원본 파일 저장 확인 실패');
   invalidateApproval(c);c.pdfStored=true;c.pdfName=file.name;c.readerType=isText?'txt':'pdf';delete c.serverPdfUuid;delete c.serverPdfOrigin;delete c.serverPdfOwner;delete c.serverOriginalCopy;delete c.serverRangeVerified;delete c.pdfInspection;delete c.pdfRange;
   if(isText)c.source=text;
-  save();render();setStatus(isText?'원본 TXT 저장 완료 · AI 문제용 텍스트도 준비됐습니다.':'원본 PDF 저장 완료 · 학생 읽기 화면에 표시됩니다.');
- }catch(err){alert('원본 파일 저장 실패: '+err.message)}finally{if(btn.isConnected)btn.disabled=false;if(addButton?.isConnected)addButton.disabled=false;}return;
+  pendingOriginalSaves.delete(expectedContext);save();render();setStatus(isText?'원본 TXT 저장 완료 · AI 문제용 텍스트도 준비됐습니다.':'원본 PDF 저장 완료 · 학생 읽기 화면에 표시됩니다.');
+ }catch(err){alert('원본 파일 저장 실패: '+err.message)}finally{pendingOriginalSaves.delete(expectedContext);locked.forEach(x=>{if(x.el.isConnected)x.el.disabled=x.disabled});if(btn.isConnected)btn.disabled=false;if(addButton?.isConnected)addButton.disabled=false;}return;
 }
 if(a==='previewOriginal'){
  const target=$('#cqParentPdfViewer');if(!target)return;target.hidden=false;if($('#cqRangePreview'))$('#cqRangePreview').hidden=true;btn.disabled=true;

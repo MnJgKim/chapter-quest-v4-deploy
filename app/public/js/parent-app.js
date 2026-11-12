@@ -51,7 +51,7 @@
  const publicationChildrenPanel=()=>`<section class="card"><h2>📤 서버 게시 대상 학생</h2><p class="muted">게시할 학생과 서버에서 검증된 PDF 챕터를 각각 선택하세요. 로컬 챕터와 서버 PDF는 자동으로 동일하다고 간주하지 않습니다.</p><label>서버 PDF 챕터<select id="cqPublishVerifiedPdf"><option value="">검증된 서버 PDF 챕터 선택 (필수)</option>${pdfServerChapters.filter(x=>x.ready).map(x=>`<option value="${escapeHtml(x.uuid)}" ${chapter()?.serverPdfUuid===x.uuid?'selected':''}>${escapeHtml(x.title)} · ${escapeHtml(x.uuid)}</option>`).join('')}</select></label>${pendingChildren.filter(c=>c.active).map(c=>`<label><input type="checkbox" data-publish-child="${escapeHtml(c.child_user_id)}"> ${escapeHtml(c.student_name||'연결된 학생')} <small>계정 확인번호 ${escapeHtml(c.child_user_id.slice(-8))}</small></label>`).join('')||'<p>활성 연결 학생 목록을 먼저 불러오세요.</p>'}</section>`;
  let pdfServerChapters=[],pdfServerStudents=[],pdfServerAssignments=[];
  const pdfParentStatus=message=>{const el=document.getElementById('cqPdfParentStatus');if(el)el.textContent=message};
- const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정</h2><p class="note">현재 챕터의 원본을 서버에 등록하면 게시할 PDF에 연결됩니다. 원본은 비공개 저장소에 보관되며 AI용 텍스트와 별도로 관리됩니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><label>챕터 제목 <input id="cqPdfChapterTitle" placeholder="예: Chapter 1" maxlength="200"></label><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf,text/plain,.txt"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF/TXT 등록·검증</button><button data-pdf-parent="from-local" ${session&&chapter()?.pdfStored?'':'disabled'}>현재 챕터 원본을 서버에 등록</button></div><p class="muted">PDF 최대 50MB · TXT 최대 1MB. TXT는 화면에 표시한 원문을 PDF로 변환해 등록하며 기기의 원본 TXT는 보존합니다.</p>${session&&pdfServerStudents.length===0?'<p class="note">학생 연결 목록을 새로고침해 확인하세요. 이미 연결된 계정은 재초대하지 않아도 됩니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'PDF 검증 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row">${c.ready?`<button data-pdf-parent="use-existing" data-index="${i}">기존 PDF로 학습 준비</button>`:''}${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
+ const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정</h2><p class="note">현재 챕터의 원본을 서버에 등록하면 게시할 PDF에 연결됩니다. 원본은 비공개 저장소에 보관되며 AI용 텍스트와 별도로 관리됩니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><label>챕터 제목 <input id="cqPdfChapterTitle" placeholder="예: Chapter 1" maxlength="200"></label><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf,text/plain,.txt"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF/TXT 등록·검증</button><button data-pdf-parent="from-local" ${session&&chapter()?.pdfStored&&!isOriginalSavePending()?'':'disabled'}>현재 챕터 원본을 서버에 등록</button></div><p class="muted">PDF 최대 50MB · TXT 최대 1MB. TXT는 화면에 표시한 원문을 PDF로 변환해 등록하며 기기의 원본 TXT는 보존합니다.</p>${session&&pdfServerStudents.length===0?'<p class="note">학생 연결 목록을 새로고침해 확인하세요. 이미 연결된 계정은 재초대하지 않아도 됩니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'PDF 검증 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row">${c.ready?`<button data-pdf-parent="use-existing" data-index="${i}">기존 PDF로 학습 준비</button>`:''}${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
  async function pdfParentCall(action,args){
    if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('부모 계정으로 로그인해야 합니다.');
    const owner=cloudIdentity();await refreshIfNeeded();
@@ -78,6 +78,7 @@
    pdfParentBusy=true;button.disabled=true;
    try{
      const action=button.dataset.pdfParent;
+     if(action==='from-local'&&isOriginalSavePending())throw Error('원본 파일 저장 확인이 끝난 뒤 서버에 등록하세요.');
      if(action==='refresh'){
        await refreshPdfParentLists();
      }else if(action==='create'||action==='from-local'){
@@ -220,6 +221,7 @@
  document.addEventListener('click',async e=>{
    const button=e.target.closest('[data-parent-publish]');if(!button)return;
    if(publicationBusy)return;
+   if(isOriginalSavePending()){publishStatus('원본 파일 저장 확인이 끝난 뒤 게시하세요.');return;}
    if(mode!=='parent'||!parentUnlocked||!session||!project){publishStatus('부모 Supabase 로그인 후 게시할 수 있습니다.');return;}
    const currentBook=selectedBook,currentChapter=selectedChapter,c=chapter(),owner=cloudIdentity();
    if(!c||c.id!==button.dataset.c){publishStatus('현재 챕터를 다시 선택하세요.');return;}
