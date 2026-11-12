@@ -29,3 +29,9 @@ This is a local preparation feature, not a deployed parent web editor or automat
 Synthetic tests cover exact agreement, added/omitted words, changed source/image, missing page/printed label/second pass, unresolved handwriting, inventory and output restrictions, no-text regions, excluded editorial descriptions, unchanged line breaks and review ordering. A private Chapter 1 manifest records the resolved handwriting check while leaving the remaining literal-review work pending; whole-chapter verified export is intentionally blocked. Previous normalized OCR aids are not relabeled as literal verified source.
 
 For each of Chapters 2–10, create a new private source/hash/page inventory and repeat both image passes; do not copy Chapter 1 approval flags or infer printed numbering. Those chapters have not been inspected or verified in this work.
+
+## Explicit AI-only page scope
+
+A manifest may specify `aiPageRange: {start, end}` independently of the unchanged student PDF reading range. All file pages remain inventoried. Pages outside the AI scope must be explicitly excluded with a reason; pages inside the selected scope cannot be silently excluded. Excluded front matter is not certified as transcribed and contributes no AI text. Printed numbering still comes from the actual visible label, never an offset.
+
+For the privately reviewed supplied Chapter 1, file pages 4–11 completed both image passes; file pages 1–3 remain reading-only. The prior pending status above records an earlier review stage. The private full scoped manifest now passes and exports; original/AI text and detailed corrections are not committed. Line-wrap/sentence-boundary layout processing is retained separately from literal review with a private operation log and token-order comparison. This does not certify any later chapter or approve generated questions.

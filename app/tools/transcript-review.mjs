@@ -9,12 +9,17 @@ const kinds=new Set(['body','handwriting','caption','illustration-text','heading
 export function auditTranscript(manifest,{pdfHash,pageCount,imageHashes}){
  const issues=[],text=[];const issue=(page,code)=>issues.push({page,code});
  if(manifest?.version!==1||manifest.sourceSHA256!==pdfHash||manifest.pageCount!==pageCount)issue(null,'SOURCE_MISMATCH');
+ const scope=manifest?.aiPageRange??{start:1,end:pageCount};
+ if(!Number.isInteger(scope.start)||!Number.isInteger(scope.end)||scope.start<1||scope.end<scope.start||scope.end>pageCount)issue(null,'INVALID_AI_PAGE_RANGE');
  const pages=Array.isArray(manifest?.pages)?manifest.pages:[];
  if(pages.length!==pageCount)issue(null,'INCOMPLETE_PAGE_SET');
  const seen=new Set();
  for(const p of pages){
   const n=p.filePage;
   if(!Number.isInteger(n)||n<1||n>pageCount||seen.has(n)){issue(n,'INVALID_OR_DUPLICATE_PAGE');continue;}seen.add(n);
+  const excluded=n<scope.start||n>scope.end;
+  if(excluded){if(p.excludeFromAI!==true||typeof p.exclusionReason!=='string'||!p.exclusionReason.trim())issue(n,'EXCLUSION_REASON_REQUIRED');continue;}
+  if(p.excludeFromAI===true)issue(n,'IN_SCOPE_EXCLUSION_FORBIDDEN');
   const hash=imageHashes[n];
   if(!hash||p.imageSHA256!==hash)issue(n,'IMAGE_MISMATCH');
   if(!Object.hasOwn(p,'printedPage')||!(p.printedPage===null||typeof p.printedPage==='string'))issue(n,'PRINTED_PAGE_REQUIRED');
