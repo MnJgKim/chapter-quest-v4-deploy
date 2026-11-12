@@ -50,6 +50,18 @@
       "pass": true
     },
     {
+      "name": "student cannot publish or assign through parent publication RPC",
+      "pass": true
+    },
+    {
+      "name": "parent cannot publish a missing or foreign approval",
+      "pass": true
+    },
+    {
+      "name": "valid parent approval cannot assign an unenrolled account",
+      "pass": true
+    },
+    {
       "name": "parent can read only the owned published lesson context",
       "pass": true
     },
@@ -139,6 +151,10 @@
     },
     {
       "name": "duplicate submit preserves original answers",
+      "pass": true
+    },
+    {
+      "name": "five-question lesson accepts three MC and two inference answers",
       "pass": true
     },
     {

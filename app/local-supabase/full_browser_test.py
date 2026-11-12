@@ -133,14 +133,32 @@ try:
    link=api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':original_uuid},users['parent']['token']);private.append(link['signed_url']);assert link['signed_url'].startswith('/storage/v1/object/sign/cq-v4-originals/')
    with urllib.request.urlopen(urllib.request.Request(base+link['signed_url'],headers={'apikey':anon,'Authorization':'Bearer '+users['parent']['token']}),timeout=30) as r:assert hashlib.sha256(r.read()).hexdigest()==original_sha
    passed('only a derived two-page PDF is registered and the complete server original remains byte-identical')
+  unpublished_uuid=pp.locator('#cqPublishVerifiedPdf').input_value()
+  try:api('/functions/v1/cq-v4-pdf-parent',{'action':'assign','chapter_uuid':unpublished_uuid,'student_user_id':users['student']['uid']},users['parent']['token']);raise AssertionError('Unapproved PDF assigned')
+  except urllib.error.HTTPError as error:assert error.code==403
+  assert api('/functions/v1/cq-v4-pdf-parent',{'action':'list_assignments'},users['parent']['token'])['assignments']==[]
+  passed('real parent Edge refuses direct assignment before approved publication with no assignment written')
   if original_kind in ('range','whole'):
    pp.locator('[data-act="generate"]').click();expect(pp.locator('[data-act="approve"]')).to_be_visible();assert pp.evaluate('chapter().questions.length')==0;passed('selected chapter source reaches authenticated generation UI; synthetic response remains unapproved until parent review (no model call)')
   else:pp.locator('#cqDraftImport').set_input_files(str(draft));expect(pp.locator('[data-act="approve"]')).to_be_visible()
+  if original_kind=='whole':
+   pp.locator('[data-act="addEvidence"]').click()
+   for selector in ['data-evidence-q','data-evidence-v']:
+    count=pp.locator('['+selector+'][data-evidence-field="filePages"]').count()
+    for i in range(count):
+     for field,value in [('filePages','1–11'),('printedPages','Synthetic labels'),('note','PARENT_ONLY_SYNTHETIC_EVIDENCE')]:pp.locator('['+selector+'="'+str(i)+'"][data-evidence-field="'+field+'"]').fill(value)
+   pp.locator('[data-act="approve"]').click();assert not pp.evaluate('!!chapter().approvalReceipt');pp.locator('#cqEvidenceConfirmed').check();pp.locator('[data-review-q="0"][data-review-field="correct"]').select_option('1');pp.locator('[data-review-q="0"][data-review-field="correct"]').select_option('0');expect(pp.locator('#cqEvidenceConfirmed')).not_to_be_checked();pp.locator('#cqEvidenceConfirmed').check();passed('parent edits private evidence and answers; approval requires renewed source confirmation')
   pp.locator('[data-act="approve"]').click();pp.locator('[data-publish-child]').check()
   if original_kind=='range':
    derived_uuid=pp.locator('#cqPublishVerifiedPdf').input_value();pp.locator('#cqPublishVerifiedPdf').select_option(original_uuid);pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('선택 범위 자료와 서버 PDF가 다릅니다');assert api('/rest/v1/rpc/cq_v4_my_chapters',{},users['student']['token'])==[];pp.locator('#cqPublishVerifiedPdf').select_option(derived_uuid);passed('changing the range lesson binding to the complete original is blocked before publishing or assigning')
   pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(1);chapter_uuid=sp.locator('[data-child="view"]').get_attribute('data-uuid');context=api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['parent']['token']);assert context[0]['answer_key'][0]==0
+  student_activities=api('/rest/v1/rpc/cq_v4_my_chapter_activities',{'p_chapter_uuid':chapter_uuid},users['student']['token'])
+  assert 'PARENT_ONLY_SYNTHETIC_EVIDENCE' not in json.dumps(student_activities) and 'answer_key' not in json.dumps(student_activities)
+  student_chapters=api('/rest/v1/rpc/cq_v4_my_chapters',{},users['student']['token'])
+  assert 'PARENT_ONLY_SYNTHETIC_EVIDENCE' not in json.dumps(student_chapters)
+  assert all('correct' not in question and 'sample' not in question for row in student_chapters for question in row['questions'])
+  passed('student lesson API exposes questions without parent evidence, correct indices or model answers')
   if original_kind=='whole':
    assert chapter_uuid==original_uuid
    link=api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':chapter_uuid},users['student']['token']);assert link['page_count']==11;private.append(link['signed_url'])

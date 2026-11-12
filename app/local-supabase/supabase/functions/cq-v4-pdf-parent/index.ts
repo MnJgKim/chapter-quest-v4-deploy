@@ -164,6 +164,12 @@ Deno.serve(async req=>{
     if(ownerError||enrollmentError)return respond({error:'ACCESS_CHECK_FAILED'},503);
     if(!owned||!enrolled)return respond({error:'FORBIDDEN'},403);
     if(!owned.pdf_ready)return respond({error:'PDF_NOT_VERIFIED'},409);
+    const {data:published,error:publishedError}=await admin.from('cq_v4_activities').select('approval_id,approval_hash,published_at').eq('chapter_uuid',chapter).maybeSingle();
+    if(publishedError)return respond({error:'PUBLICATION_CHECK_FAILED'},503);
+    if(!published?.published_at||!published.approval_id||typeof published.approval_hash!=='string'||!published.approval_hash)return respond({error:'APPROVED_PUBLICATION_REQUIRED'},403);
+    const {data:approved,error:approvalError}=await admin.from('cq_v4_approval_requests').select('chapter_uuid,parent_user_id,content_hash').eq('id',published.approval_id).maybeSingle();
+    if(approvalError)return respond({error:'APPROVAL_CHECK_FAILED'},503);
+    if(!approved||approved.parent_user_id!==parent||approved.chapter_uuid!==chapter||approved.content_hash!==published.approval_hash)return respond({error:'APPROVED_PUBLICATION_REQUIRED'},403);
     const {error}=await admin.from('cq_v4_pdf_assignments').upsert({chapter_id:chapter,student_user_id:student},{onConflict:'chapter_id,student_user_id'});
     if(error)return respond({error:'ASSIGN_FAILED'},503);
     return respond({assigned:true});
