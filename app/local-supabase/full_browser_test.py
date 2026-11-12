@@ -92,7 +92,9 @@ try:
    def route(r):
     if r.request.url==origin+'/api/generate':
      payload=r.request.post_data_json
-     assert r.request.headers.get('authorization')=='Bearer '+users['parent']['token'],'Generation must use parent authentication'
+     authorization=r.request.headers.get('authorization','');assert authorization.startswith('Bearer '),'Generation must include authentication'
+     generation_token=authorization[7:];private.append(generation_token)
+     assert api('/auth/v1/user',token=generation_token)['id']==users['parent']['uid'],'Generation must use the authenticated parent identity'
      assert payload['source'].count('Mina helped Leo')>0 and 'OUTSIDE_SELECTED_CHAPTER' not in payload['source'],'Only selected source may reach generation'
      r.fulfill(status=200,json=fixture);return
     if r.request.url.startswith(origin+'/') or r.request.url.startswith(base+'/'):r.continue_()
