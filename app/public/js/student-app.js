@@ -14,12 +14,14 @@
  function forgetDedicatedChild(){try{localStorage.removeItem(persistentChildKey)}catch(_){}}
  async function restoreDedicatedChild(){
   if(childRestoreAttempted||session||mode!=='student')return;
-  childRestoreAttempted=true;
   let saved;
   try{saved=JSON.parse(localStorage.getItem(persistentChildKey)||'null')}catch(_){return}
   if(!saved?.refreshToken||!saved?.uid||!saved?.url)return;
+  // A first paint can precede project configuration availability. Do not
+  // consume the one-time restore attempt until the matching project is ready.
   const project=window.CQProject?.read();
   if(!project?.url||!project?.anonKey||project.url!==saved.url)return;
+  childRestoreAttempted=true;
   const generation=childGeneration;
   try{
    const response=await fetch(project.url+'/auth/v1/token?grant_type=refresh_token',{
