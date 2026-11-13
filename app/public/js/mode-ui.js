@@ -1,7 +1,7 @@
 /* Stage 132 UI integration. Default stays local demo to preserve existing files. */
 (()=>{
  const modeKey='cq_v4_student_mode_v1';let initialMode=state.books.length?'local-demo':'server';
- try{const saved=localStorage.getItem(modeKey);if(['server','local-demo'].includes(saved))initialMode=saved;}catch{}
+ try{const saved=localStorage.getItem(modeKey);if(['server','local-demo'].includes(saved))initialMode=saved;else if(localStorage.getItem('cq-v4-dedicated-child-session-v1'))initialMode='server';}catch{}
  const gate=CQStudentMode132.createMode(initialMode);
  const oldStudentUI=studentUI;
  studentUI=function(){return gate.isServer()?CQStudentMode132.serverOnlyMarkup():oldStudentUI()};
