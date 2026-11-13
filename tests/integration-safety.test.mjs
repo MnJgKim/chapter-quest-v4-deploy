@@ -1,4 +1,4 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {spawnSync} from 'node:child_process';import {validateTarget,databaseOptions,migrations} from '../scripts/integration/common.mjs';import {pdfFixture} from '../scripts/integration/probe.mjs';
+import {mkdtemp,writeFile,readFile,chmod,rm} from 'node:fs/promises';import {tmpdir} from 'node:os';import {join} from 'node:path';import {test} from 'node:test';import assert from 'node:assert/strict';import {spawnSync} from 'node:child_process';import {validateTarget,databaseOptions,migrations} from '../scripts/integration/common.mjs';import {pdfFixture} from '../scripts/integration/probe.mjs';
 const ref='abcdefghijklmnopqrst';const target={kind:'hosted',purpose:'disposable-test',confirmedDisposable:true,projectRef:ref,supabaseUrl:`https://${ref}.supabase.co`,databaseHost:`db.${ref}.supabase.co`,appOrigin:'http://127.0.0.1:8787',workerOrigin:'http://127.0.0.1:8787'};const env={CQ_TEST_CONFIRMED_PROJECT_REF:ref};
 test('integration gate rejects missing confirmation, wrong ref and ambiguous targets',()=>{
  assert.throws(()=>validateTarget({...target,confirmedDisposable:false},env),/TEST_PROJECT_NOT_CONFIRMED/);assert.throws(()=>validateTarget(target,{}),/MISSING/);assert.throws(()=>validateTarget({...target,supabaseUrl:'https://production.supabase.co'},env),/PROJECT_REF_URL_MISMATCH/);assert.throws(()=>validateTarget({...target,workerOrigin:'http://external.example'},env),/UNSAFE_WORKER_ORIGIN/);assert.throws(()=>validateTarget({...target,appOrigin:'https://test.example/path'},env),/ORIGIN_REQUIRED/);assert.equal(validateTarget(target,env).projectRef,ref);
@@ -25,4 +25,14 @@ test('migration inventory includes all four unchanged reviewed files and fixture
 test('unexpected driver/upstream errors are redacted at the CLI boundary',()=>{
  const code="import {runCli} from './scripts/integration/common.mjs';await runCli(async()=>{throw new Error('credential-must-never-be-logged')});";
  const result=spawnSync(process.execPath,['--input-type=module','-e',code],{cwd:new URL('../',import.meta.url),encoding:'utf8'});assert.equal(result.status,1);assert.match(result.stderr,/INTEGRATION_FAILED_NO_SECRETS_LOGGED/);assert.equal((result.stderr+result.stdout).includes('credential-must-never-be-logged'),false);
+});
+
+test('confirmed test deployment wrapper binds every command to its ref and server-side bundling',async()=>{
+ const dir=await mkdtemp(join(tmpdir(),'cq-integration-cli-'));
+ try{
+  const manifest=join(dir,'target.json'),log=join(dir,'calls.jsonl'),cli=join(dir,'fake-cli');await writeFile(manifest,JSON.stringify(target));
+  await writeFile(cli,"#!/usr/bin/env node\nrequire('fs').appendFileSync(process.env.CQ_FAKE_LOG,JSON.stringify(process.argv.slice(2))+'\\n');\n");await chmod(cli,0o700);
+  const result=spawnSync(process.execPath,['scripts/integration/deploy-functions.mjs','--deploy'],{cwd:new URL('../',import.meta.url),env:{...process.env,CQ_TEST_TARGET_FILE:manifest,CQ_TEST_CONFIRMED_PROJECT_REF:ref,CQ_TEST_SUPABASE_CLI:cli,SUPABASE_ACCESS_TOKEN:'dummy-never-print-token',CQ_FAKE_LOG:log},encoding:'utf8'});assert.equal(result.status,0);assert.equal((result.stdout+result.stderr).includes('dummy-never-print-token'),false);
+  const calls=(await readFile(log,'utf8')).trim().split('\n').map(line=>JSON.parse(line));assert.equal(calls.length,4);for(const call of calls)assert.equal(call[call.indexOf('--project-ref')+1],ref);assert.deepEqual(calls[0].slice(0,2),['secrets','set']);for(const call of calls.slice(1)){assert.ok(call.includes('--use-api'));assert.ok(!call.includes('--no-verify-jwt'));}
+ }finally{await rm(dir,{recursive:true,force:true});}
 });

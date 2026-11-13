@@ -144,8 +144,8 @@ node scripts/integration/deploy-functions.mjs --deploy
 ```
 
 래퍼는 확인된 ref를 설정·배포 명령마다 `--project-ref`로 전달하며 `APP_ORIGIN` 설정과
-세 함수만 대상으로 한다.
-저장소의 `verify_jwt=true`를 유지하고 `--no-verify-jwt`로 우회하지 않는다.
+세 함수만 대상으로 한다. 공식 CLI의 `--use-api`로 서버 측 번들링을 사용하므로
+이 테스트 Edge 배포 단계에는 Docker가 필요 없다. 저장소의 `verify_jwt=true`를 유지하고 `--no-verify-jwt`로 우회하지 않는다.
 새 publishable/secret 키를 쓰는 경우 JWT gateway 호환성을 실제 검증해야 한다.
 실패 시 인증 검사를 끄지 말고 호환되는 테스트 API 키/JWT 경로를 확인한다.
 
@@ -179,6 +179,10 @@ finally에서 이번 실행의 정확한 파일 경로와 임시 사용자 UUID�
 
 ## AI Worker 실제 모델 검증 (별도 비용 동의)
 
+현재 Worker와 브라우저의 인증 URL 검사는 hosted `*.supabase.co`를 요구한다.
+따라서 아래 실제 모델/화면 연결은 확인된 hosted 테스트 프로젝트를 대상으로 한다.
+loopback Supabase의 HTTP probe와 브라우저 mock 테스트를 이 검증으로 대신하지 않는다.
+
 ```sh
 node scripts/integration/worker-vars.mjs --write
 # 위 명령은 확인된 TEST 설정만 integration/.dev.vars(0600)에 기록하며 덮어쓰지 않는다.
@@ -211,3 +215,16 @@ npm run integration:model -- --run --allow-model-cost
 
 로컬 자동 검사, 실제 로컬 서비스 검사, hosted 테스트, 실제 모델, 수동 기기 검증은
 서로 다른 결과다. 실행하지 않은 단계는 미검증으로 보고한다.
+
+## 이번 준비 단계의 관측 결과 (2026-11-13)
+
+- 기존 앱/Worker/SQL/Edge 구현을 변경하지 않고 실행 절차·검증 도구만 추가했다.
+- 정적 검사와 자동 테스트 49개 통과, 실패·건너뜀 0개. 오프라인 계획과 미확인
+  대상 차단, 비밀 값 비출력 검사를 포함한다.
+- 원격 프로젝트 정보와 자격 증명이 없으므로 원격 SQL 적용·Edge 배포·모델 호출은
+  실행하지 않았다. 이 단계들은 미검증이다.
+- 실제 로컬 Supabase 시작을 시도했다. 기본 ECR 호스트 차단은 공식 Docker Hub
+  설정으로 해결했지만, vfs 이미지 처리에서 76개 중 41개 레이어만 준비된 상태였다.
+  장시간 전체 스택 준비를 여기서 중단했고 다운로드 캐시는 유지했다. 로컬 서비스
+  전체 기동·새 apply/probe 스크립트의 실제 서비스 상대 실행은 **미완료**다.
+- 따라서 49개 자동 검사 통과를 hosted/로컬 전체 서비스 통합 성공으로 해석하면 안 된다.

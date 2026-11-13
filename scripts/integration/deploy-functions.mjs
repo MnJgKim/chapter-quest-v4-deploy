@@ -8,7 +8,7 @@ export async function deployFunctions(env=process.env){
  await invoke(['secrets','set','APP_ORIGIN='+target.appOrigin,'--project-ref',target.projectRef,'--workdir',fileURLToPath(root)]);
  console.log('CONFIGURED test Edge APP_ORIGIN');
  for(const name of ['cq-v4-student-account','cq-v4-pdf-parent','cq-v4-pdf-link']){
-  await invoke(['functions','deploy',name,'--project-ref',target.projectRef,'--workdir',fileURLToPath(root)]);
+  await invoke(['functions','deploy',name,'--use-api','--project-ref',target.projectRef,'--workdir',fileURLToPath(root)]);
   console.log('DEPLOYED test Edge '+name);
  }
 }
