@@ -24,7 +24,9 @@
       return response.json();
     }
     async function assignedChapters(){
-      const rows=await rpc('cq_v4_my_chapters');
+      // Scheduled lessons are returned only after their Asia/Seoul release date.
+      // The server-side RPC is authoritative; the UI must not compute access locally.
+      const rows=await rpc('cq_v4_my_released_chapters');
       if(!Array.isArray(rows))throw Error('배정 챕터 목록 형식을 확인해 주세요.');
       return rows.map(row=>{
         if(!row||!/^[0-9a-f-]{36}$/i.test(row.chapter_uuid||'')||!Array.isArray(row.questions)||row.questions.length<1||row.questions.length>30)throw Error('배정된 학습 자료 형식을 확인해 주세요.');
