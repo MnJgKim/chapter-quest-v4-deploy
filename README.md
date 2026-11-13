@@ -16,3 +16,7 @@ external HTTP. They never use production credentials or modify remote data.
 SQL migrations are a baseline for a **new local/test Supabase project only**.
 No production or Cloudflare deployment has been performed. Student final-submit UI
 remains disabled until full test-project integration has passed.
+
+For guarded integration setup and real-service validation, read
+[the integration runbook](docs/INTEGRATION-VALIDATION.md).
+`npm run integration:plan` is offline and prints no secret values.

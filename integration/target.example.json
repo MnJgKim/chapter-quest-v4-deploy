@@ -1,0 +1,10 @@
+{
+  "kind": "hosted",
+  "purpose": "disposable-test",
+  "confirmedDisposable": false,
+  "projectRef": "REPLACE_WITH_TEST_PROJECT_REF",
+  "supabaseUrl": "https://REPLACE_WITH_TEST_PROJECT_REF.supabase.co",
+  "databaseHost": "COPY_EXACT_TEST_DATABASE_HOST_FROM_DASHBOARD",
+  "appOrigin": "http://127.0.0.1:8787",
+  "workerOrigin": "http://127.0.0.1:8787"
+}
