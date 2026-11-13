@@ -1,3 +1,7 @@
+import sys as _qa_sys
+from pathlib import Path as _QAPath
+_qa_sys.path.insert(0,str(_QAPath(__file__).resolve().parents[0]))
+from qa_browser import launch_browser
 """Synthetic browser integration: no requests reach hosted Auth, Storage or AI."""
 import json,sys,threading,functools,time
 from pathlib import Path
@@ -107,7 +111,7 @@ def route(r):
  report['unexpected_requests'].append(req.url);r.abort()
 try:
  with sync_playwright() as p:
-  browser=p.chromium.launch(args=['--no-sandbox','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'])
+  browser=launch_browser(p,args=['--no-sandbox','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'])
   def context():
    ctx=browser.new_context(has_touch=True,permissions=['microphone'],viewport={'width':1280,'height':950});ctx.route('**/*',route)
    page=ctx.new_page();page.on('dialog',lambda d:d.accept('123456') if d.type=='prompt' else d.accept());page.on('pageerror',lambda e:report['page_errors'].append(str(e)))

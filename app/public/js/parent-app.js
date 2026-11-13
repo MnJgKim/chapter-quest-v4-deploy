@@ -1,6 +1,10 @@
 /* Optional parent-only cloud sync UI. No automatic overwrites. */
 (() => {
  let session=null, project=null, busy=false, auto=false, baseline=undefined, aligned=false, syncTimer=null, syncing=false, dirty=false, revision=0, refreshPromise=null, sessionGeneration=0;
+ window.addEventListener('cq:before-device-restore',event=>{
+  if(syncing){event.preventDefault();return;}
+  auto=false;dirty=false;aligned=false;clearTimeout(syncTimer);
+ });
  const escapeHtml=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
  const readProject=()=>{try{return window.CQProject.read()}catch{return null}};
  project=readProject();

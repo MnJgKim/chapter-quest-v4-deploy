@@ -1,3 +1,7 @@
+import sys as _qa_sys
+from pathlib import Path as _QAPath
+_qa_sys.path.insert(0,str(_QAPath(__file__).resolve().parents[1]))
+from qa_browser import launch_browser
 """Full real local Auth/Storage/Edge browser flow. Never accepts a hosted URL.
 The model is not called: a synthetic parent-reviewed JSON draft is used.
 """
@@ -86,7 +90,7 @@ try:
  original_sha=hashlib.sha256(original.read_bytes()).hexdigest()
  draft=out.parent/'cq-draft.json';draft.write_text(json.dumps(fixture))
  with sync_playwright() as p:
-  browser=p.chromium.launch(args=['--no-sandbox','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'])
+  browser=launch_browser(p,args=['--no-sandbox','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'])
   def page():
    context=browser.new_context(has_touch=True,permissions=['microphone'],viewport={'width':1280,'height':900});context.set_default_timeout(30000)
    def route(r):

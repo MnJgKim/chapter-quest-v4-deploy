@@ -1,3 +1,7 @@
+import sys as _qa_sys
+from pathlib import Path as _QAPath
+_qa_sys.path.insert(0,str(_QAPath(__file__).resolve().parents[0]))
+from qa_browser import launch_browser
 """Local parent page selection; generated book only, hosted services blocked."""
 from pathlib import Path
 from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler
@@ -17,7 +21,7 @@ class Quiet(SimpleHTTPRequestHandler):
 server=ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Quiet,directory=str(ROOT/'public')));threading.Thread(target=server.serve_forever,daemon=True).start();origin=f'http://127.0.0.1:{server.server_port}'
 try:
  with sync_playwright() as p:
-  browser=p.chromium.launch(args=['--no-sandbox']);context=browser.new_context(has_touch=True,viewport={'width':800,'height':1280});context.route('**/*',lambda r:r.continue_() if r.request.url.startswith(origin+'/') else (report['blocked_requests'].append(r.request.url),r.abort()))
+  browser=launch_browser(p,args=['--no-sandbox']);context=browser.new_context(has_touch=True,viewport={'width':800,'height':1280});context.route('**/*',lambda r:r.continue_() if r.request.url.startswith(origin+'/') else (report['blocked_requests'].append(r.request.url),r.abort()))
   page=context.new_page();page.on('dialog',lambda d:d.accept('123456') if d.type=='prompt' else d.accept());page.on('pageerror',lambda e:report['page_errors'].append(str(e)));page.goto(origin);page.locator('#parentBtn').click();page.locator('#bookTitle').fill('Range Book');page.locator('[data-act="addBook"]').click();page.locator('#chapterTitle').fill('Preserve TXT');page.locator('[data-act="addChapter"]').click();page.locator('#cqOriginalPDF').set_input_files(str(txt));page.locator('[data-act="savePDF"]').click();expect(page.locator('#sourceText')).to_have_value(txt.read_text())
   page.locator('#chapterTitle').fill('Full PDF');page.locator('[data-act="addChapter"]').click();page.locator('#cqOriginalPDF').set_input_files(str(source));page.locator('[data-act="savePDF"]').click();original_id=page.evaluate('chapter().id')
   expect(page.locator('#cqRangeStart')).to_have_value('');expect(page.locator('#cqRangeEnd')).to_have_value('');expect(page.locator('#cqRangePrepare')).to_be_disabled();passed('actual chapter bounds start unset and cannot create an unconfirmed lesson')

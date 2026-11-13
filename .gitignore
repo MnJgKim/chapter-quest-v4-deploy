@@ -17,3 +17,7 @@ app/public/vendor/
 private-transcripts/
 private-lesson/
 *.transcript-private.*
+
+# Local-only tool settings and restored historical test dependencies.
+.local-tools/
+archive/p0-contract-20261113/.integration/

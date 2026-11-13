@@ -1,3 +1,7 @@
+import sys as _qa_sys
+from pathlib import Path as _QAPath
+_qa_sys.path.insert(0,str(_QAPath(__file__).resolve().parents[2]))
+from qa_browser import launch_browser
 """Browser calls real local Auth/REST through a loopback-only gateway.
 No Edge/Storage/AI service is emulated in this test; existing synthetic feedback only.
 """
@@ -36,7 +40,7 @@ for server in [gateway,assets]:threading.Thread(target=server.serve_forever,daem
 base=f'http://127.0.0.1:{assets.server_port}'
 try:
  with sync_playwright() as p:
-  browser=p.chromium.launch(args=['--no-sandbox'])
+  browser=launch_browser(p,args=['--no-sandbox'])
   def new_page():
    context=browser.new_context(viewport={'width':1280,'height':900})
    def route(r):
@@ -46,7 +50,7 @@ try:
   pp=new_page();pp.locator('#parentBtn').click();account=data['accounts']['parent'];pp.locator('#cloudEmail').fill(account['email']);pp.locator('#cloudPassword').fill(account['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인 성공');passed('parent app logs into real local Auth and reads RLS-protected snapshot')
   pp.locator('[data-parent-feedback="list"]').click();expect(pp.locator('#cqParentFeedbackStatus')).to_contain_text('제출 1건');expect(pp.locator('#cqParentFeedback')).to_contain_text('The reader helped.');expect(pp.locator('.submitted-lesson')).to_contain_text('Who helped?');expect(pp.locator('.submitted-lesson')).to_contain_text('A reader');passed('parent browser reads actual questions, selected choices and written answers through PostgREST');initial_feedback=pp.locator('[data-parent-feedback-text]').input_value()
   sp=new_page();sp.locator('[data-stage132="server"]').click();account=data['accounts']['student'];sp.locator('#cqChildEmail').fill(account['email']);sp.locator('#cqChildPassword').fill(account['password']);sp.locator('[data-child="login"]').click();expect(sp.locator('[data-child="list"]')).to_be_visible();sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(1);sp.locator('[data-child="view"]').click();expect(sp.locator('#cqChildDetail')).to_contain_text(initial_feedback);passed('independent student browser sees only assigned chapter and real released feedback')
-  new_feedback='Local browser feedback '+__import__('secrets').token_hex(4);pp.locator('[data-parent-feedback-text]').fill(new_feedback);pp.locator('[data-parent-feedback-release]').check();pp.locator('[data-parent-feedback="save"]').click();expect(pp.locator('#cqParentFeedbackStatus')).to_contain_text('再' if False else '다시 확인');sp.locator('#cqChildDetail [data-child="view"]').click();expect(sp.locator('#cqChildDetail')).to_contain_text(new_feedback);passed('parent browser writes feedback and student independently reads persisted result')
+  new_feedback='Local browser feedback '+__import__('secrets').token_hex(4);pp.locator('[data-parent-feedback-text]').fill(new_feedback);pp.locator('[data-parent-feedback-release]').check();pp.locator('[data-parent-feedback="save"]').click();expect(pp.locator('#cqParentFeedbackStatus')).to_contain_text('再' if False else '다시 확인');sp.locator('#cqChildDetail [data-child="feedback"]').click();expect(sp.locator('#cqChildDetail')).to_contain_text(new_feedback);passed('parent browser writes feedback and student independently reads persisted result')
   op=new_page();op.locator('[data-stage132="server"]').click();account=data['accounts']['outsider'];op.locator('#cqChildEmail').fill(account['email']);op.locator('#cqChildPassword').fill(account['password']);op.locator('[data-child="login"]').click();expect(op.locator('[data-child="list"]')).to_be_visible();op.locator('[data-child="list"]').click();expect(op.locator('#cqChildStatus')).to_contain_text('0개');assert op.locator('[data-child="view"]').count()==0;passed('third real authenticated browser cannot see another student chapter')
   # Only this local Auth service receives the additional synthetic sign-up.
   np=new_page();import secrets

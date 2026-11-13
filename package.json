@@ -10,6 +10,6 @@
     "test": "npm run test --workspace chapter-quest-v4-launch && npm run test:current-db --workspace cq-v4-server-review",
     "build": "npm run build --workspace chapter-quest-v4-launch",
     "dev": "npm run dev --workspace chapter-quest-v4-launch",
-    "test:browser": "python app/stage1_e2e.py app/public/index.html /tmp/cq-v4-local && python app/server_flow_e2e.py /tmp/cq-v4-server && python app/pdf_range_e2e.py /tmp/cq-v4-range && python app/parent_review_e2e.py /tmp/cq-v4-review && python app/existing_session_e2e.py /tmp/cq-v4-existing-session"
+    "test:browser": "python app/stage1_e2e.py app/public/index.html /tmp/cq-v4-local && python app/server_flow_e2e.py /tmp/cq-v4-server && python app/pdf_range_e2e.py /tmp/cq-v4-range && python app/parent_review_e2e.py /tmp/cq-v4-review && python app/existing_session_e2e.py /tmp/cq-v4-existing-session && python app/backup_recovery_e2e.py /tmp/cq-v4-backup-recovery"
   }
 }

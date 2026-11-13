@@ -13,6 +13,7 @@ export function validateDraft(raw){
  if(!raw||!Array.isArray(raw.questions)||raw.questions.length<1||raw.questions.length>30||!Array.isArray(raw.vocabulary)||raw.vocabulary.length>100)throw new RequestError(502,'AI 응답 형식이 올바르지 않습니다. 다시 생성하세요.');
  const text=(v,max)=>typeof v==='string'&&v.trim()&&v.length<=max?v.trim():null;
  const questions=raw.questions.map(q=>{
+  if(!['mc','literal','comprehension','inference','critical','short'].includes(q?.kind))throw new RequestError(502,'AI 문제 종류가 올바르지 않습니다.');
   const kind=q?.kind==='mc'?'mc':['literal','comprehension'].includes(q?.kind)?'comprehension':'inference';
   const item={kind,text:text(q?.text,2000)};if(!item.text)throw new RequestError(502,'AI 문제 내용이 올바르지 않습니다.');
   if(kind==='mc'){

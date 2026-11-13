@@ -1,3 +1,7 @@
+import sys as _qa_sys
+from pathlib import Path as _QAPath
+_qa_sys.path.insert(0,str(_QAPath(__file__).resolve().parents[0]))
+from qa_browser import launch_browser
 """Synthetic existing-session probe; every remote request is intercepted."""
 from pathlib import Path
 from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler
@@ -12,7 +16,7 @@ report={'scope':'synthetic existing anonymous session; no hosted requests','chec
 def passed(s):report['checks'].append({'name':s,'pass':True})
 try:
  with sync_playwright() as p:
-  browser=p.chromium.launch(args=['--no-sandbox']);ctx=browser.new_context(viewport={'width':800,'height':1280},has_touch=True)
+  browser=launch_browser(p,args=['--no-sandbox']);ctx=browser.new_context(viewport={'width':800,'height':1280},has_touch=True)
   def route(r):
    if r.request.url.startswith(origin+'/'):return r.continue_()
    calls.append((r.request.method,r.request.url));url=r.request.url

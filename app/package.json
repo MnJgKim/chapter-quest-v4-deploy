@@ -5,8 +5,8 @@
   "type": "module",
   "scripts": {
     "test": "node build-assets.mjs && node --test *.test.mjs",
-    "build": "node build-assets.mjs && wrangler deploy --config ../wrangler.jsonc --dry-run --outdir .build",
-    "dev": "node build-assets.mjs && wrangler dev --config ../wrangler.jsonc",
+    "build": "node build-assets.mjs && node tools/run-wrangler.mjs build",
+    "dev": "node build-assets.mjs && node tools/run-wrangler.mjs dev",
     "test:local-auth": "python local-supabase/lean/integration_test.py qa-results/local-auth.json",
     "test:local-browser": "python local-supabase/lean/browser_test.py qa-results/local-auth-browser.json"
   },

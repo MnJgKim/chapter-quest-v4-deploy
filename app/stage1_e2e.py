@@ -1,3 +1,7 @@
+import sys as _qa_sys
+from pathlib import Path as _QAPath
+_qa_sys.path.insert(0,str(_QAPath(__file__).resolve().parents[0]))
+from qa_browser import launch_browser
 import json,sys,threading,functools,time
 from pathlib import Path
 from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler
@@ -16,7 +20,7 @@ result={'scope':'isolated localhost Chromium; synthetic records only; only pinne
 def passed(name):result['checks'].append({'name':name,'pass':True})
 try:
  with sync_playwright() as p:
-  browser=p.chromium.launch(headless=True,args=['--no-sandbox','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'])
+  browser=launch_browser(p,headless=True,args=['--no-sandbox','--use-fake-device-for-media-stream','--use-fake-ui-for-media-stream'])
   context=browser.new_context(permissions=['microphone'],viewport={'width':1280,'height':900})
   def route(r):
    if r.request.url.startswith(f'http://127.0.0.1:{server.server_port}/'):r.continue_()

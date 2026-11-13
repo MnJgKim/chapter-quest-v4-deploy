@@ -1,0 +1,83 @@
+{
+  "date": "2026-11-13",
+  "timezone": "Asia/Seoul",
+  "targetDate": "2026-11-23",
+  "targetBranch": "work/v4-safe-integration-20261113",
+  "githubBaseline": "d58761b7ab1d52a35d3a2c4a086cd6d301885a3a",
+  "preservedP0": "5f38010274dc734d7bfcf7ef24b3c612c9ccfe7f",
+  "preservedFiles": 50,
+  "uncommittedUserChangesAtStart": false,
+  "sourceBundleRestoreVerified": true,
+  "productionWrites": false,
+  "deploymentPerformed": false,
+  "paidModelCalls": 0,
+  "mainChanged": false,
+  "tests": {
+    "activeNode": {
+      "passed": 209,
+      "failed": 0,
+      "skipped": 0
+    },
+    "isolatedCurrentSchema": {
+      "passed": 40
+    },
+    "additivePreservation": {
+      "passed": 4
+    },
+    "historicalP0": {
+      "passed": 49,
+      "failed": 0
+    },
+    "browser": {
+      "cq-v4-local": {
+        "passed": 34,
+        "pageErrors": 0
+      },
+      "cq-v4-server": {
+        "passed": 67,
+        "pageErrors": 0
+      },
+      "cq-v4-range": {
+        "passed": 20,
+        "pageErrors": 0
+      },
+      "cq-v4-review": {
+        "passed": 13,
+        "pageErrors": 0
+      },
+      "cq-v4-existing-session": {
+        "passed": 17,
+        "pageErrors": 0
+      },
+      "cq-v4-backup-recovery": {
+        "passed": 12,
+        "pageErrors": 0
+      }
+    },
+    "realLocalAuthAPI": {
+      "passed": 30
+    },
+    "realLocalAuthBrowser": {
+      "passed": 9
+    },
+    "localDatabaseRecovery": {
+      "passed": 5
+    },
+    "dryRunBuild": "passed",
+    "pythonCompile": "passed",
+    "extraServerReview": {
+      "edgePassed": 10,
+      "isolatedCandidatePassed": 15
+    }
+  },
+  "liveReady": false,
+  "remaining": [
+    "existing anonymous student identity and original-device session",
+    "actual original source and parent-reviewed lesson",
+    "authorized hosted release with verified rollback and backup",
+    "physical Galaxy microphone and large-PDF acceptance",
+    "actual Storage API/Edge runtime not rerun in this lean local environment",
+    "no actual AI inference; free/manual route only"
+  ],
+  "operatingDataDeleted": false
+}
