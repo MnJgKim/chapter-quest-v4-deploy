@@ -55,3 +55,14 @@ test('malformed submission acknowledgement is not accepted',async()=>{
   const api=client({responses:{cq_v4_submit_answers:[{chapter_uuid:chapter,submitted_at:'not-a-date'}]}});
   await assert.rejects(()=>api.submit(chapter,[]),/제출 확인 응답/);
 });
+
+test('invalid chapter IDs block student submission and lookup before network',async()=>{
+  const calls=[];
+  const api=client({calls});
+  for(const bad of ['', '../other', 'not-a-uuid', null]){
+    await assert.rejects(()=>api.submit(bad,{readComplete:true}),/유효하지 않은 챕터 ID/);
+    await assert.rejects(()=>api.submission(bad),/유효하지 않은 챕터 ID/);
+    await assert.rejects(()=>api.chapterActivities(bad),/유효하지 않은 챕터 ID/);
+  }
+  assert.equal(calls.length,0);
+});
