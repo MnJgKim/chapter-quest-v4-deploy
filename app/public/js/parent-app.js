@@ -54,6 +54,30 @@
  const inviteCfg=()=>({url:project?.url,anonKey:project?.anonKey,getAccessToken:async()=>{await refreshIfNeeded();return session?.token}});
  const publicationChildrenPanel=()=>`<section class="card"><h2>📤 서버 게시 대상 학생</h2><p class="muted">게시할 학생과 서버에서 검증된 PDF 챕터를 각각 선택하세요. 로컬 챕터와 서버 PDF는 자동으로 동일하다고 간주하지 않습니다.</p><label>서버 PDF 챕터<select id="cqPublishVerifiedPdf"><option value="">검증된 서버 PDF 챕터 선택 (필수)</option>${pdfServerChapters.filter(x=>x.ready).map(x=>`<option value="${escapeHtml(x.uuid)}" ${chapter()?.serverPdfUuid===x.uuid?'selected':''}>${escapeHtml(x.title)} · ${escapeHtml(x.uuid)}</option>`).join('')}</select></label>${pendingChildren.filter(c=>c.active).map(c=>`<label><input type="checkbox" data-publish-child="${escapeHtml(c.child_user_id)}"> ${escapeHtml(c.student_name||'연결된 학생')} <small>계정 확인번호 ${escapeHtml(c.child_user_id.slice(-8))}</small></label>`).join('')||'<p>활성 연결 학생 목록을 먼저 불러오세요.</p>'}</section>`;
  let pdfServerChapters=[],pdfServerStudents=[],pdfServerAssignments=[];
+ let lessonReleases=[];
+ const lessonReleasePanel=()=>`<section class="card"><h2>🔓 부모 직접 챕터 공개</h2><p>공개 전에는 학생이 볼 수 없습니다. 월·목 외 날짜도 선택할 수 있습니다.</p><button data-lesson="refresh" ${session?'':'disabled'}>공개 상태 새로고침</button>${pdfServerAssignments.map(a=>{const c=pdfServerChapters.find(x=>x.uuid===a.chapter_uuid);const v=lessonReleases.find(x=>x.student_user_id===a.student_user_id&&x.chapter_id===a.chapter_uuid);return `<div class="book"><b>${escapeHtml(c?.title||a.chapter_uuid)}</b> · 학생 ${escapeHtml(a.student_user_id.slice(-8))} · ${v?.released_at?'공개':'비공개'}<div class="row"><input type="date" data-lesson-date="${escapeHtml(a.student_user_id+':'+a.chapter_uuid)}" value="${escapeHtml(v?.lesson_date||'2026-11-23')}"><button data-lesson="schedule" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" ${c?.ready?'':'disabled'}>일정 저장</button><button data-lesson="toggle" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" data-open="${v?.released_at?'false':'true'}" ${v&&c?.ready?'':'disabled'}>${v?.released_at?'비공개 전환':'지금 공개'}</button></div></div>`}).join('')||'<p>서버 챕터와 학생 배정을 먼저 등록하세요.</p>'}<p id="lessonReleaseStatus" class="status"></p></section>`;
+ const lessonStatus=t=>{const e=document.getElementById('lessonReleaseStatus');if(e)e.textContent=t};
+ async function refreshLessonReleases(){const rows=await parentRpc('cq_v4_parent_list_lesson_releases');if(!Array.isArray(rows))throw Error('공개 목록 조회 실패');lessonReleases=rows;render();lessonStatus('서버 상태 확인 완료');}
+ document.addEventListener('click',async event=>{
+  const b=event.target.closest('[data-lesson]');if(!b||b.disabled)return;
+  b.disabled=true;
+  try{
+   if(b.dataset.lesson==='refresh'){await refreshLessonReleases();return;}
+   const student=b.dataset.student,chapter=b.dataset.chapter;
+   if(!/^[0-9a-f-]{36}$/i.test(student)||!/^[0-9a-f-]{36}$/i.test(chapter))throw Error('잘못된 식별자');
+   if(b.dataset.lesson==='schedule'){
+    const date=document.querySelector('[data-lesson-date="'+student+':'+chapter+'"]')?.value;
+    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date||''))throw Error('날짜를 선택하세요.');
+    await parentRpc('cq_v4_parent_schedule_lesson',{p_student_user_id:student,p_chapter_id:chapter,p_lesson_date:date});
+   }else{
+    const open=b.dataset.open==='true';
+    if(open&&!window.confirm('지금 학생에게 이 챕터를 공개하시겠습니까?'))return;
+    await parentRpc('cq_v4_parent_set_lesson_release',{p_student_user_id:student,p_chapter_id:chapter,p_release:open});
+   }
+   await refreshLessonReleases();
+  }catch(err){lessonStatus('오류: '+err.message);}finally{b.disabled=false;}
+ });
+
  const pdfParentStatus=message=>{const el=document.getElementById('cqPdfParentStatus');if(el)el.textContent=message};
  const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정</h2><p class="note">현재 챕터의 원본을 서버에 등록하면 게시할 PDF에 연결됩니다. 원본은 비공개 저장소에 보관되며 AI용 텍스트와 별도로 관리됩니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><label>챕터 제목 <input id="cqPdfChapterTitle" placeholder="예: Chapter 1" maxlength="200"></label><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf,text/plain,.txt"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF/TXT 등록·검증</button><button data-pdf-parent="from-local" ${session&&chapter()?.pdfStored&&!isOriginalSavePending()?'':'disabled'}>현재 챕터 원본을 서버에 등록</button></div><p class="muted">PDF 최대 50MB · TXT 최대 1MB. TXT는 화면에 표시한 원문을 PDF로 변환해 등록하며 기기의 원본 TXT는 보존합니다.</p>${session&&pdfServerStudents.length===0?'<p class="note">학생 연결 목록을 새로고침해 확인하세요. 이미 연결된 계정은 재초대하지 않아도 됩니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'PDF 검증 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row">${c.ready?`<button data-pdf-parent="use-existing" data-index="${i}">기존 PDF로 학습 준비</button>`:''}${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
  async function pdfParentCall(action,args){
@@ -290,7 +314,7 @@
    finally{publicationBusy=false;if(button.isConnected)button.disabled=false;}
  });
  const originalRender=render;
- render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+publicationChildrenPanel()+feedbackPanel())}};
+ render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel())}};
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-parent-invite]');if(!b)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project){inviteStatus('부모 Supabase 로그인이 필요합니다.');return;}
