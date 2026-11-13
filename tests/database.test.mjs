@@ -97,3 +97,17 @@ test('a fresh claimed invite cannot silently reactivate revoked access',async()=
  await as(student);assert.equal(await rpc('cq_v4_claim_invite',{p_token:token,p_student_name:'Student again'}),true);assert.equal((await sql('select * from public.cq_v4_my_chapters()')).length,0);
  await as(parent);assert.equal((await sql('select active from public.cq_v4_child_access where child_user_id=$1',[student]))[0].active,false);
 });
+test('TXT reuses canonical assignment contract; only approved exact original text is student-readable',async()=>{
+ const text='The original chapter. '.repeat(20);await as(parent);await rpc('cq_v4_approve_child',{p_child_user_id:student});
+ const params={p_book_id:'txt-book',p_chapter_id:'txt-chapter',p_title:'TXT chapter',p_text:text};
+ const id=await rpc('cq_v4_register_text_chapter',params);assert.equal(await rpc('cq_v4_register_text_chapter',params),id);
+ await as(student);await assert.rejects(rpc('cq_v4_my_reading',{p_chapter_uuid:id}),/FORBIDDEN/);
+ await as(parent);const wrong=await rpc('cq_v4_register_approval_once',{...material,p_request_key:'77777777-7777-4777-8777-777777777777',p_book_id:'txt-book',p_chapter_id:'txt-chapter',p_title:'TXT chapter',p_source:'different text'});
+ await assert.rejects(rpc('cq_v4_publish_approved',{p_approval_id:wrong,p_children:[student]}),/TEXT_APPROVAL_MISMATCH/);
+ const approval=await rpc('cq_v4_register_approval_once',{...material,p_request_key:'88888888-8888-4888-8888-888888888888',p_book_id:'txt-book',p_chapter_id:'txt-chapter',p_title:'TXT chapter',p_source:text});
+ assert.equal(await rpc('cq_v4_publish_approved',{p_approval_id:approval,p_children:[student]}),id);
+ await assert.rejects(rpc('cq_v4_register_text_chapter',{...params,p_text:'changed'}),/CHAPTER_ALREADY_PUBLISHED/);
+ await as(student);const rows=await sql('select * from public.cq_v4_my_reading($1)',[id]);assert.deepEqual(rows,[{material_type:'txt',reading_text:text}]);
+ await as(stranger);await assert.rejects(rpc('cq_v4_my_reading',{p_chapter_uuid:id}),/FORBIDDEN/);
+ await as(parent);await rpc('cq_v4_revoke_child',{p_child_user_id:student});await as(student);await assert.rejects(rpc('cq_v4_my_reading',{p_chapter_uuid:id}),/FORBIDDEN/);
+});

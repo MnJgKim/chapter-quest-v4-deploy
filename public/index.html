@@ -12,7 +12,7 @@
  return {create,verify,digest};
 });
 </script>
-<script src="/runtime-config.js"></script><script src="/account-activation.js"></script></head><body><header><h1>📚 Chapter Quest</h1><small>월·목 한 챕터씩, 꾸준한 영어원서 학습</small></header><main><div class="card row between"><div class="row"><label>학생 <select id="student"></select></label><span id="dayLabel" class="chip"></span></div><div class="row"><button id="studentBtn" class="active">학생 화면</button><button id="parentBtn">부모 관리자</button></div></div><div id="notice" class="status"></div><div id="app"></div></main><footer>기기 데모 학습 기록은 이 브라우저에 저장됩니다. 학생 서버 학습은 별도 계정 및 Supabase 설정이 필요하며, 실서버 검증은 아직 완료되지 않았습니다.</footer>
+<script src="/runtime-config.js"></script><script src="/account-activation.js"></script><script src="/student-session.js"></script></head><body><header><h1>📚 Chapter Quest</h1><small>월·목 한 챕터씩, 꾸준한 영어원서 학습</small></header><main><div class="card row between"><div class="row"><label>학생 <select id="student"></select></label><span id="dayLabel" class="chip"></span></div><div class="row"><button id="studentBtn" class="active">학생 화면</button><button id="parentBtn">부모 관리자</button></div></div><div id="notice" class="status"></div><div id="app"></div></main><footer>기기 데모 학습 기록은 이 브라우저에 저장됩니다. 학생 서버 학습은 별도 계정 및 Supabase 설정이 필요하며, 실서버 검증은 아직 완료되지 않았습니다.</footer>
 <script>
 /* Chapter Quest V4 stage 141: standalone, not wired to production UI. */
 (function(root){
@@ -126,14 +126,15 @@ function migrateV3(backup,current){
  }
  return {state:s,importedBooks,importedRecords,skippedAudio:(backup.audio||[]).length};
 }
-function planWeek(state,student,monday){
+function planWeek(state,student,monday,isReady=()=>true){
  const books=state.books.filter(b=>b.students.includes(student)),date=String(monday);
- const manual=state.weekly?.[date]?.[student]||{};
+ const saved=state.weekly?.[date]?.[student]||{};
+ const manual=Object.fromEntries(Object.entries(saved).filter(([,a])=>books.some(b=>b.id===a?.bookId&&b.chapters.some(c=>c.id===a?.chapterId&&isReady(c)))));
  const active=state.focus?.[student]||books[0]?.id;
  const b=books.find(x=>x.id===active);
  if(!b)return {월:manual['월']||null,목:manual['목']||null};
  const done=new Set(Object.keys(state.records).filter(k=>k.startsWith(student+'::'+b.id+'::')&&state.records[k].submitted).map(k=>k.split('::').slice(-1)[0]));
- const remaining=b.chapters.filter(c=>!done.has(c.id));
+ const remaining=b.chapters.filter(c=>!done.has(c.id)&&isReady(c));
  const mondayChoice=manual['월']||(remaining[0]?{bookId:b.id,chapterId:remaining[0].id}:null);
  // Do not schedule Monday's chapter again on Thursday, even after Monday submission.
  const thursdayChoice=manual['목']||(remaining.find(c=>c.id!==mondayChoice?.chapterId)?{bookId:b.id,chapterId:remaining.find(c=>c.id!==mondayChoice?.chapterId).id}:null);
@@ -234,27 +235,49 @@ function chapter(){return book()?.chapters.find(c=>c.id===selectedChapter)}
 function key(){return [state.who,selectedBook,selectedChapter].join('::')}
 function rec(){const k=key();return state.records[k]??(state.records[k]={answers:{},writing:'',read:false,submitted:false,feedback:'',submittedAt:'',speaking:''})}
 // Approval is local audit evidence, not server authorization. Legacy chapters remain unapproved.
-function approvalPayload(c){return {source:c.source||'',questions:c.questions||[],vocabulary:c.vocabulary||[],writingPrompt:c.writingPrompt||'',speakingPrompt:c.speakingPrompt||''};}
-async function approvalDigest(c){const bytes=new TextEncoder().encode(JSON.stringify(approvalPayload(c)));const hash=await crypto.subtle.digest('SHA-256',bytes);return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');}
-function invalidateApproval(c){if(c&&c.approvalReceipt){delete c.approvalReceipt;}}
-async function isApprovalCurrent(c){if(!c?.approvalReceipt||c.approvalReceipt.version!==1||!/^[a-f0-9]{64}$/.test(c.approvalReceipt.sha256))return false;return (await approvalDigest(c))===c.approvalReceipt.sha256;}
+const approvalCache=new WeakMap();
+function approvalPayload(c){return {source:c.source||'',questions:c.questions||[],vocabulary:c.vocabulary||[],writingPrompt:c.writingPrompt||'',speakingPrompt:c.speakingPrompt||'',readingType:c.readingType||'pdf',pdfSha256:c.readingType==='txt'?'':c.pdfSha256||''};}
+async function blobDigest(blob){const hash=await crypto.subtle.digest('SHA-256',await blob.arrayBuffer());return Array.from(new Uint8Array(hash),b=>b.toString(16).padStart(2,'0')).join('');}
+async function approvalDigest(c){return blobDigest(new Blob([JSON.stringify(approvalPayload(c))]));}
+function invalidateApproval(c){if(c){delete c.approvalReceipt;approvalCache.delete(c);}}
+async function isApprovalCurrent(c){
+ const receipt=JSON.stringify(c?.approvalReceipt),payload=JSON.stringify(c?approvalPayload(c):null);
+ if(!c?.approvalReceipt||c.approvalReceipt.version!==2||c.approvalReceipt.scope!=='local-only'||!Number.isFinite(Date.parse(c.approvalReceipt.approvedAt))||(c.readingType!=='txt'&&!/^[a-f0-9]{64}$/.test(c.pdfSha256||''))||!/^[a-f0-9]{64}$/.test(c.approvalReceipt.sha256||''))return false;
+ const expected=c.approvalReceipt.sha256;const current=(await approvalDigest(c))===expected;
+ if(current&&receipt===JSON.stringify(c.approvalReceipt)&&payload===JSON.stringify(approvalPayload(c))){approvalCache.set(c,{receipt,payload});return true;}
+ approvalCache.delete(c);return false;
+}
+async function setChapterApproval(c){
+ const bid=selectedBook,cid=selectedChapter;
+ const current=()=>mode==='parent'&&parentUnlocked&&selectedBook===bid&&selectedChapter===cid&&chapter()===c;
+ let hash='';if(c.readingType!=='txt'){
+ const file=await pdfGet(pdfKey(bid,cid));if(!file?.size)throw Error('원본 PDF를 먼저 등록하세요.');hash=await blobDigest(file);
+ }
+ if(!current())throw Error('승인 중 챕터 또는 화면이 변경되었습니다.');
+ c.pdfSha256=hash;const payload=JSON.stringify(approvalPayload(c)),sha256=await approvalDigest(c);
+ if(!current()||payload!==JSON.stringify(approvalPayload(c)))throw Error('승인 중 자료가 변경되었습니다.');
+ c.approvalReceipt={version:2,sha256,approvedAt:new Date().toISOString(),scope:'local-only'};
+ await isApprovalCurrent(c);
+}
 // Stage89: preview eligibility is local-only; never a server publish authorization.
 async function cqPublicationEligibility(c){
  if(!c)return {ok:false,reason:'챕터를 선택하세요.'};
- if(!chapterReady(c))return {ok:false,reason:'원문과 유효한 문제를 먼저 준비하세요.'};
+ if(!chapterMaterialReady(c))return {ok:false,reason:'원문과 유효한 문제를 먼저 준비하세요.'};
  const r=c.approvalReceipt;
- if(!r||r.version!==1||r.scope!=='local-only'||typeof r.approvedAt!=='string'||!Number.isFinite(Date.parse(r.approvedAt))||!/^[a-f0-9]{64}$/.test(String(r.sha256||'')))return {ok:false,reason:'유효한 부모 승인 기록이 없습니다.'};
+ if(!r||r.version!==2||r.scope!=='local-only'||typeof r.approvedAt!=='string'||!Number.isFinite(Date.parse(r.approvedAt))||!/^[a-f0-9]{64}$/.test(String(r.sha256||'')))return {ok:false,reason:'유효한 부모 승인 기록이 없습니다.'};
  if(!await isApprovalCurrent(c))return {ok:false,reason:'승인 이후 자료가 변경되었습니다. 다시 승인하세요.'};
  return {ok:true,reason:'로컬 승인 검증 통과 · 서버 게시 준비만 가능'};
 }
-function chapterReady(c){return Boolean(c && c.pdfStored && Array.isArray(c.questions) && c.questions.length>0 && c.questions.every(q=>String(q.text||'').trim() && (q.kind!=='mc' || (Array.isArray(q.options) && q.options.length>=2))))}
+function chapterMaterialReady(c){return Boolean(c && (c.readingType==='txt'?String(c.source||'').trim():c.pdfStored) && Array.isArray(c.questions) && c.questions.length>0 && c.questions.every(q=>String(q.text||'').trim() && (q.kind!=='mc' || (Array.isArray(q.options) && q.options.length>=2))))}
+function chapterReady(c){const cached=c&&approvalCache.get(c);return chapterMaterialReady(c)&&!!cached&&cached.payload===JSON.stringify(approvalPayload(c))&&cached.receipt===JSON.stringify(c.approvalReceipt);}
+async function refreshApprovals(){for(const b of state.books)for(const c of b.chapters)await isApprovalCurrent(c);render();}
 function weekKey(d=new Date()){const x=new Date(d);x.setHours(12,0,0,0);x.setDate(x.getDate()-(x.getDay()+6)%7);return x.getFullYear()+'-'+String(x.getMonth()+1).padStart(2,'0')+'-'+String(x.getDate()).padStart(2,'0')}
 function dateText(){const d=new Date(),day=d.getDay();return `${d.toLocaleDateString('ko-KR',{month:'long',day:'numeric',weekday:'long'})} · ${day===1||day===4?'학습일':'월·목 학습 권장'}`}
 function setStatus(s){$('#notice').textContent=s}
 function choose(bid,cid){audioBlob=null;selectedBook=bid;selectedChapter=cid;view='learn';tab='read';render()}
-function changeStudent(name){if(!state.students.some(s=>s.name===name))return;state.who=name;audioBlob=null;save();view='home';render()}
-function render(){pdfRenderGeneration++;if(activePdfUrl){URL.revokeObjectURL(activePdfUrl);activePdfUrl=null;}let s=$('#student');s.innerHTML=state.students.map(x=>`<option value="${E(x.name)}" ${state.who===x.name?'selected':''}>${E(x.name)}${x.active?'':' (대기)'}</option>`).join('');$('#dayLabel').textContent=dateText();$('#studentBtn').className=mode==='student'?'active':'';$('#parentBtn').className=mode==='parent'?'active':'';$('#app').innerHTML=mode==='parent'?parentUI():studentUI();if(mode==='student'&&view==='learn'&&tab==='speak')loadAudio();if(mode==='student'&&view==='learn'&&tab==='read')showChapterPDF()}
-function studentUI(){if(view==='learn'&&chapter())return learningUI();let active=state.students.find(s=>s.name===state.who)?.active;let books=state.books.filter(b=>b.students.includes(state.who));let assigned=CQCore.planWeek(state,state.who,weekKey());if(!state.weekly[weekKey()]?.[state.who]?.월&&!state.weekly[weekKey()]?.[state.who]?.목&&(assigned.월||assigned.목)){state.weekly[weekKey()]??={};state.weekly[weekKey()][state.who]=assigned;save()}return `<section class="card"><h2>${E(state.who)}의 영어원서 학습</h2><p class="muted">매주 월요일·목요일 · 하루 한 챕터 · 주 2챕터</p><p class="muted">로컬 학습 모드: 같은 브라우저의 저장 데이터에는 부모용 정답이 포함될 수 있습니다. 정답 보안은 서버 계정 모드에서 별도 검증이 필요합니다.</p>${active?'':'<p class="note">현재 학습 대기 상태입니다. 부모 관리자가 시작할 수 있습니다.</p>'}<div class="grid">${['월','목'].map(d=>{let a=assigned[d];let b=state.books.find(x=>x.id===a?.bookId),c=b?.chapters.find(x=>x.id===a?.chapterId);return `<div class="book"><b>${d}요일 학습</b><p>${c?E(b.title)+' · '+E(c.title):'아직 지정된 챕터 없음'}</p>${c?(chapterReady(c)?`<button class="primary" data-act="open" data-b="${E(b.id)}" data-c="${E(c.id)}">학습 시작</button>`:'<span class="chip">학습 자료 준비 중</span>'):''}</div>`}).join('')}</div></section><section class="card"><h2>📖 내 도서관</h2>${books.length?books.map(b=>`<div class="book"><b>${E(b.title)}</b><p class="muted">${b.chapters.length}개 챕터</p>${b.chapters.map(c=>{let r=state.records[[state.who,b.id,c.id].join('::')];return chapterReady(c)?`<button style="margin:4px" data-act="open" data-b="${E(b.id)}" data-c="${E(c.id)}">${E(c.title)} ${r?.submitted?'✓':''}</button>`:`<span class="chip" style="margin:4px">${E(c.title)} · 준비 중</span>`}).join('')||'<p class="muted">부모가 챕터를 등록하면 표시됩니다.</p>'}</div>`).join(''):'<p class="note">부모 관리자가 책과 챕터를 등록하면 이곳에 표시됩니다.</p>'}</section>`}
+function changeStudent(name){if(!state.students.some(s=>s.name===name))return;if(mode==='student')window.dispatchEvent(new Event('cq:context-reset'));state.who=name;audioBlob=null;save();view='home';render()}
+function render(){pdfRenderGeneration++;if(activePdfUrl){URL.revokeObjectURL(activePdfUrl);activePdfUrl=null;}let s=$('#student');s.innerHTML=state.students.map(x=>`<option value="${E(x.name)}" ${state.who===x.name?'selected':''}>${E(x.name)}${x.active?'':' (대기)'}</option>`).join('');$('#dayLabel').textContent=dateText();$('#studentBtn').className=mode==='student'?'active':'';$('#parentBtn').className=mode==='parent'?'active':'';$('#app').innerHTML=mode==='parent'?parentUI():studentUI();if(mode==='student'&&view==='learn'&&tab==='speak')loadAudio();if(mode==='student'&&view==='learn'&&tab==='read'&&chapter()?.readingType!=='txt')showChapterPDF()}
+function studentUI(){if(view==='learn'&&chapter()&&chapterReady(chapter()))return learningUI();if(view==='learn')view='home';let active=state.students.find(s=>s.name===state.who)?.active;let books=state.books.filter(b=>b.students.includes(state.who));let assigned=CQCore.planWeek(state,state.who,weekKey(),chapterReady);if(!state.weekly[weekKey()]?.[state.who]?.월&&!state.weekly[weekKey()]?.[state.who]?.목&&(assigned.월||assigned.목)){state.weekly[weekKey()]??={};state.weekly[weekKey()][state.who]=assigned;save()}return `<section class="card"><h2>${E(state.who)}의 영어원서 학습</h2><p class="muted">매주 월요일·목요일 · 하루 한 챕터 · 주 2챕터</p><p class="muted">로컬 학습 모드: 같은 브라우저의 저장 데이터에는 부모용 정답이 포함될 수 있습니다. 정답 보안은 서버 계정 모드에서 별도 검증이 필요합니다.</p>${active?'':'<p class="note">현재 학습 대기 상태입니다. 부모 관리자가 시작할 수 있습니다.</p>'}<div class="grid">${['월','목'].map(d=>{let a=assigned[d];let b=state.books.find(x=>x.id===a?.bookId),c=b?.chapters.find(x=>x.id===a?.chapterId);return `<div class="book"><b>${d}요일 학습</b><p>${c?E(b.title)+' · '+E(c.title):'아직 지정된 챕터 없음'}</p>${c?(chapterReady(c)?`<button class="primary" data-act="open" data-b="${E(b.id)}" data-c="${E(c.id)}">학습 시작</button>`:'<span class="chip">학습 자료 준비 중</span>'):''}</div>`}).join('')}</div></section><section class="card"><h2>📖 내 도서관</h2>${books.length?books.map(b=>`<div class="book"><b>${E(b.title)}</b><p class="muted">${b.chapters.length}개 챕터</p>${b.chapters.map(c=>{let r=state.records[[state.who,b.id,c.id].join('::')];return chapterReady(c)?`<button style="margin:4px" data-act="open" data-b="${E(b.id)}" data-c="${E(c.id)}">${E(c.title)} ${r?.submitted?'✓':''}</button>`:`<span class="chip" style="margin:4px">${E(c.title)} · 준비 중</span>`}).join('')||'<p class="muted">부모가 챕터를 등록하면 표시됩니다.</p>'}</div>`).join(''):'<p class="note">부모 관리자가 책과 챕터를 등록하면 이곳에 표시됩니다.</p>'}</section>`}
 // Student-facing projection: removes answer keys and model responses from rendered chapter data.
 // This is UI data minimization, NOT a security boundary while full state lives in localStorage.
 function studentChapter(c){
@@ -272,21 +295,35 @@ function studentChapter(c){
    word:plain(v?.word),english:plain(v?.english),meaning:plain(v?.meaning),
    korean:plain(v?.korean),example:plain(v?.example),definition:plain(v?.definition)
   })):[],
-  writingPrompt:plain(c.writingPrompt),speakingPrompt:plain(c.speakingPrompt)
+  writingPrompt:plain(c.writingPrompt),speakingPrompt:plain(c.speakingPrompt),readingType:c.readingType==='txt'?'txt':'pdf',source:c.readingType==='txt'?plain(c.source):''
  };
 }
 function learningUI(){const b=book(),c=studentChapter(chapter()),r=rec();return `<section class="card"><button data-act="home">← 내 도서관</button><h2>${E(b.title)} · ${E(c.title)}</h2><p class="muted">${E(state.who)} · ${r.submitted?'제출 완료 (답변 잠금)':'학습 중'} · 입력 즉시 저장</p><div class="tabs">${[['read','📖 원문'],['questions','✏️ 문제'],['words','🧩 단어'],['write','📝 독후감'],['speak','🎤 말하기'],['feedback','⭐ 피드백']].map(([k,v])=>`<button data-act="tab" data-tab="${k}" class="${tab===k?'active':''}">${v}</button>`).join('')}</div></section><section class="card">${tabUI(b,c,r)}</section>`}
-function tabUI(b,c,r){if(tab==='read')return `<h2>원본 PDF 읽기</h2><p class="muted">원본 책의 페이지 구성과 글꼴을 그대로 표시합니다. AI 분석용 텍스트는 학생 읽기 화면에 표시하지 않습니다.</p><div id="cqPdfViewer" aria-live="polite">PDF 불러오는 중...</div><label><input type="checkbox" data-field="read" ${r.submitted?'disabled':''} ${r.read?'checked':''}> 읽기 완료</label>`;
+function tabUI(b,c,r){if(tab==='read'&&c.readingType==='txt')return `<h2>원문 TXT 읽기</h2><div class="source">${E(c.source)}</div><label><input type="checkbox" data-field="read" ${r.submitted?'disabled':''} ${r.read?'checked':''}> 읽기 완료</label>`;if(tab==='read')return `<h2>원본 PDF 읽기</h2><p class="muted">원본 책의 페이지 구성과 글꼴을 그대로 표시합니다. AI 분석용 텍스트는 학생 읽기 화면에 표시하지 않습니다.</p><div id="cqPdfViewer" aria-live="polite">PDF 불러오는 중...</div><label><input type="checkbox" data-field="read" ${r.submitted?'disabled':''} ${r.read?'checked':''}> 읽기 완료</label>`;
 if(tab==='questions')return `<h2>내용 이해 · 추론 문제</h2>${c.questions.length?c.questions.map((q,i)=>`<div class="question"><b>${i+1}. ${E(q.text)}</b>${q.kind==='mc'&&q.options?.length?q.options.map((o,j)=>`<label class="option"><input type="radio" name="q${i}" data-q="${i}" ${r.submitted?'disabled':''} value="${j}" ${String(r.answers[i])===String(j)?'checked':''}>${'ABCD'[j]||j}. ${E(o)}</label>`).join(''):`<textarea data-q="${i}" ${r.submitted?'disabled':''} placeholder="Write your answer in English.">${E(r.answers[i]??'')}</textarea>`}</div>`).join(''):'<p>부모가 문제를 승인하면 표시됩니다.</p>'}<div class="row"><button class="primary" data-act="submit" ${r.submitted?'disabled':''}>${r.submitted?'제출 완료':'학습 제출'}</button><span class="muted">읽기 완료·모든 문제·독후감·말하기 대본을 작성해야 제출할 수 있습니다. 제출 후 수정 불가</span></div>`;
 if(tab==='words')return `<h2>핵심 단어 ${c.vocabulary.length}개</h2><div class="grid">${c.vocabulary.map((v,i)=>`<div class="book"><b>${i+1}. ${E(v.word||v.english||'')}</b><p>${E(v.meaning||v.korean||'')}</p><small>${E(v.example||v.definition||'')}</small><p><button data-act="speakword" data-word="${E(v.word||v.english||'')}">🔊 듣기</button></p></div>`).join('')}</div>`;
 if(tab==='write')return `<h2>영어 독후감</h2><p>${E(c.writingPrompt||'What happened in this chapter? What did you think?')}</p><textarea style="min-height:220px" data-field="writing" ${r.submitted?'disabled':''} placeholder="Write your reading journal in English.">${E(r.writing)}</textarea><p class="muted">입력 즉시 저장됩니다.</p>`;
 if(tab==='speak')return `<h2>말하기 · 녹음</h2><p>${E(c.speakingPrompt||'Summarize the chapter in your own words.')}</p><textarea data-field="speaking" ${r.submitted?'disabled':''} placeholder="말하기 대본 (제출 필수)">${E(r.speaking)}</textarea><div class="row"><button data-act="record" ${r.submitted?'disabled':''}>● 녹음 시작</button><button data-act="stop">■ 녹음 종료</button><button data-act="downloadAudio">녹음 다운로드</button></div><p class="note">녹음은 이 기기에 자동 저장됩니다. 다른 기기에서는 동기화되지 않으므로 필요한 녹음은 파일로 백업하세요.</p><p id="cqMicHelp" class="note" role="status">녹음은 HTTPS 보안 주소에서 사용하는 것을 권장합니다. 내 파일에서 직접 연 HTML(content://)은 마이크 접근이 거부될 수 있습니다. 말하기 대본은 녹음과 별개로 저장됩니다.</p><div id="audioPreview"></div>`;
 return `<h2>제출 · 부모 피드백</h2><p>상태: ${r.submitted?'제출 완료':'작성 중'}</p><p>제출일: ${E(r.submittedAt||'-')}</p><p class="note">${r.submitted&&r.feedbackReleased?E(r.feedback||'아직 작성된 피드백이 없습니다.'):r.submitted?'부모가 피드백을 검토 중이에요.':'전체 활동을 제출하면 부모 피드백을 확인할 수 있어요.'}</p><button class="primary" data-act="submit" ${r.submitted?'disabled':''}>${r.submitted?'제출 완료':'학습 제출'}</button>`}
 function parentUI(){return `<section class="card"><div class="row between"><h2>👨‍👩‍👧 부모 관리자</h2><div class="row"><button data-act="importV3">V3 백업 가져오기</button><input type="file" id="v3Input" accept=".json" hidden><button data-act="backup">전체 백업</button><button data-act="restore">백업 복원</button><input type="file" id="restoreInput" accept=".json" hidden></div></div><p class="muted">학생 활성화, 책별 배정, 챕터 등록, AI 문제 승인, 월·목 학습 배정을 한 화면에서 관리합니다. 부모 PIN은 이 기기의 화면 잠금용입니다. 정답과 원문은 브라우저 저장 데이터에 포함되어 있어 기술적으로 접근할 수 있습니다. 서버 권한 분리 전에는 보안 인증으로 간주할 수 없습니다.</p><h3>학생 설정</h3><div class="row">${state.students.map(x=>`<label class="chip"><input type="checkbox" data-active="${E(x.name)}" ${x.active?'checked':''}> ${E(x.name)} 학습 사용</label>`).join('')}</div></section><section class="card"><h2>📚 책 관리</h2><p class="note">이 버전은 아직 브라우저 저장 방식입니다. Supabase 동기화 전에는 기기 간 기록이 공유되지 않습니다. 학생 읽기는 PDF 원본을 사용합니다. AI 문제용 텍스트는 별도 입력합니다.</p><p class="muted">학생별 현재 학습 책을 선택하면 다음 미완료 챕터가 월·목 자동 배정됩니다.</p><div class="row"><label>집중 학습 책 <select id="focusBook"><option value="">첫 배정 책</option>${state.books.filter(b=>b.students.includes(state.who)).map(b=>`<option value="${E(b.id)}" ${state.focus?.[state.who]===b.id?'selected':''}>${E(b.title)}</option>`).join('')}</select></label></div><div class="row"><input id="bookTitle" placeholder="책 제목 (예: Magic Tree House #1)" style="flex:1"><button class="primary" data-act="addBook">+ 책 등록</button></div><div class="grid">${state.books.map(b=>`<div class="book"><b>${E(b.title)}</b><p>${b.chapters.length}개 챕터</p><div>${state.students.map(s=>`<label><input type="checkbox" data-bookstudent="${E(b.id)}" data-name="${E(s.name)}" ${b.students.includes(s.name)?'checked':''}> ${E(s.name)}에게 배정</label>`).join('')}</div><button data-act="manageBook" data-b="${E(b.id)}">챕터 관리</button></div>`).join('')}</div></section>${view==='manage'&&book()?manageUI():''}<section class="card"><h2>📅 이번 주 월·목 학습 배정</h2><label>배정 대상 학생 <select id="assignStudent">${state.students.map(x=>`<option value="${E(x.name)}" ${state.who===x.name?'selected':''}>${E(x.name)}</option>`).join('')}</select></label><p class="muted">이번 주 ${weekKey()} 시작 · 서진이가 함께 학습하는 주에는 같은 책·챕터를 두 학생에게 배정할 수 있습니다.</p>${['월','목'].map(d=>{const a=state.weekly[weekKey()]?.[state.who]?.[d];return `<div class="book"><b>${d}요일</b><div class="row"><select id="week-${d}"><option value="">선택 안 함</option>${state.books.flatMap(b=>b.chapters.map(c=>`<option value="${E(b.id+'|'+c.id)}" ${a?.bookId===b.id&&a?.chapterId===c.id?'selected':''}>${E(b.title)} · ${E(c.title)}</option>`)).join('')}</select><button data-act="assign" data-day="${d}">배정 저장</button></div></div>`}).join('')}</section><section class="card"><h2>📊 학생별 학습 기록</h2>${state.students.map(s=>`<div class="book"><b>${E(s.name)}</b>${state.books.flatMap(b=>b.chapters.map(c=>{let r=state.records[[s.name,b.id,c.id].join('::')];return r?`<div class="question"><b>${E(b.title)} · ${E(c.title)}</b> · ${r.submitted?'제출 완료':'작성 중'}<p>문제 답변 ${Object.keys(r.answers||{}).length}개 · 독후감 ${r.writing?.length||0}자</p><details><summary>답변 확인 · 피드백</summary>${c.questions.map((q,i)=>`<p><b>${i+1}. ${E(q.text)}</b><br>${E(q.kind==='mc'?q.options?.[r.answers[i]]??'미응답':r.answers[i]??'미응답')}</p>`).join('')}<p><b>독후감</b><br>${E(r.writing)}</p><textarea data-feedback="${E([s.name,b.id,c.id].join('::'))}" placeholder="부모 피드백">${E(r.feedback||'')}</textarea><label><input type="checkbox" data-release="${E([s.name,b.id,c.id].join('::'))}" ${r.feedbackReleased?'checked':''} ${r.submitted?'':'disabled'}> 피드백 학생에게 공개</label></details></div>`:''})).join('')||'<p class="muted">기록 없음</p>'}</div>`).join('')}</section>`}
-function manageUI(){let b=book();return `<section class="card"><div class="row between"><h2>${E(b.title)} · 챕터 관리</h2><button data-act="closeManage">닫기</button></div><div class="row"><input id="chapterTitle" placeholder="예: Chapter 1" style="flex:1"><button class="primary" data-act="addChapter">+ 챕터 추가</button></div>${b.chapters.map(c=>`<div class="book"><div class="row between"><b>${E(c.title)}</b><button data-act="editChapter" data-c="${E(c.id)}">편집 / AI 문제 생성</button></div><p class="muted">승인된 문제 ${c.questions.length}개 · 단어 ${c.vocabulary.length}개 · PDF ${c.pdfStored?'등록됨':'미등록'} · AI용 텍스트 ${c.source?.length||0}자</p></div>`).join('')}${selectedChapter&&chapter()?editorUI(chapter()):''}</section>`}
-function editorUI(c){return `<div class="card" style="background:#f8faff"><h3>${E(c.title)} · 학습 자료 편집</h3><label>AI 문제 생성용 텍스트 (PDF 읽기 화면과 별개 · 붙여넣기)<textarea id="sourceText" style="min-height:180px">${E(c.source||'')}</textarea></label><div class="row"><input type="file" id="cqOriginalPDF" accept="application/pdf,.pdf"><button data-act="savePDF">원본 PDF 등록</button></div><p class="muted">학생 읽기용 원본 PDF: ${c.pdfStored?'이 기기에 등록됨':'미등록'} · PDF 파일은 이 기기의 IndexedDB에 별도 저장됩니다. 기기 저장공간 정리 시 삭제될 수 있습니다. 다른 기기에서는 다시 등록해야 합니다. 일반 JSON 백업에는 PDF 파일이 포함되지 않습니다.</p><div class="row"><button data-act="saveSource">AI용 텍스트 저장</button></div><p class="muted">문제 생성용 텍스트를 위 입력란에 붙여넣으세요. 원본 PDF는 학생 읽기 전용이며, PDF가 등록되지 않으면 학생은 챕터를 시작할 수 없습니다.</p><label>AI 접근 코드 <input id="accessCode" type="password" value="${E(state.code)}" placeholder="Cloudflare AI_ACCESS_CODE"></label><div class="row"><button class="primary" data-act="generate">✨ AI 문제 초안 생성</button><button data-act="manualQuestion">+ 문제 직접 추가</button></div><p class="mutedline">AI 생성은 HTTPS 배포된 서버의 /api/generate가 필요합니다. 로컬 HTML 파일에서는 동작하지 않을 수 있습니다.</p>${draft&&draft.chapterId===c.id?draftUI():''}<h3>로컬 문제 (${c.questions.length})</h3><button data-act="approveManual" ${c.questions.length?'':'disabled'}>✓ 현재 문제 부모 승인</button><p class="muted">${c.approvalReceipt?'로컬 승인 기록 있음 · 수정 시 승인 무효화':'승인 기록 없음 · 서버 게시 불가'}</p>${c.questions.map((q,i)=>`<p>${i+1}. ${E(q.text)}</p>`).join('')||'<p>등록된 문제가 없습니다.</p>'}<label>독후감 질문<textarea id="writingPrompt">${E(c.writingPrompt||'')}</textarea></label><label>말하기 질문<textarea id="speakingPrompt">${E(c.speakingPrompt||'')}</textarea></label><button data-act="savePrompts">학습 활동 저장</button><button data-act="checkPublication" data-c="${E(c.id)}">게시 가능 여부 확인</button><button data-parent-publish="publish" data-c="${E(c.id)}">승인 자료 서버 게시 (테스트)</button></div><p class="note" id="cqPublicationStatus" role="status">테스트 서버 SQL 적용 후에만 게시할 수 있습니다. 실제 학생 화면 검증은 별도입니다.</p>`}
+function manageUI(){let b=book();return `<section class="card"><div class="row between"><h2>${E(b.title)} · 챕터 관리</h2><button data-act="closeManage">닫기</button></div><div class="row"><input id="chapterTitle" placeholder="예: Chapter 1" style="flex:1"><button class="primary" data-act="addChapter">+ 챕터 추가</button><input type="file" id="txtChapterFile" accept=".txt,text/plain"><button data-act="addTxtChapter">TXT로 챕터 등록</button></div>${b.chapters.map(c=>`<div class="book"><div class="row between"><b>${E(c.title)}</b><button data-act="editChapter" data-c="${E(c.id)}">편집 / AI 문제 생성</button></div><p class="muted">승인된 문제 ${c.questions.length}개 · 단어 ${c.vocabulary.length}개 · PDF ${c.pdfStored?'등록됨':'미등록'} · AI용 텍스트 ${c.source?.length||0}자</p></div>`).join('')}${selectedChapter&&chapter()?editorUI(chapter()):''}</section>`}
+function editorUI(c){return `<div class="card" style="background:#f8faff"><h3>${E(c.title)} · 학습 자료 편집</h3><label>TXT 원문 / PDF 분석 텍스트 가져오기<input type="file" id="textFile" accept=".txt,.pdf,text/plain,application/pdf"></label><label>AI 문제 생성용 텍스트 (PDF 읽기 화면과 별개 · 붙여넣기)<textarea id="sourceText" style="min-height:180px">${E(c.source||'')}</textarea></label><div class="row"><input type="file" id="cqOriginalPDF" accept="application/pdf,.pdf"><button data-act="savePDF">원본 PDF 등록</button></div><p class="muted">학생 읽기용 원본 PDF: ${c.pdfStored?'이 기기에 등록됨':'미등록'} · PDF 파일은 이 기기의 IndexedDB에 별도 저장됩니다. 기기 저장공간 정리 시 삭제될 수 있습니다. 다른 기기에서는 다시 등록해야 합니다. 일반 JSON 백업에는 PDF 파일이 포함되지 않습니다.</p><div class="row"><button data-act="saveSource">AI용 텍스트 저장</button></div><p class="muted">문제 생성용 텍스트를 위 입력란에 붙여넣으세요. TXT 챕터는 저장한 원문을 읽고, PDF 챕터는 원본 PDF를 읽습니다. 변경 후에는 부모 재승인이 필요합니다.</p><input id="accessCode" type="hidden" value=""><p class="muted">AI 문제 생성은 부모 클라우드 로그인 후 이용할 수 있습니다.</p><div class="row"><button class="primary" data-act="generate">✨ AI 문제 초안 생성</button><button data-act="manualQuestion">+ 문제 직접 추가</button></div><p class="mutedline">AI 생성은 HTTPS 배포된 서버의 /api/generate가 필요합니다. 로컬 HTML 파일에서는 동작하지 않을 수 있습니다.</p>${draft&&draft.chapterId===c.id?draftUI():''}<h3>로컬 문제 (${c.questions.length})</h3><button data-act="approveManual" ${c.questions.length?'':'disabled'}>✓ 현재 문제 부모 승인</button><p class="muted">${c.approvalReceipt?'로컬 승인 기록 있음 · 수정 시 승인 무효화':'승인 기록 없음 · 서버 게시 불가'}</p>${c.questions.map((q,i)=>`<p>${i+1}. ${E(q.text)}</p>`).join('')||'<p>등록된 문제가 없습니다.</p>'}<label>독후감 질문<textarea id="writingPrompt">${E(c.writingPrompt||'')}</textarea></label><label>말하기 질문<textarea id="speakingPrompt">${E(c.speakingPrompt||'')}</textarea></label><button data-act="savePrompts">학습 활동 저장</button><button data-act="checkPublication" data-c="${E(c.id)}">게시 가능 여부 확인</button><button data-parent-publish="publish" data-c="${E(c.id)}">승인 자료 서버 게시 (테스트)</button></div><p class="note" id="cqPublicationStatus" role="status">테스트 서버 SQL 적용 후에만 게시할 수 있습니다. 실제 학생 화면 검증은 별도입니다.</p>`}
 function draftUI(){return `<div class="card"><h3>AI 초안 검토</h3><p>문제 ${draft.questions.length}개 · 단어 ${draft.vocabulary.length}개</p>${draft.questions.map((q,i)=>`<div class="question"><label>문제 ${i+1}<textarea data-draftq="${i}">${E(q.text)}</textarea></label><small>${E(q.kind)}</small></div>`).join('')}<button class="primary" data-act="approve">검토 완료 · 학생에게 공개</button><button data-act="cancelDraft">초안 취소</button></div>`}
-async function extractFile(file){if(!file)return;try{let text='';if(file.name.toLowerCase().endsWith('.pdf')){if(!window.pdfjsLib)throw Error('PDF 읽기 라이브러리를 불러오지 못했습니다. TXT로 변환해 등록하세요.');const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;for(let i=1;i<=pdf.numPages;i++){let pg=await pdf.getPage(i),tc=await pg.getTextContent();text+=tc.items.map(x=>x.str).join(' ')+'\n'}}else{text=await file.text()}$('#sourceText').value=text;setStatus('AI 문제용 텍스트 '+text.length+'자 추출. 텍스트 저장을 눌러주세요.')}catch(e){alert(e.message)}}
+async function extractFile(file){
+ if(!file)return;const c=chapter(),bid=selectedBook,cid=selectedChapter;if(mode!=='parent'||!parentUnlocked||!c)return;
+ try{
+  if(!file.size||file.size>5*1024*1024)throw Error('분석용 파일은 5MB 이하로 등록하세요.');
+  let text='';if(file.name.toLowerCase().endsWith('.pdf')){
+   if(!window.pdfjsLib)throw Error('PDF 텍스트 추출기를 불러오지 못했습니다.');
+   const pdf=await pdfjsLib.getDocument({data:await file.arrayBuffer()}).promise;
+   try{for(let i=1;i<=pdf.numPages;i++){const pg=await pdf.getPage(i),tc=await pg.getTextContent();text+=tc.items.map(x=>x.str).join(' ')+'\n';if(text.length>45000)throw Error('챕터 텍스트는 45,000자 이하로 나누어 등록하세요.');}}finally{await pdf.destroy();}
+  }else if(file.name.toLowerCase().endsWith('.txt')){text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer()).replace(/^\uFEFF/,'');}
+  else throw Error('TXT 또는 PDF 파일을 선택하세요.');
+  if(!text.trim()||text.length>45000)throw Error('챕터 텍스트는 1~45,000자여야 합니다.');
+  if(mode!=='parent'||!parentUnlocked||selectedBook!==bid||selectedChapter!==cid||chapter()!==c)throw Error('파일을 읽는 동안 챕터가 변경되었습니다.');
+  invalidateApproval(c);c.source=text;if(!c.pdfStored&&file.name.toLowerCase().endsWith('.txt'))c.readingType='txt';save();render();setStatus('텍스트 저장 완료. 자료를 확인한 뒤 문제를 다시 승인하세요.');
+ }catch(error){setStatus('텍스트 등록 실패: '+error.message);}
+}
 function download(name,content,type='application/json'){const blob=content instanceof Blob?content:new Blob([content],{type});const u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(u),10000)}
 
 // Stage65: validate AI output before a parent can publish it.
@@ -313,6 +350,7 @@ if(a==='open'){
  const targetChapter=targetBook?.chapters.find(c=>c.id===cid&&chapterReady(c));
  if(!targetChapter)return alert('이 학생에게 공개된 학습 챕터가 아닙니다.');
  if(!state.students.find(x=>x.name===state.who)?.active)return alert('현재 학습 대기 상태입니다. 부모 관리자에서 학생을 활성화해 주세요.');
+ if(targetChapter.readingType==='txt'){if(!await isApprovalCurrent(targetChapter))return alert('원문과 문제의 부모 승인이 필요합니다.');choose(bid,cid);return;}
  // A JSON backup can retain pdfStored=true even when the binary PDF is absent.
  // Verify the actual IndexedDB file before opening the learning session.
  try{
@@ -320,22 +358,33 @@ if(a==='open'){
   if(!stored||!stored.size){alert('이 기기에 원본 PDF가 없습니다. 부모 관리자에서 해당 챕터의 PDF를 다시 등록해 주세요.');return}
   const signature=new Uint8Array(await stored.slice(0,5).arrayBuffer());
   if(String.fromCharCode(...signature)!=='%PDF-')throw Error('PDF 파일 형식이 손상되었습니다.');
+  if(!await isApprovalCurrent(targetChapter)||await blobDigest(stored)!==targetChapter.pdfSha256)throw Error('학습 자료가 승인 이후 변경되었습니다. 부모 재승인이 필요합니다.');
  }catch(err){alert('원본 PDF 확인 실패: '+err.message);return}
  choose(bid,cid)
 }
 if(a==='tab'){tab=btn.dataset.tab;render()}
-if(a==='submit'){if(mode!=='student')return;let r=rec();if(r.submitted)return alert('이미 제출한 학습입니다.');const c=chapter();if(!chapterReady(c))return alert('원본 PDF와 학습 문제가 모두 준비된 챕터만 제출할 수 있습니다.');try{const f=await pdfGet(pdfContext());if(!f?.size)throw Error('원본 PDF가 저장되어 있지 않습니다.');}catch(err){return alert('제출 전 PDF 확인 실패: '+err.message)}if(!r.read)return alert('원문 읽기를 완료한 뒤 읽기 완료에 체크해 주세요.');const missing=(c.questions||[]).findIndex((q,i)=>r.answers?.[i]===undefined||String(r.answers[i]).trim()==='');if(missing>=0)return alert((missing+1)+'번 문제에 답변한 뒤 제출해 주세요.');if(!String(r.writing||'').trim())return alert('영어 독후감을 작성한 뒤 제출해 주세요.');if(!String(r.speaking||'').trim())return alert('말하기 대본을 작성한 뒤 제출해 주세요.');r.submitted=true;r.submittedAt=new Date().toLocaleString('ko-KR');save();render();alert('학습 답변이 제출되었습니다.')}
+if(a==='submit'){if(mode!=='student')return;let r=rec();if(r.submitted)return alert('이미 제출한 학습입니다.');const c=chapter();if(!chapterReady(c)||!await isApprovalCurrent(c))return alert('원본 PDF와 학습 문제가 모두 준비된 챕터만 제출할 수 있습니다.');try{if(c.readingType!=='txt'){const f=await pdfGet(pdfContext());if(!f?.size)throw Error('원본 PDF가 저장되어 있지 않습니다.');if(await blobDigest(f)!==c.pdfSha256)throw Error('PDF가 변경되어 부모 재승인이 필요합니다.');}}catch(err){return alert('제출 전 PDF 확인 실패: '+err.message)}if(!r.read)return alert('원문 읽기를 완료한 뒤 읽기 완료에 체크해 주세요.');const missing=(c.questions||[]).findIndex((q,i)=>r.answers?.[i]===undefined||String(r.answers[i]).trim()==='');if(missing>=0)return alert((missing+1)+'번 문제에 답변한 뒤 제출해 주세요.');if(!String(r.writing||'').trim())return alert('영어 독후감을 작성한 뒤 제출해 주세요.');if(!String(r.speaking||'').trim())return alert('말하기 대본을 작성한 뒤 제출해 주세요.');r.submitted=true;r.submittedAt=new Date().toLocaleString('ko-KR');save();render();alert('학습 답변이 제출되었습니다.')}
 if(a==='speakword'){speechSynthesis.speak(new SpeechSynthesisUtterance(btn.dataset.word))}
 if(a==='addBook'){let title=$('#bookTitle').value.trim();if(!title)return alert('책 제목을 입력하세요.');let b={id:uid(),title,students:['서우'],chapters:[]};state.books.push(b);selectedBook=b.id;view='manage';save();render()}
 if(a==='manageBook'){selectedBook=bid;selectedChapter='';draft=null;view='manage';render()}
 if(a==='closeManage'){view='home';selectedChapter='';render()}
+if(a==='addTxtChapter'){
+ const b=book(),file=$('#txtChapterFile')?.files?.[0];if(!b||!file)return alert('책과 TXT 파일을 선택하세요.');
+ if(!file.name.toLowerCase().endsWith('.txt')||!file.size||file.size>5*1024*1024)return alert('5MB 이하 TXT 파일을 선택하세요.');
+ try{const text=new TextDecoder('utf-8',{fatal:true}).decode(await file.arrayBuffer()).replace(/^\uFEFF/,'');
+ if(!text.trim()||text.length>45000)throw Error('챕터를 1~45,000자로 나누어 등록하세요.');
+ if(mode!=='parent'||!parentUnlocked||book()!==b)throw Error('파일을 읽는 동안 책 또는 계정이 변경되었습니다.');
+ const c={id:uid(),title:file.name.replace(/\.txt$/i,'').slice(0,200),readingType:'txt',source:text,questions:[],vocabulary:[],writingPrompt:'',speakingPrompt:''};
+ b.chapters.push(c);selectedChapter=c.id;view='manage';save();render();setStatus('TXT 챕터 등록 완료. 문제를 준비하고 부모 승인 후 학습할 수 있습니다.');
+ }catch(error){alert('TXT 등록 실패: '+error.message)}
+}
 if(a==='addChapter'){let title=$('#chapterTitle').value.trim();if(!title)return alert('챕터 이름을 입력하세요.');let c={id:uid(),title,source:'',questions:[],vocabulary:[],writingPrompt:'',speakingPrompt:''};book().chapters.push(c);selectedChapter=c.id;save();render()}
 if(a==='editChapter'){selectedChapter=cid;draft=null;render()}
-if(a==='savePDF'){const c=chapter(),file=$('#cqOriginalPDF')?.files?.[0];if(!file)return alert('PDF 파일을 선택하세요.');if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf'))return alert('PDF 파일만 등록할 수 있습니다.');if(!file.size||file.size>50*1024*1024)return alert('PDF는 1바이트 이상, 50MB 이하만 등록할 수 있습니다.');const header=new Uint8Array(await file.slice(0,5).arrayBuffer());if(String.fromCharCode(...header)!=='%PDF-')return alert('PDF 형식이 올바르지 않습니다.');try{const expectedContext=pdfContext();await pdfPut(expectedContext,file);const verified=await pdfGet(expectedContext);if(pdfContext()!==expectedContext||chapter()!==c)throw Error('저장 중 챕터가 변경되었습니다.');if(!verified||verified.size!==file.size)throw Error('PDF 저장 확인 실패');c.pdfStored=true;c.pdfName=file.name;save();render();setStatus('원본 PDF 저장 완료 · 학생 읽기 화면에 표시됩니다.')}catch(e){alert('PDF 저장 실패: '+e.message)}return}
+if(a==='savePDF'){const c=chapter(),file=$('#cqOriginalPDF')?.files?.[0];if(!file)return alert('PDF 파일을 선택하세요.');if(file.type!=='application/pdf'&&!file.name.toLowerCase().endsWith('.pdf'))return alert('PDF 파일만 등록할 수 있습니다.');if(!file.size||file.size>50*1024*1024)return alert('PDF는 1바이트 이상, 50MB 이하만 등록할 수 있습니다.');const header=new Uint8Array(await file.slice(0,5).arrayBuffer());if(String.fromCharCode(...header)!=='%PDF-')return alert('PDF 형식이 올바르지 않습니다.');try{const expectedContext=pdfContext();await pdfPut(expectedContext,file);const verified=await pdfGet(expectedContext);if(pdfContext()!==expectedContext||chapter()!==c)throw Error('저장 중 챕터가 변경되었습니다.');if(!verified||verified.size!==file.size)throw Error('PDF 저장 확인 실패');invalidateApproval(c);c.readingType='pdf';c.pdfSha256=await blobDigest(verified);c.pdfStored=true;c.pdfName=file.name;save();render();setStatus('원본 PDF 저장 완료 · 학생 읽기 화면에 표시됩니다.')}catch(e){alert('PDF 저장 실패: '+e.message)}return}
 if(a==='saveSource'){let c=chapter();if(c.source!==$('#sourceText').value){invalidateApproval(c);c.source=$('#sourceText').value;}save();setStatus('AI 문제 생성용 텍스트 저장 완료')}
 if(a==='savePrompts'){let c=chapter(),w=$('#writingPrompt').value,sp=$('#speakingPrompt').value;if(c.writingPrompt!==w||c.speakingPrompt!==sp)invalidateApproval(c);c.writingPrompt=w;c.speakingPrompt=sp;save();setStatus('학습 활동 저장 완료')}
-if(a==='generate'){let c=chapter(),source=$('#sourceText').value.trim();if(source.length<250)return alert('원문 텍스트 250자 이상이 필요합니다.');if(c.source!==source){invalidateApproval(c);c.source=source;}state.code=$('#accessCode').value.trim();draft=null;btn.disabled=true;setStatus('AI 문제를 생성하는 중입니다...');try{const response=await fetch('/api/generate',{method:'POST',headers:{'Content-Type':'application/json','X-CQ-Access':state.code},body:JSON.stringify({title:book().title,chapter:c.title,source:source.slice(0,45000)})});const data=await response.json();if(!response.ok)throw Error(data.error||'AI 서버 오류 '+response.status);if(!Array.isArray(data.questions)||!Array.isArray(data.vocabulary))throw Error('AI 응답 형식이 올바르지 않습니다.');draft={chapterId:c.id,questions:data.questions.map(q=>({kind:q.kind||'inference',text:q.text||q.q||'',options:q.options||q.opts||[],correct:Number(q.correct??q.a??0),sample:q.sample||q.answer||''})),vocabulary:data.vocabulary.map(v=>Array.isArray(v)?{word:v[0],meaning:v[1],example:v[2]||''}:v),writingPrompt:data.writingPrompt||data.writing?.prompt||'',speakingPrompt:(Array.isArray(data.speakingPrompts)?data.speakingPrompts.join('\n'):data.speakingPrompt||data.speaking?.prompt||'')};const issue=cqValidateAIDraft(draft);if(issue){draft=null;throw Error('AI 응답 검증 실패: '+issue)}render();setStatus('AI 초안 생성 완료. 검토 후 승인하세요.')}catch(e){alert('AI 생성 실패: '+e.message);setStatus('AI 생성 실패')}finally{btn.disabled=false}}
-if(a==='approve'){if(!draft)return;let c=chapter();if(!c||draft.chapterId!==c.id)return alert('AI 초안과 현재 챕터가 다릅니다. 다시 생성해 주세요.');const issue=cqValidateAIDraft(draft);if(issue)return alert(issue);c.questions=draft.questions;c.vocabulary=draft.vocabulary;c.writingPrompt=draft.writingPrompt||c.writingPrompt;c.speakingPrompt=draft.speakingPrompt||c.speakingPrompt;invalidateApproval(c);c.approvalReceipt={version:1,sha256:await approvalDigest(c),approvedAt:new Date().toISOString(),scope:'local-only'};draft=null;save();render();alert('이 기기의 학생 화면에 문제가 공개되었습니다. 다른 기기·서버 동기화는 별도 검증이 필요합니다.')}
+if(a==='generate'){let c=chapter(),source=$('#sourceText').value.trim();if(source.length<250)return alert('원문 텍스트 250자 이상이 필요합니다.');if(c.source!==source){invalidateApproval(c);c.source=source;}state.code=$('#accessCode').value.trim();draft=null;btn.disabled=true;setStatus('AI 문제를 생성하는 중입니다...');const expectedBook=selectedBook,expectedChapter=selectedChapter,expectedSource=c.source;try{const response=await CQParentAI.request({title:book().title,chapter:c.title,source:source.slice(0,45000)});if(mode!=='parent'||!parentUnlocked||selectedBook!==expectedBook||selectedChapter!==expectedChapter||chapter()!==c||c.source!==expectedSource)throw Error('AI 생성 중 계정 또는 챕터가 변경되어 초안을 폐기했습니다.');const data=await response.json();if(!response.ok)throw Error(data.error||'AI 서버 오류 '+response.status);if(!Array.isArray(data.questions)||!Array.isArray(data.vocabulary))throw Error('AI 응답 형식이 올바르지 않습니다.');draft={chapterId:c.id,questions:data.questions.map(q=>({kind:q.kind||'inference',text:q.text||q.q||'',options:q.options||q.opts||[],correct:Number(q.correct??q.a??0),sample:q.sample||q.answer||''})),vocabulary:data.vocabulary.map(v=>Array.isArray(v)?{word:v[0],meaning:v[1],example:v[2]||''}:v),writingPrompt:data.writingPrompt||data.writing?.prompt||'',speakingPrompt:(Array.isArray(data.speakingPrompts)?data.speakingPrompts.join('\n'):data.speakingPrompt||data.speaking?.prompt||'')};const issue=cqValidateAIDraft(draft);if(issue){draft=null;throw Error('AI 응답 검증 실패: '+issue)}render();setStatus('AI 초안 생성 완료. 검토 후 승인하세요.')}catch(e){alert('AI 생성 실패: '+e.message);setStatus('AI 생성 실패')}finally{btn.disabled=false}}
+if(a==='approve'){if(!draft)return;let c=chapter();if(!c||draft.chapterId!==c.id)return alert('AI 초안과 현재 챕터가 다릅니다. 다시 생성해 주세요.');const issue=cqValidateAIDraft(draft);if(issue)return alert(issue);c.questions=draft.questions;c.vocabulary=draft.vocabulary;c.writingPrompt=draft.writingPrompt||c.writingPrompt;c.speakingPrompt=draft.speakingPrompt||c.speakingPrompt;invalidateApproval(c);try{await setChapterApproval(c)}catch(error){return alert(error.message)};draft=null;save();render();alert('이 기기의 학생 화면에 문제가 공개되었습니다. 다른 기기·서버 동기화는 별도 검증이 필요합니다.')}
 if(a==='checkPublication'){
  const c=chapter(),currentBook=selectedBook,currentChapter=selectedChapter;
  if(!c||c.id!==cid)return alert('현재 챕터를 다시 선택하세요.');
@@ -352,14 +401,9 @@ if(a==='checkPublication'){
 }
 if(a==='cancelDraft'){draft=null;render()}
 if(a==='approveManual'){
- if(mode!=='parent'||!parentUnlocked)return alert('부모 관리자 잠금 해제 후 승인할 수 있습니다.');
- const c=chapter(),expectedBook=selectedBook,expectedChapter=selectedChapter;
- if(!c||!chapterReady(c))return alert('원본 PDF와 유효한 문제를 먼저 등록하세요.');
+ const c=chapter();if(!c||!chapterMaterialReady(c))return alert('원본 PDF와 유효한 문제를 먼저 등록하세요.');
  if(!confirm('현재 챕터의 문제 '+c.questions.length+'개를 검토하고 승인하시겠습니까?'))return;
- const hash=await approvalDigest(c);
- if(mode!=='parent'||!parentUnlocked||selectedBook!==expectedBook||selectedChapter!==expectedChapter||chapter()!==c||hash!==await approvalDigest(c))return alert('승인 도중 자료가 변경되어 중단했습니다.');
- c.approvalReceipt={version:1,sha256:hash,approvedAt:new Date().toISOString(),scope:'local-only'};
- save();render();alert('현재 문제의 부모 승인이 완료됐습니다. 서버 게시 및 다른 기기 동기화는 별도입니다.');
+ try{await setChapterApproval(c);save();render();alert('부모 승인이 완료됐습니다.');}catch(error){alert(error.message)}
 }
 if(a==='manualQuestion'){let text=prompt('문제 내용을 입력하세요.');if(!text)return;let c=chapter();invalidateApproval(c);c.questions.push({kind:'inference',text,sample:''});save();render()}
 if(a==='assign'){let d=btn.dataset.day,v=$('#week-'+d).value;state.weekly[weekKey()]??={};state.weekly[weekKey()][state.who]??={};if(v){let [bookId,chapterId]=v.split('|');state.weekly[weekKey()][state.who][d]={bookId,chapterId}}else delete state.weekly[weekKey()][state.who][d];save();render()}
@@ -374,10 +418,10 @@ document.addEventListener('click',handleClick);
 document.addEventListener('input',e=>{let t=e.target;if((t.matches('[data-draftq]')||t.matches('[data-feedback]'))&&(!parentUnlocked||mode!=='parent'))return;if(t.matches('[data-q]')&&!rec().submitted){rec().answers[t.dataset.q]=t.value;save()}if((t.dataset.field==='writing'||t.dataset.field==='speaking')&&!rec().submitted){rec()[t.dataset.field]=t.value;save()}if(t.matches('[data-draftq]')&&draft){draft.questions[Number(t.dataset.draftq)].text=t.value}if(t.matches('[data-feedback]')){state.records[t.dataset.feedback].feedback=t.value;state.records[t.dataset.feedback].feedbackReleased=false;save()}});
 document.addEventListener('change',async e=>{let t=e.target;
 if((t.id==='assignStudent'||t.id==='focusBook'||t.dataset.active||t.dataset.bookstudent||t.id==='v3Input'||t.id==='restoreInput')&&(!parentUnlocked||mode!=='parent')){alert('부모 관리자 인증이 필요합니다.');render();return}
-if(t.id==='student'||t.id==='assignStudent'){changeStudent(t.value)}if(t.id==='focusBook'){state.focus??={};state.focus[state.who]=t.value;save();render()}if(t.dataset.release){const r=state.records[t.dataset.release];if(r&&r.submitted&&parentUnlocked&&mode==='parent'){if(t.checked&&!String(r.feedback||'').trim()){alert('피드백을 작성한 뒤 공개해 주세요.');render();return}r.feedbackReleased=t.checked;save();render()}}if(t.dataset.field==='read'&&!rec().submitted){rec().read=t.checked;save()}if(t.dataset.active){let s=state.students.find(x=>x.name===t.dataset.active);s.active=t.checked;save();render()}if(t.dataset.bookstudent){let b=state.books.find(x=>x.id===t.dataset.bookstudent),n=t.dataset.name;b.students=t.checked?[...new Set([...b.students,n])]:b.students.filter(x=>x!==n);save()}if(t.id==='textFile')await extractFile(t.files[0]);if(t.id==='v3Input'){let f=t.files[0];if(!f)return;try{let old=JSON.parse(await f.text()),result=CQCore.migrateV3(old,state);if(!confirm(`V3 책 ${result.importedBooks}권, 학습 기록 ${result.importedRecords}개를 가져올까요?\n기존 V4 기록은 유지됩니다. 녹음 ${result.skippedAudio}개는 가져오지 않습니다.`))return;state=result.state;save();render();alert('V3 학습 데이터 가져오기 완료')}catch(err){alert('V3 이전 실패: '+err.message)}}if(t.id==='restoreInput'){let f=t.files[0];if(!f)return;try{let v=JSON.parse(await f.text());if(v.format!=='chapter-quest-v4'||!v.state?.books)throw Error('이 버전의 백업 파일이 아닙니다.');if(!confirm('현재 V4 데이터를 백업 파일로 교체할까요?'))return;state=v.state;save();view='home';render()}catch(err){alert('복원 실패: '+err.message)}}});
-$('#studentBtn').onclick=()=>{mode='student';parentUnlocked=false;view='home';render()};
-$('#parentBtn').onclick=async()=>{if(!await requestParentAccess())return;mode='parent';view='home';render()};
-initState();render();
+if(t.id==='student'||t.id==='assignStudent'){changeStudent(t.value)}if(t.id==='focusBook'){state.focus??={};state.focus[state.who]=t.value;save();render()}if(t.dataset.release){const r=state.records[t.dataset.release];if(r&&r.submitted&&parentUnlocked&&mode==='parent'){if(t.checked&&!String(r.feedback||'').trim()){alert('피드백을 작성한 뒤 공개해 주세요.');render();return}r.feedbackReleased=t.checked;save();render()}}if(t.dataset.field==='read'&&!rec().submitted){rec().read=t.checked;save()}if(t.dataset.active){let s=state.students.find(x=>x.name===t.dataset.active);s.active=t.checked;save();render()}if(t.dataset.bookstudent){let b=state.books.find(x=>x.id===t.dataset.bookstudent),n=t.dataset.name;b.students=t.checked?[...new Set([...b.students,n])]:b.students.filter(x=>x!==n);save()}if(t.id==='textFile')await extractFile(t.files[0]);if(t.id==='v3Input'){let f=t.files[0];if(!f)return;try{let old=JSON.parse(await f.text()),result=CQCore.migrateV3(old,state);if(!confirm(`V3 책 ${result.importedBooks}권, 학습 기록 ${result.importedRecords}개를 가져올까요?\n기존 V4 기록은 유지됩니다. 녹음 ${result.skippedAudio}개는 가져오지 않습니다.`))return;state=result.state;save();refreshApprovals().catch(()=>{});render();alert('V3 학습 데이터 가져오기 완료')}catch(err){alert('V3 이전 실패: '+err.message)}}if(t.id==='restoreInput'){let f=t.files[0];if(!f)return;try{let v=JSON.parse(await f.text());if(v.format!=='chapter-quest-v4'||!v.state?.books)throw Error('이 버전의 백업 파일이 아닙니다.');if(!confirm('현재 V4 데이터를 백업 파일로 교체할까요?'))return;state=v.state;save();refreshApprovals().catch(()=>{});view='home';render()}catch(err){alert('복원 실패: '+err.message)}}});
+$('#studentBtn').onclick=()=>{if(window.CQStudentSessionControl&&!CQStudentSessionControl.canLeave())return;window.dispatchEvent(new Event('cq:context-reset'));mode='student';parentUnlocked=false;view='home';render()};
+$('#parentBtn').onclick=async()=>{if(window.CQStudentSessionControl&&!CQStudentSessionControl.canLeave())return;if(!await requestParentAccess())return;window.dispatchEvent(new Event('cq:context-reset'));mode='parent';view='home';render()};
+initState();render();refreshApprovals().catch(()=>{});
 </script><script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js" defer></script><script>window.addEventListener('load',()=>{if(window.pdfjsLib)pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js'})</script>
 <script>
 /* Chapter Quest V4: optional authenticated cloud sync adapter.
@@ -544,8 +588,24 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
      session.expiresAt=Date.now()+(result.expires_in||3600)*1000;
      CQCloud.updateToken(session.token);
    })();
-   try{await refreshPromise}finally{refreshPromise=null}
+   const pending=refreshPromise;try{await pending}finally{if(refreshPromise===pending)refreshPromise=null}
  }
+ const parentAIRequests=new Set();
+ window.CQParentAI=Object.freeze({async request(payload){
+  if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('부모 Supabase 로그인이 필요합니다.');
+  const owner=cloudIdentity();await refreshIfNeeded();if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다.');
+  const controller=new AbortController();parentAIRequests.add(controller);
+  try{
+   const response=await fetch('/api/generate',{method:'POST',signal:controller.signal,headers:{'Content-Type':'application/json',Authorization:'Bearer '+session.token,'X-CQ-Access':state.code||''},body:JSON.stringify(payload)});
+   const text=await response.text();if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되어 AI 응답을 폐기했습니다.');return new Response(text,{status:response.status,headers:response.headers});
+  }finally{parentAIRequests.delete(controller);}
+ }});
+ window.addEventListener('cq:context-reset',()=>{
+  for(const controller of parentAIRequests)controller.abort();parentAIRequests.clear();
+  sessionGeneration++;session=null;auto=false;dirty=false;baseline=undefined;aligned=false;refreshPromise=null;clearTimeout(syncTimer);CQCloud.reset();
+  submissions=[];pendingChildren=[];issuedInvite='';pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];draft=null;state.code='';
+  queueMicrotask(()=>{if(mode==='parent'&&!session)render();});
+ });
  const panel=()=>`<section class="card" id="cloudPanel"><h2>☁️ 부모 클라우드 백업 (선택)</h2><p class="note" id="stage131Mode">저장 방식: 로컬 학습 + 부모 클라우드 백업(선택). 로그인 후 백업/복원은 130차 저장소 어댑터를 경유합니다. 학생 학습 화면은 여전히 로컬 모드이며 서버 권한 검증은 미완료입니다.</p><p class="muted">Supabase 로그인 후 명시적으로 저장·복원합니다. 자동 동기화는 로그인 후 선택적으로 활성화할 수 있습니다. 다른 기기와의 실시간 병합은 지원하지 않습니다.</p>
  <div class="grid"><label>프로젝트 URL<input class="wide" id="cloudUrl" placeholder="https://xxxx.supabase.co" value="${escapeHtml(project?.url||'')}"></label><label>공개 키 (anon/publishable)<input class="wide" id="cloudKey" value="${escapeHtml(project?.anonKey||'')}"></label></div>
  <div class="row"><button data-cloud="project">프로젝트 설정 저장</button><span class="muted">service_role 비밀키는 절대 입력하지 마세요.</span></div>
@@ -556,11 +616,11 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
  const parentStatus=t=>{const e=document.getElementById('cqParentFeedbackStatus');if(e)e.textContent=t};
  const invitationPanel=()=>`<section class="card"><h2>🔗 학생 계정 초대·승인·연결 해제 (시험 기능)</h2><p class="muted">부모 Supabase 로그인 후 일회용 코드를 발급하세요. 코드는 15분 유효하며 학생이 요청한 뒤 부모가 승인해야 합니다. 연결 해제 후 재승인은 기존에 초대코드를 사용한 동일 계정에만 허용됩니다.</p><label>새 학생 계정 이메일 <input id="cqNewStudentEmail" type="email" autocomplete="off"></label><button data-parent-invite="account">학생 계정 초대 메일 발송</button><p class="muted">학생이 이메일 링크에서 비밀번호를 설정한 뒤, 아래 일회용 코드로 연결을 요청해야 합니다. 계정 발급만으로 학습 권한이 생기지 않습니다.</p><button data-parent-invite="issue">초대코드 발급</button><p id="cqInviteCode" style="overflow-wrap:anywhere">${issuedInvite?escapeHtml(issuedInvite):'발급된 코드 없음'}</p><button data-parent-invite="refresh">연결 요청 불러오기</button><div>${pendingChildren.map(c=>`<div class="book"><b>${escapeHtml(c.student_name)}</b> · ${c.active?'승인됨':'비활성 · 승인 대기'} ${c.active?`<button data-parent-invite="revoke" data-uid="${escapeHtml(c.child_user_id)}">연결 해제</button>`:`<button data-parent-invite="approve" data-uid="${escapeHtml(c.child_user_id)}">승인·재활성화</button>`}</div>`).join('')}</div><p id="cqInviteStatus" class="status"></p></section>`;
  const inviteStatus=t=>{const n=document.getElementById('cqInviteStatus');if(n)n.textContent=t};
- const inviteCfg=()=>({url:project?.url,anonKey:project?.anonKey,getAccessToken:async()=>{await refreshIfNeeded();return session?.token}});
+ const inviteCfg=()=>{const owner=cloudIdentity();return {url:project?.url,anonKey:project?.anonKey,getAccessToken:async()=>{await refreshIfNeeded();if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다.');return session?.token}}};
  const publicationChildrenPanel=()=>`<section class="card"><h2>📤 서버 게시 대상 학생</h2><p class="muted">연결 요청 불러오기를 누른 뒤 활성 학생을 선택하세요. 서버 게시 기능은 P0 마이그레이션이 새 테스트 프로젝트에 적용된 경우에만 작동합니다.</p>${pendingChildren.filter(c=>c.active).map(c=>`<label><input type="checkbox" data-publish-child="${escapeHtml(c.child_user_id)}"> ${escapeHtml(c.student_name||c.child_user_id)}</label>`).join('')||'<p>활성 연결 학생 목록을 먼저 불러오세요.</p>'}</section>`;
  let pdfServerChapters=[],pdfServerStudents=[],pdfServerAssignments=[];
  const pdfParentStatus=message=>{const el=document.getElementById('cqPdfParentStatus');if(el)el.textContent=message};
- const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정 (개발 검증용)</h2><p class="note">Supabase 서버 기능이 배포된 후에만 작동합니다. 기기 데모에서 선택한 책·챕터 ID로 PDF와 승인 문제를 연결합니다. 문제 게시 전 PDF를 먼저 등록하세요. PDF는 비공개 저장소에 업로드하며 AI용 텍스트는 별도 관리합니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><span>선택한 챕터: <strong>${escapeHtml(chapter()?.title||'책에서 챕터를 먼저 선택하세요')}</strong></span><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF 등록·검증</button></div><p class="muted">최대 50MB · PDF 파일만 가능. 업로드·서버 검증이 끝나야 배정할 수 있습니다.</p>${session&&pdfServerStudents.length===0?'<p class="note">등록된 서버 학생 연결이 없습니다. 기존 초대코드로 연결한 뒤 부모가 승인한 학생만 표시됩니다. 서버 학생 연결을 검증하기 전에는 배정할 수 없습니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'PDF 검증 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row"><select data-pdf-student="${i}"><option value="">학생 선택</option>${pdfServerStudents.map(x=>`<option value="${escapeHtml(x.student_user_id)}">서버 학생 ID: ${escapeHtml(x.student_user_id)}</option>`).join('')}</select><button data-pdf-parent="assign" data-index="${i}" ${c.ready&&session&&pdfServerStudents.length?'':'disabled'}>학생 배정</button><button data-pdf-parent="unassign" data-index="${i}" ${session?'':'disabled'}>배정 취소</button>${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
+ const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정 (개발 검증용)</h2><p class="note">Supabase 서버 기능이 배포된 후에만 작동합니다. 기기 데모에서 선택한 책·챕터 ID로 PDF와 승인 문제를 연결합니다. 문제 게시 전 PDF를 먼저 등록하세요. PDF는 비공개 저장소에 업로드하며 AI용 텍스트는 별도 관리합니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><span>선택한 챕터: <strong>${escapeHtml(chapter()?.title||'책에서 챕터를 먼저 선택하세요')}</strong></span><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF 등록·검증</button></div><p class="muted">최대 50MB · PDF 파일만 가능. 업로드·서버 검증이 끝나야 배정할 수 있습니다.</p>${session&&pdfServerStudents.length===0?'<p class="note">등록된 서버 학생 연결이 없습니다. 기존 초대코드로 연결한 뒤 부모가 승인한 학생만 표시됩니다. 서버 학생 연결을 검증하기 전에는 배정할 수 없습니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'원문 준비 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row"><select data-pdf-student="${i}"><option value="">학생 선택</option>${pdfServerStudents.map(x=>`<option value="${escapeHtml(x.student_user_id)}">서버 학생 ID: ${escapeHtml(x.student_user_id)}</option>`).join('')}</select><button data-pdf-parent="assign" data-index="${i}" ${c.ready&&session&&pdfServerStudents.length?'':'disabled'}>학생 배정</button><button data-pdf-parent="unassign" data-index="${i}" ${session?'':'disabled'}>배정 취소</button>${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
  async function pdfParentCall(action,args){
    if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('부모 계정으로 로그인해야 합니다.');
    const owner=cloudIdentity();
@@ -641,10 +701,10 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
  const feedbackPanel=()=>`<section class="card" id="cqParentFeedback"><h2>학생 제출·피드백 관리 (서버)</h2><p class="muted">로그인한 부모 계정의 제출만 조회합니다. 기존 로컬 제출 기록과는 별개입니다.</p><button data-parent-feedback="list" ${session?'':'disabled'}>제출 기록 불러오기</button><div>${submissions.map((r,i)=>`<div class="book"><h3>${escapeHtml(r.student_name||r.child_user_id)} · ${escapeHtml(r.chapter_title||r.chapter_uuid)}</h3><p>제출: ${escapeHtml(r.submitted_at||'')}</p><details><summary>제출 답변 보기</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(JSON.stringify(r.answers??{},null,2))}</pre></details><label>부모 피드백<textarea data-parent-feedback-text="${i}" rows="3">${escapeHtml(r.feedback||'')}</textarea></label><label><input type="checkbox" data-parent-feedback-release="${i}" ${r.feedback_released?'checked':''}> 학생에게 공개</label><button data-parent-feedback="save" data-index="${i}">피드백 저장</button><button data-parent-feedback="audio" data-index="${i}">녹음 재생</button><div data-audio-player="${i}"></div></div>`).join('')}</div><p id="cqParentFeedbackStatus" class="status"></p></section>`;
  async function parentRpc(name,args={}){
    if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('부모 관리자 로그인이 필요합니다.');
-   await refreshIfNeeded();
+   const owner=cloudIdentity();await refreshIfNeeded();if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다.');
    const response=await fetch(project.url+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+session.token,'Content-Type':'application/json'},body:JSON.stringify(args)});
-   if(!response.ok){const body=await response.json().catch(()=>({}));throw Error(body.message||'서버 요청 실패: '+response.status)}
-   return response.json();
+   const data=await response.json().catch(()=>({}));if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되어 응답을 폐기했습니다.');
+   if(!response.ok)throw Error(data.message||'서버 요청 실패: '+response.status);return data;
  }
  // Stage95: authenticated parent UI -> immutable approval snapshot -> approved publication.
  // The stage94 candidate RPCs must be separately reviewed and installed in a TEST project.
@@ -667,13 +727,6 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
    }
    return {questions,answerKey};
  }
- document.addEventListener('change',async e=>{
-   if(e.target?.id==='cqVoiceManifestImport'){const f=e.target.files?.[0];e.target.value='';voiceImportManifest=null;const expectedUid=session?.uid,expectedUuid=el('cqChildWork')?.dataset.uuid,expectedGeneration=childGeneration;try{if(!f)throw Error('검증 정보 파일을 선택하지 않았습니다.');if(f.size>4096)throw Error('검증 정보 파일 크기가 올바르지 않습니다.');const parsed=JSON.parse(await f.text());if(!session||session.uid!==expectedUid||childGeneration!==expectedGeneration||el('cqChildWork')?.dataset.uuid!==expectedUuid)throw Error('파일을 읽는 동안 학생 또는 챕터가 변경되었습니다.');if(!parsed||parsed.format!=='chapterquest-voice-backup'||parsed.version!==1||parsed.uid!==expectedUid||parsed.chapterUuid!==expectedUuid)throw Error('현재 학생·챕터의 검증 정보가 아닙니다.');voiceImportManifest=parsed;voiceNotice('검증 정보 선택 완료. 이어서 녹음 파일을 선택하세요.');el('cqVoiceImport')?.click();}catch(err){voiceImportManifest=null;voiceNotice('검증 정보 오류: '+err.message)}return;}
-   if(e.target?.id!=='cqVoiceImport')return;
-   const file=e.target.files?.[0];e.target.value='';
-   if(!file){voiceImportManifest=null;voiceNotice('녹음 파일을 선택하지 않았습니다. 복원하려면 검증 정보 파일부터 다시 선택하세요.');return;}
-   try{await restoreVoiceBackup(file)}catch(err){voiceNotice('복구 실패: '+err.message)}finally{voiceImportManifest=null;}
- });
  document.addEventListener('click',async e=>{
    const button=e.target.closest('[data-parent-publish]');if(!button)return;
    if(publicationBusy)return;
@@ -691,6 +744,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
      if(!selected.length)throw Error('게시할 학생을 한 명 이상 선택하세요.');
      pendingTargetChildren=[...selected];
      const {questions,answerKey}=publicationPayload(c);
+     if(c.readingType==='txt')await parentRpc('cq_v4_register_text_chapter',{p_book_id:currentBook,p_chapter_id:currentChapter,p_title:c.title,p_text:c.source});
      if(cloudIdentity()!==owner||selectedBook!==currentBook||selectedChapter!==currentChapter||chapter()!==c)throw Error('계정 또는 챕터가 변경되었습니다.');
      if(!await isApprovalCurrent(c))throw Error('게시 중 학습 자료가 변경되었습니다.');
      // Stage98: stable per-account/per-content request key, persisted before network I/O.
@@ -742,6 +796,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-parent-invite]');if(!b)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project){inviteStatus('부모 Supabase 로그인이 필요합니다.');return;}
+  const owner=cloudIdentity();const current=()=>{if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다.');};
   b.disabled=true;
   try{
    if(b.dataset.parentInvite==='account'){
@@ -752,29 +807,29 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
      if(!response.ok)throw Error('계정 초대 메일 요청 실패 ('+response.status+')');
      inviteStatus('계정 초대 메일을 요청했습니다. 학생의 메일 수신·비밀번호 설정 후 별도 초대코드 연결과 승인이 필요합니다.');
    }else if(b.dataset.parentInvite==='issue'){
-     issuedInvite=await CQInvitationAPI.issue(inviteCfg());
+     const token=await CQInvitationAPI.issue(inviteCfg());current();issuedInvite=token;
      render();inviteStatus('15분 유효한 초대코드가 발급됐습니다. 학생에게만 전달하세요.');
    }else if(b.dataset.parentInvite==='refresh'){
      await refreshIfNeeded();
      const r=await fetch(project.url+'/rest/v1/cq_v4_child_access?select=child_user_id,student_name,active&parent_user_id=eq.'+encodeURIComponent(session.uid),{headers:{apikey:project.anonKey,Authorization:'Bearer '+session.token}});
      if(!r.ok)throw Error('연결 요청 조회 실패: '+r.status);
-     pendingChildren=await r.json();render();inviteStatus('연결 요청 '+pendingChildren.length+'건');
+     const rows=await r.json();current();pendingChildren=rows;render();inviteStatus('연결 요청 '+pendingChildren.length+'건');
    }else if(b.dataset.parentInvite==='revoke'){
      if(!pendingChildren.some(c=>c.child_user_id===b.dataset.uid&&c.active))throw Error('활성 연결 학생이 아닙니다.');
      if(!confirm('이 학생의 서버 학습 접근을 차단할까요? 기존 학습 기록은 보존됩니다.'))return;
      const ok=await CQInvitationAPI.revoke(inviteCfg(),b.dataset.uid);
-     if(!ok)throw Error('연결 해제되지 않았습니다. 목록을 다시 불러오세요.');
+     current();if(!ok)throw Error('연결 해제되지 않았습니다. 목록을 다시 불러오세요.');
      pendingChildren=pendingChildren.map(c=>c.child_user_id===b.dataset.uid?{...c,active:false}:c);
      render();inviteStatus('학생 연결이 비활성화되었습니다. 기존 학습 기록은 유지됩니다.');
    }else if(b.dataset.parentInvite==='approve'){
      if(!pendingChildren.some(c=>c.child_user_id===b.dataset.uid&&!c.active))throw Error('승인 대기 중인 학생이 아닙니다.');
      if(!confirm('선택한 학생 계정을 승인할까요?'))return;
      const ok=await CQInvitationAPI.approve(inviteCfg(),b.dataset.uid);
-     if(!ok)throw Error('승인되지 않았습니다. 요청을 새로 불러오세요.');
+     current();if(!ok)throw Error('승인되지 않았습니다. 요청을 새로 불러오세요.');
      pendingChildren=pendingChildren.map(c=>c.child_user_id===b.dataset.uid?{...c,active:true}:c);
      render();inviteStatus('학생 계정 승인 완료');
    }
-  }catch(err){inviteStatus('오류: '+err.message)}finally{b.disabled=false}
+  }catch(err){if(cloudIdentity()===owner)inviteStatus('오류: '+err.message)}finally{b.disabled=false}
  });
  document.addEventListener('click',async e=>{
    const button=e.target.closest('[data-parent-feedback]');if(!button)return;
@@ -822,18 +877,18 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
     const url=document.getElementById('cloudUrl').value.trim().replace(/\/$/,'');
     const anonKey=document.getElementById('cloudKey').value.trim();
     if(!/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url)||!anonKey)throw Error('Supabase URL과 공개 키를 확인하세요.');
-    submissions=[];pendingChildren=[];issuedInvite="";pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];sessionGeneration++;project={url,anonKey};auto=false;dirty=false;clearTimeout(syncTimer);baseline=undefined;aligned=false;localStorage.setItem('cq_v4_cloud_project',JSON.stringify(project));session=null;CQCloud.reset();render();status('프로젝트 설정 저장 완료');
+    window.dispatchEvent(new Event('cq:context-reset'));submissions=[];pendingChildren=[];issuedInvite="";pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];sessionGeneration++;project={url,anonKey};auto=false;dirty=false;clearTimeout(syncTimer);baseline=undefined;aligned=false;localStorage.setItem('cq_v4_cloud_project',JSON.stringify(project));session=null;CQCloud.reset();render();status('프로젝트 설정 저장 완료');
    }else if(action==='login'){
     if(!project)throw Error('먼저 프로젝트 설정을 저장하세요.');
     const email=document.getElementById('cloudEmail').value.trim(),password=document.getElementById('cloudPassword').value;
     if(!email||!password)throw Error('이메일과 비밀번호를 입력하세요.');
     submissions=[];pendingChildren=[];issuedInvite="";pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];auto=false;dirty=false;clearTimeout(syncTimer);sessionGeneration++;session=null;CQCloud.reset();
-    const loginGeneration=sessionGeneration;const data=await auth('token?grant_type=password',{email,password});
+    window.dispatchEvent(new Event('cq:context-reset'));const loginGeneration=sessionGeneration;const data=await auth('token?grant_type=password',{email,password});
     if(loginGeneration!==sessionGeneration)throw Error('프로젝트 설정이 변경되어 로그인을 취소했습니다.');
     if(!data.access_token||!data.user?.id)throw Error('로그인 정보를 확인하지 못했습니다.');
     sessionGeneration++;session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};baseline=undefined;auto=false;aligned=false;CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);
     const loginSession=session;const existing=await parentStore().loadParentSnapshot();if(session!==loginSession)throw Error('로그인 상태가 변경되었습니다.');baseline=existing?.updated_at??null;render();status(existing?'로그인 성공 · 클라우드 기록이 있습니다. 복원 또는 수동 저장 후 자동 동기화를 켜세요.':'로그인 성공 · 클라우드 기록이 없습니다. 자동 동기화를 켤 수 있습니다.');
-   }else if(action==='logout'){submissions=[];pendingChildren=[];issuedInvite="";pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];sessionGeneration++;session=null;auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
+   }else if(action==='logout'){window.dispatchEvent(new Event('cq:context-reset'));submissions=[];pendingChildren=[];issuedInvite="";pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];sessionGeneration++;session=null;auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
    else if(action==='push'){
     if(!session)throw Error('로그인이 필요합니다.');
     if(!confirm('현재 이 기기의 기록을 클라우드에 저장할까요? 다른 기기의 변경 사항이 감지되면 덮어쓰지 않습니다.'))return;
@@ -849,7 +904,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
     if(!Array.isArray(restored.books)||!Array.isArray(restored.students)||!restored.records||typeof restored.records!=='object'||Array.isArray(restored.records)||!restored.weekly||typeof restored.weekly!=='object')throw Error('클라우드 기록의 구조가 올바르지 않습니다. 기존 기록을 유지합니다.');
     auto=false;dirty=false;clearTimeout(syncTimer);restored.code='';
     if(cloudIdentity()!==owner)throw Error('로그인 계정이 변경되었습니다. 복원을 취소합니다.');
-    state=restored;baseline=snapshot.updated_at;aligned=true;save();selectedBook='';selectedChapter='';view='home';render();status('클라우드 복원 완료 · 기존 기록 백업 파일을 보관하세요.');
+    state=restored;refreshApprovals().catch(()=>{});baseline=snapshot.updated_at;aligned=true;save();selectedBook='';selectedChapter='';view='home';render();status('클라우드 복원 완료 · 기존 기록 백업 파일을 보관하세요.');
    }
   }catch(err){status('오류: '+err.message)}finally{busy=false;b.disabled=false}
  });
@@ -922,6 +977,7 @@ if(typeof module!=='undefined'&&module.exports)module.exports={createStorage};
     }
     return Object.freeze({
       assignedChapters:()=>rpc('cq_v4_my_chapters'),
+      reading:(chapterUuid,options={})=>rpc('cq_v4_my_reading',{p_chapter_uuid:chapterUuid},options),
       chapterActivities:(chapterUuid,options={})=>rpc('cq_v4_my_chapter_activities',{p_chapter_uuid:chapterUuid},options),
       submit:(chapterUuid,answers,options={})=>rpc('cq_v4_submit_answers',{p_chapter_uuid:chapterUuid,p_answers:answers},options),
       submission:(chapterUuid,options={})=>rpc('cq_v4_my_submission',{p_chapter_uuid:chapterUuid},options)
@@ -1033,6 +1089,16 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
 /* Optional child account connection: isolated from parent credentials and local student selector. */
 (()=>{
  let session=null, childApi=null, chapters=[],busy=false, voiceRecorder=null, voiceStream=null, voiceChunks=[], voiceBlob=null, voiceChapter=null, uploadedAudio=new Set(), childGeneration=0, activeChildUpload=null, activeChildSubmit=null;
+ const authSession=CQStudentSession.createSession({onReset:resetChildSession,onUpdate:value=>{session=value;}});
+ function resetChildSession(){
+  childGeneration++;cancelChildUpload();discardUnsavedVoice();
+  if(voiceRecorder?.state==='recording')voiceRecorder.stop();
+  voiceStream?.getTracks().forEach(track=>track.stop());voiceStream=null;voiceRecorder=null;voiceChunks=[];voiceBlob=null;voiceChapter=null;voiceImportManifest=null;
+  uploadedAudio.clear();session=null;childApi=null;chapters=[];busy=false;
+  queueMicrotask(()=>{if(mode==='student'&&!session)draw();});
+ }
+ window.addEventListener('cq:context-reset',()=>{authSession.reset();});
+ window.CQStudentSessionControl=Object.freeze({canLeave:()=>confirmVoiceDeparture()});
  let serverPdfController=null,serverPdfDocument=null,serverPdfObjectUrl=null;
  function clearServerPdf(){
    if(serverPdfController){serverPdfController.abort();serverPdfController=null;}
@@ -1048,7 +1114,8 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    try{
      const project=JSON.parse(localStorage.getItem('cq_v4_cloud_project')||'null');
      if(!project?.url||!project?.anonKey)throw Error('Supabase 프로젝트 설정이 없습니다.');
-     const transport=window.CQServerPDF.createPdfTransport({url:project.url,anonKey:project.anonKey,getAccessToken:()=>session?.uid===uid?session.token:null});
+     const epoch=authSession.epoch();
+     const transport=window.CQServerPDF.createPdfTransport({url:project.url,anonKey:project.anonKey,getAccessToken:()=>session?.uid===uid?authSession.token(epoch):null,fetchImpl:(url,options)=>authSession.request(url,options,epoch)});
      const bytes=await transport.getPdf(chapterUuid,{signal:controller.signal});
      if(!current())return;
      const blob=new Blob([bytes],{type:'application/pdf'});
@@ -1163,7 +1230,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    if(!validAudioHash(expectedSha256))throw Error('기존 녹음 파일의 무결성 정보를 확인할 수 없습니다.');
    const project=JSON.parse(localStorage.getItem('cq_v4_cloud_project')||'null');
    if(!project?.url||!project?.anonKey||!session?.token||session.uid!==uid)throw Error('학생 인증이 필요합니다.');
-   const response=await fetch(project.url+'/storage/v1/object/sign/cq-v4-speaking/'+uid+'/'+uuid+'.'+ext,{
+   const response=await authSession.request(project.url+'/storage/v1/object/sign/cq-v4-speaking/'+uid+'/'+uuid+'.'+ext,{
      method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+session.token,'Content-Type':'application/json'},
      body:JSON.stringify({expiresIn:30})
    });
@@ -1171,9 +1238,9 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    const body=await response.json();
    if(!body.signedURL)return false;
    // A matching object path is insufficient: a different recording may exist there.
-   const signedUrl=new URL(body.signedURL,project.url+'/storage/v1/');
+   const signedUrl=new URL(body.signedURL.startsWith('/object/')?project.url+'/storage/v1'+body.signedURL:body.signedURL,project.url);
    if(signedUrl.origin!==new URL(project.url).origin)throw Error('녹음 확인 주소가 올바르지 않습니다.');
-   const audioResponse=await fetch(signedUrl.href);
+   const audioResponse=await authSession.request(signedUrl.href);
    if(!audioResponse.ok)return false;
    const bytes=await audioResponse.arrayBuffer();
    const actual=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
@@ -1248,6 +1315,13 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    }catch(err){if(session?.uid===uid&&childGeneration===generation)voiceNotice('복구 파일 저장 실패: '+err.message+' · 원본 파일을 기기에 보관하세요.');}
    finally{finishVoiceSave();}
  }
+ document.addEventListener('change',async e=>{
+   if(e.target?.id==='cqVoiceManifestImport'){const f=e.target.files?.[0];e.target.value='';voiceImportManifest=null;const expectedUid=session?.uid,expectedUuid=el('cqChildWork')?.dataset.uuid,expectedGeneration=childGeneration;try{if(!f)throw Error('검증 정보 파일을 선택하지 않았습니다.');if(f.size>4096)throw Error('검증 정보 파일 크기가 올바르지 않습니다.');const parsed=JSON.parse(await f.text());if(!session||session.uid!==expectedUid||childGeneration!==expectedGeneration||el('cqChildWork')?.dataset.uuid!==expectedUuid)throw Error('파일을 읽는 동안 학생 또는 챕터가 변경되었습니다.');if(!parsed||parsed.format!=='chapterquest-voice-backup'||parsed.version!==1||parsed.uid!==expectedUid||parsed.chapterUuid!==expectedUuid)throw Error('현재 학생·챕터의 검증 정보가 아닙니다.');voiceImportManifest=parsed;voiceNotice('검증 정보 선택 완료. 이어서 녹음 파일을 선택하세요.');el('cqVoiceImport')?.click();}catch(err){voiceImportManifest=null;voiceNotice('검증 정보 오류: '+err.message)}return;}
+   if(e.target?.id!=='cqVoiceImport')return;
+   const file=e.target.files?.[0];e.target.value='';
+   if(!file){voiceImportManifest=null;voiceNotice('녹음 파일을 선택하지 않았습니다. 복원하려면 검증 정보 파일부터 다시 선택하세요.');return;}
+   try{await restoreVoiceBackup(file)}catch(err){voiceNotice('복구 실패: '+err.message)}finally{voiceImportManifest=null;}
+ });
  const voiceNotice=(message)=>{const n=document.getElementById('cqVoiceStatus');if(n)n.textContent=message;};
  const cleanupQueue=CQAudioCleanupQueue.createCleanupQueue({
    storage:localStorage,
@@ -1309,19 +1383,16 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
   if(!project?.url||!project?.anonKey)throw Error('부모 관리자에서 Supabase 프로젝트 공개 설정을 먼저 저장해야 합니다.');
   const email=el('cqChildEmail').value.trim(),password=el('cqChildPassword').value;
   if(!email||!password)throw Error('학생 이메일과 비밀번호를 입력하세요.');
-  const response=await fetch(project.url+'/auth/v1/token?grant_type=password',{
-   method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},body:JSON.stringify({email,password})});
-  if(!response.ok)throw Error('학생 로그인 실패 ('+response.status+')');
-  const data=await response.json();if(!data.access_token||!data.user?.id)throw Error('인증 정보가 없습니다.');
-  childGeneration++;cancelChildUpload();session={token:data.access_token,uid:data.user.id};
-  childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:()=>session?.token});
+  window.dispatchEvent(new Event('cq:context-reset'));
+  await authSession.login(project,email,password);const epoch=authSession.epoch();
+  childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:()=>authSession.token(epoch),fetchImpl:(url,options)=>authSession.request(url,options,epoch)});
   chapters=[];draw();status('로그인 성공 · 계정 인증과 실제 학생 권한은 서버 정책으로 확인됩니다.');
  }
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-child]');if(!b||mode!=='student')return;
   if(b.dataset.child==='logout'){
     if(!confirmVoiceDeparture())return;
-    invalidateVoiceForNavigation();cancelChildUpload();uploadedAudio.clear();session=null;childApi=null;chapters=[];
+    window.dispatchEvent(new Event('cq:context-reset'));
     draw();status('로그아웃했습니다. 진행 중인 녹음 업로드는 취소를 요청했습니다.');return;
   }
   if(busy)return;
@@ -1335,7 +1406,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
      if(!/^[0-9a-f]{48}$/.test(code||''))throw Error('초대코드 형식을 확인하세요.');
      if(!name||name.length>80)throw Error('학생 이름을 입력하세요.');
      const project=JSON.parse(localStorage.getItem('cq_v4_cloud_project')||'null');
-     const ok=await CQInvitationAPI.claim({url:project?.url,anonKey:project?.anonKey,getAccessToken:()=>session.token},code,name);
+     const ok=await CQInvitationAPI.claim({url:project?.url,anonKey:project?.anonKey,getAccessToken:()=>authSession.token()},code,name);
      if(!ok)throw Error('초대코드가 만료됐거나 이미 사용됐습니다.');
      draw();status('연결 요청 완료. 부모 승인을 기다리세요.');
    }
@@ -1390,7 +1461,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
      };
      currentRecorder.start();const note=el('cqVoiceStatus');if(note)note.textContent='녹음 중...';
    }
-   if(b.dataset.child==='voice-download'){downloadUnsavedVoice();}
+   if(b.dataset.child==='voice-download'){await downloadUnsavedVoice();}
    if(b.dataset.child==='voice-import'){const input=el('cqVoiceManifestImport');if(!input)throw Error('녹음 검증 정보 입력을 찾을 수 없습니다.');input.click();}
    if(b.dataset.child==='voice-retry'){
      const item=unsavedVoice;
@@ -1428,6 +1499,9 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
     viewContext={uid:viewUid,generation:viewGeneration,api:viewApi};
     const previous=await viewApi.submission(c.chapter_uuid);
     const activityRows=await viewApi.chapterActivities(c.chapter_uuid);
+    const readingRows=await viewApi.reading(c.chapter_uuid);
+    if(!Array.isArray(readingRows)||readingRows.length!==1||!['txt','pdf'].includes(readingRows[0].material_type))throw Error('원문 형식을 확인할 수 없습니다.');
+    const reading=readingRows[0];
     if(!Array.isArray(activityRows)||activityRows.length!==1)throw Error('챕터 학습 활동을 조회할 수 없습니다.');
     const activity=activityRows[0];
     // Never apply an old lookup (or delete a draft) after logout/account switch.
@@ -1450,7 +1524,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
     else if(restoreDraft(viewUid,c.chapter_uuid,el('cqChildWork'))){
       status('이 기기에 임시 저장된 답변을 복원했습니다.');
     }
-    if(!submitted){loadServerPdf(c.chapter_uuid,viewUid,viewGeneration);await restoreDurableVoice(viewUid,c.chapter_uuid,viewGeneration);}
+    if(!submitted){if(reading.material_type==='txt'){const reader=el('cqServerPdfViewer');if(reader){reader.textContent=reading.reading_text||'';reader.classList.add('source');}}else loadServerPdf(c.chapter_uuid,viewUid,viewGeneration);await restoreDurableVoice(viewUid,c.chapter_uuid,viewGeneration);}
    }
   }catch(err){
     // Ignore errors from a view request belonging to a previous login session.
@@ -1540,7 +1614,7 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
        // can then be recovered by verifying this exact object on next login.
        writeRecovery(context.uid,uuid,ext,'uploading',sha256);
        const uploadController=new AbortController();activeChildUpload=uploadController;
-       const upload=await fetch(config.url+'/storage/v1/object/cq-v4-speaking/'+path,{
+       const upload=await authSession.request(config.url+'/storage/v1/object/cq-v4-speaking/'+path,{
          method:'POST',headers:{apikey:config.anonKey,Authorization:'Bearer '+session.token,
            'Content-Type':voiceBlob.type,'x-upsert':'false'},
          body:voiceBlob,signal:uploadController.signal
@@ -1645,7 +1719,8 @@ const api={createSubmissionGate};if(typeof module!=='undefined'&&module.exports)
    if(mode!=='student')return;
    const next=b.dataset.stage132;
    if(next===gate.get())return;
-   gate.set(next);view='home';tab='read';selectedBook='';selectedChapter='';audioBlob=null;
+   if(window.CQStudentSessionControl&&!CQStudentSessionControl.canLeave())return;
+   window.dispatchEvent(new Event('cq:context-reset'));gate.set(next);view='home';tab='read';selectedBook='';selectedChapter='';audioBlob=null;
    render();
  });
  // Stop accidental demo actions when the server-only screen is selected.

@@ -4,7 +4,7 @@
   "type": "module",
   "scripts": {
     "test": "node --test tests/*.test.mjs",
-    "check": "tsc --noEmit && node tests/check-html.mjs"
+    "check": "tsc --noEmit && node --check worker/index.js && node tests/check-html.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.3.14",

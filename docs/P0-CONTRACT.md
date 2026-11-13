@@ -1,5 +1,7 @@
 # P0 server contract — 2026-11-13
 
+For the implemented AI/TXT/approval/session continuation, see [P0-AI-TEXT-SESSIONS.md](P0-AI-TEXT-SESSIONS.md). The baseline contract below is retained; the continuation adds one migration and a reading RPC.
+
 This branch is a candidate for a **new local/test project**, not a migration plan for the unknown existing production schema. Nothing here has been applied to a remote project. The original ZIP is retained unchanged; `public/`, `wrangler.jsonc` and `README.txt` were extracted from it before the targeted client edits.
 
 ## Identity and first parent
@@ -112,4 +114,4 @@ Locally tested: migration execution, roles/RLS, invitation expiration/single-use
 
 Unverified: real Auth email delivery/invite callback, live PostgREST serialization, Storage signed upload/download and concurrent behavior, Deno-hosted functions, existing production schema compatibility, actual student device PDF/microphone flow.
 
-Next: run the complete chain in a disposable Supabase project; then fix TXT wiring, local approval/PDF hash invalidation, audio backup import scope bug and student token refresh; only after authorization/submission recovery tests pass should the disabled submission UI be enabled. `/api/generate` is a later P0 server implementation and remains absent. Production deployment, GitHub push/merge and environment publication are not part of this branch's work.
+Next: run the complete chain in a disposable Supabase project. TXT wiring, local approval/PDF hash invalidation, audio backup import scope and student token refresh have been implemented in the continuation and locally tested; only after live authorization/submission recovery tests pass should the disabled submission UI be enabled. `/api/generate` is now implemented in the continuation; real model integration remains unverified. Production deployment, GitHub push/merge and environment publication are not part of this branch's work.

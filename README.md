@@ -3,7 +3,7 @@
 P0 server-contract development branch. The original deployment ZIP is preserved;
 `public/` and `wrangler.jsonc` contain its extracted app plus targeted P0 changes.
 
-Read [the P0 contract and test runbook](docs/P0-CONTRACT.md) before setup.
+Read [the P0 contract](docs/P0-CONTRACT.md) and [AI/TXT/session continuation](docs/P0-AI-TEXT-SESSIONS.md) before setup.
 
 ```sh
 npm ci

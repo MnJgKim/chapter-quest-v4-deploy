@@ -2,6 +2,27 @@
   "name": "chapter-quest-v4",
   "compatibility_date": "2026-11-10",
   "assets": {
-    "directory": "./public"
-  }
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*"
+    ]
+  },
+  "main": "worker/index.js",
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "AI_QUOTA",
+        "class_name": "AIQuota"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1-ai-quota",
+      "new_sqlite_classes": [
+        "AIQuota"
+      ]
+    }
+  ]
 }
