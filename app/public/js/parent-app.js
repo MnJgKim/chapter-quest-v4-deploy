@@ -218,7 +218,7 @@
    if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다.');
    const response=await fetch(project.url+'/rest/v1/rpc/'+name,{method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+session.token,'Content-Type':'application/json'},body:JSON.stringify(args)});
    if(!response.ok){const body=await response.json().catch(()=>({}));throw Error(body.message||'서버 요청 실패: '+response.status)}
-   const data=await response.json();if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다. 이전 결과를 폐기합니다.');return data;
+   const raw=response.status===204?'':await response.text();let data=null;if(raw.trim()){try{data=JSON.parse(raw)}catch{throw Error('서버 응답 형식이 올바르지 않습니다. (HTTP '+response.status+')')}}if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다. 이전 결과를 폐기합니다.');return data;
  }
  // Stage95: authenticated parent UI -> immutable approval snapshot -> approved publication.
  // The stage94 candidate RPCs must be separately reviewed and installed in a TEST project.
