@@ -2,6 +2,45 @@
 (()=>{
  let session=null, childApi=null, chapters=[],busy=false, voiceRecorder=null, voiceStream=null, voiceChunks=[], voiceBlob=null, voiceChapter=null, uploadedAudio=new Set(), childGeneration=0, activeChildUpload=null, activeChildSubmit=null;
  let serverPdfController=null,serverPdfDocument=null,serverPdfObjectUrl=null;
+ // Dedicated student tablets: persist only the rotating refresh token, never the password.
+ // The token is scoped to the exact Supabase project and user. A shared device must use Logout.
+ const persistentChildKey='cq-v4-dedicated-child-session-v1';
+ let childRestoreAttempted=false;
+ function saveDedicatedChild(owner){
+  if(!owner||owner.resumedExisting||!owner.refreshToken)return;
+  try{localStorage.setItem(persistentChildKey,JSON.stringify({url:owner.project.url,uid:owner.uid,refreshToken:owner.refreshToken}));}
+  catch(e){console.warn('Dedicated tablet session could not be saved',e?.name);}
+ }
+ function forgetDedicatedChild(){try{localStorage.removeItem(persistentChildKey)}catch(_){}}
+ async function restoreDedicatedChild(){
+  if(childRestoreAttempted||session||mode!=='student')return;
+  childRestoreAttempted=true;
+  let saved;
+  try{saved=JSON.parse(localStorage.getItem(persistentChildKey)||'null')}catch(_){return}
+  if(!saved?.refreshToken||!saved?.uid||!saved?.url)return;
+  const project=window.CQProject?.read();
+  if(!project?.url||!project?.anonKey||project.url!==saved.url)return;
+  const generation=childGeneration;
+  try{
+   const response=await fetch(project.url+'/auth/v1/token?grant_type=refresh_token',{
+    method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},
+    body:JSON.stringify({refresh_token:saved.refreshToken})
+   });
+   if(!response.ok)throw Error('saved-session-expired');
+   const data=await response.json();
+   if(!data.user?.id||data.user.id!==saved.uid||!data.access_token||!data.refresh_token)throw Error('saved-session-mismatch');
+   if(generation!==childGeneration||session||mode!=='student'||!sameProject(project,window.CQProject.read()))return;
+   startChildSession(data,project);
+   const owner=childContext(),api=childApi;
+   const rows=await api.assignedChapters();
+   assertChildContext(owner);if(childApi!==api)return;
+   chapters=rows;draw();status(rows.length+'개 배정 챕터를 자동으로 불러왔습니다.');
+  }catch(err){
+   // Do not erase the original refresh token on network failure: the learner may be offline.
+   if(err.message==='saved-session-expired'||err.message==='saved-session-mismatch')forgetDedicatedChild();
+   if(!session&&mode==='student')status('자동 로그인에 실패했습니다. 기존 학생 이메일로 로그인하세요. 학습 답안은 보존됩니다.');
+  }
+ }
  const sameProject=(a,b)=>!!a&&!!b&&a.url===b.url&&a.anonKey===b.anonKey;
  function studentProject(){
   const current=window.CQProject.read();
@@ -296,7 +335,7 @@
  }
  const status=t=>{if(el('cqChildStatus'))el('cqChildStatus').textContent=t};
  const originalRender=render;
- render=function(){originalRender();if(mode==='student'){el('app')?.insertAdjacentHTML('afterbegin','<div id="cqChildAccount"></div>');draw()}};
+ render=function(){originalRender();if(mode==='student'){el('app')?.insertAdjacentHTML('afterbegin','<div id="cqChildAccount"></div>');draw();if(!childRestoreAttempted&&!session)queueMicrotask(restoreDedicatedChild)}};
  let childRefreshPromise=null;
  async function childAccessToken(){
   if(!session)throw Error('학생 계정으로 다시 로그인하세요.');
@@ -312,7 +351,7 @@
    if(session!==owner||generation!==childGeneration)throw Error('학생 계정이 변경되었습니다.');
    studentProject();
    if(!response.ok||!data.access_token||!data.refresh_token)throw Error('학생 로그인 갱신에 실패했습니다. 다시 로그인하세요. 임시 답변은 보존됩니다.');
-   owner.token=data.access_token;owner.refreshToken=data.refresh_token;owner.expiresAt=Date.now()+(data.expires_in||3600)*1000;
+   owner.token=data.access_token;owner.refreshToken=data.refresh_token;owner.expiresAt=Date.now()+(data.expires_in||3600)*1000;saveDedicatedChild(owner);
    return owner.token;
   })();childRefreshPromise=pending;
   try{return await pending}finally{if(childRefreshPromise===pending)childRefreshPromise=null}
@@ -322,7 +361,7 @@
   if(!data.access_token||!data.user?.id)throw Error('인증 정보를 확인할 수 없습니다. 다시 로그인하세요.');
   childGeneration++;childRefreshPromise=null;cancelChildUpload();session={project:Object.freeze({...project}),token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
   childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:childAccessToken});
-  chapters=[];draw();status('로그인 성공 · 계정 인증과 실제 학생 권한은 서버 정책으로 확인됩니다.');
+  chapters=[];saveDedicatedChild(session);draw();status('로그인 성공 · 계정 인증과 실제 학생 권한은 서버 정책으로 확인됩니다.');
  }
  async function login(){
   const project=window.CQProject.read(),generation=childGeneration;
@@ -346,7 +385,7 @@
   const b=e.target.closest('[data-child]');if(!b||mode!=='student')return;
   if(b.dataset.child==='logout'){
     if(!confirmLessonDeparture())return;
-    invalidateVoiceForNavigation();cancelChildUpload();uploadedAudio.clear();session=null;childRefreshPromise=null;childApi=null;chapters=[];
+    invalidateVoiceForNavigation();cancelChildUpload();uploadedAudio.clear();forgetDedicatedChild();session=null;childRefreshPromise=null;childApi=null;chapters=[];
     draw();status('로그아웃했습니다. 진행 중인 녹음 업로드는 취소를 요청했습니다.');return;
   }
   if(b.dataset.child==='voice-stop'){if(voiceRecorder?.state==='recording')voiceRecorder.stop();return;}
@@ -407,7 +446,7 @@
     else status('가입 요청이 처리되었습니다. 이메일 인증이 필요한 경우 인증을 마친 뒤 학생 계정으로 로그인하세요.');
     return;
    }
-   if(b.dataset.child==='login')await login();
+   if(b.dataset.child==='login'){await login();const owner=childContext(),api=childApi;const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)return;chapters=rows;draw();status(rows.length+'개 배정 챕터를 불러왔습니다.');}
    else if(session&&['claim','list','view'].includes(b.dataset.child))await childAccessToken();
    if(b.dataset.child==='claim'&&session?.resumedExisting)throw Error('기존 연결을 유지합니다. 재초대하지 않습니다.');
    if(b.dataset.child==='claim'){
@@ -670,6 +709,6 @@
      }
    }finally{if(activeChildSubmit===submitController)activeChildSubmit=null;if(session?.uid===context.uid&&childGeneration===context.generation){activeChildUpload=null;busy=false;if(button?.isConnected)button.disabled=false}}
  });
- // Never retain a child token in localStorage; a page reload requires login again.
+ // Dedicated tablets retain a rotating refresh token, not a password or access token. Explicit logout clears it.
  const initialRender=render;render=function(){initialRender()};
 })();
