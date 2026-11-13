@@ -1,0 +1,10 @@
+project_id = "chapter-quest-v4-test"
+
+[functions.cq-v4-pdf-parent]
+verify_jwt = true
+
+[functions.cq-v4-pdf-link]
+verify_jwt = true
+
+[functions.cq-v4-student-account]
+verify_jwt = true
