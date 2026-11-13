@@ -339,6 +339,12 @@
  const status=t=>{if(el('cqChildStatus'))el('cqChildStatus').textContent=t};
  const originalRender=render;
  render=function(){originalRender();if(mode==='student'){el('app')?.insertAdjacentHTML('afterbegin','<div id="cqChildAccount"></div>');draw();if(!childRestoreAttempted&&!session)queueMicrotask(restoreDedicatedChild)}};
+ // Retry only while restoration has not started. This covers a first load where
+ // the project configuration becomes available after the first render.
+ window.addEventListener('load',()=>{if(mode==='student'&&!session&&!childRestoreAttempted)restoreDedicatedChild();});
+ window.addEventListener('pageshow',()=>{if(mode==='student'&&!session&&!childRestoreAttempted)restoreDedicatedChild();});
+ window.addEventListener('online',()=>{if(mode==='student'&&!session&&!childRestoreAttempted)restoreDedicatedChild();});
+ document.addEventListener('visibilitychange',()=>{if(!document.hidden&&mode==='student'&&!session&&!childRestoreAttempted)restoreDedicatedChild();});
  let childRefreshPromise=null;
  async function childAccessToken(){
   if(!session)throw Error('학생 계정으로 다시 로그인하세요.');
