@@ -657,15 +657,21 @@
        if(detail)detail.innerHTML='<p>제출 완료. 피드백은 부모 검토 후 공개됩니다.</p><button data-child="feedback" data-uuid="'+escape(uuid)+'">피드백 확인</button>';
        return;
      }
-     const pending=readRecovery(context.uid,uuid);
+     let pending=readRecovery(context.uid,uuid);
      let confirmedAudio=false;
      if(pending){
-       // An upload intent is not evidence of a successful upload. Verify on server.
+       // A local recovery record is never proof of a server-side object.
        confirmedAudio=await verifyExistingAudio(context.uid,uuid,pending.ext,pending.sha256);
        assertChildContext(context);
        if(confirmedAudio)writeRecovery(context.uid,uuid,pending.ext,'uploaded',pending.sha256);
-       else if(pending.phase!=='uploading')throw Error('이전 녹음 파일을 서버에서 확인하지 못했습니다. 제출을 중단합니다.');
-       else if(!voiceBlob)throw Error('이전 녹음 업로드가 완료되지 않았습니다. 녹음 데이터가 남아 있지 않아 자동 복구할 수 없습니다.');
+       else if(voiceBlob){
+         // The previously verified test recording may have been deliberately deleted.
+         // A newly recorded blob may start a fresh attempt; never reuse the missing object.
+         clearRecovery(context.uid,uuid);
+         pending=null;
+       }else{
+         throw Error('이전 녹음 파일이 서버에 없습니다. 새로 녹음한 뒤 제출하세요.');
+       }
      }
      if(voiceBlob&&!confirmedAudio){
        if(voiceBlob.size>10485760)throw Error('녹음 파일은 10MB 이하여야 합니다.');
