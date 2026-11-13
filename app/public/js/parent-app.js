@@ -67,7 +67,7 @@
    if(!/^[0-9a-f-]{36}$/i.test(student)||!/^[0-9a-f-]{36}$/i.test(chapter))throw Error('잘못된 식별자');
    if(b.dataset.lesson==='schedule'){
     const date=document.querySelector('[data-lesson-date="'+student+':'+chapter+'"]')?.value;
-    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date||''))throw Error('날짜를 선택하세요.');
+    if(!/^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(date||''))throw Error('날짜를 선택하세요.');
     await parentRpc('cq_v4_parent_schedule_lesson',{p_student_user_id:student,p_chapter_id:chapter,p_lesson_date:date});
    }else{
     const open=b.dataset.open==='true';
@@ -98,6 +98,8 @@
    pdfServerChapters=chapters.chapters.filter(c=>/^[0-9a-f-]{36}$/i.test(String(c.chapter_uuid||''))).map(c=>({title:String(c.title||''),uuid:String(c.chapter_uuid||''),ready:c.pdf_ready===true}));
    pdfServerStudents=students.students.map(s=>({student_user_id:String(s.student_user_id||'')})).filter(s=>/^[0-9a-f-]{36}$/i.test(s.student_user_id));
    pdfServerAssignments=assignments.assignments.filter(a=>/^[0-9a-f-]{36}$/i.test(a.chapter_uuid||'')&&/^[0-9a-f-]{36}$/i.test(a.student_user_id||''));
+   try{const releases=await parentRpc('cq_v4_parent_list_lesson_releases');if(Array.isArray(releases))lessonReleases=releases;}catch(error){console.warn('Lesson release status unavailable:',error.message);}
+
    render();pdfParentStatus('서버 목록을 다시 불러왔습니다. 승인된 학생과 PDF 목록을 확인했습니다.');
  }
  let pdfParentBusy=false;
