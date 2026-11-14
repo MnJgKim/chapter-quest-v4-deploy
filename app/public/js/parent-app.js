@@ -62,7 +62,7 @@
   const b=event.target.closest('[data-lesson]');if(!b||b.disabled)return;
   b.disabled=true;
   try{
-   if(b.dataset.lesson==='refresh'){await refreshLessonReleases();return;}
+   if(b.dataset.lesson==='refresh'){await refreshPdfParentLists();lessonStatus('서버 챕터·학생 배정 및 공개 상태 확인 완료');return;}
    const student=b.dataset.student,chapter=b.dataset.chapter;
    if(!/^[0-9a-f-]{36}$/i.test(student)||!/^[0-9a-f-]{36}$/i.test(chapter))throw Error('잘못된 식별자');
    if(b.dataset.lesson==='schedule'){
