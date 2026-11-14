@@ -164,6 +164,14 @@ try:
    derived_uuid=pp.locator('#cqPublishVerifiedPdf').input_value();pp.locator('#cqPublishVerifiedPdf').select_option(original_uuid);pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('선택 범위 자료와 서버 PDF가 다릅니다');assert api('/rest/v1/rpc/cq_v4_my_chapters',{},users['student']['token'])==[];pp.locator('#cqPublishVerifiedPdf').select_option(derived_uuid);passed('changing the range lesson binding to the complete original is blocked before publishing or assigning')
   pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(0);passed('newly assigned lesson stays hidden until parent release')
+  # UI hiding is not sufficient: a known chapter UUID must not bypass the release gate.
+  assert api('/rest/v1/rpc/cq_v4_my_chapter_activities',{'p_chapter_uuid':unpublished_uuid},users['student']['token'])==[]
+  try:
+   api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':unpublished_uuid},users['student']['token'])
+   raise AssertionError('Unreleased assigned PDF signed link was issued')
+  except urllib.error.HTTPError as error:
+   assert error.code==403, f'Unreleased PDF link returned unexpected status {error.code}'
+  passed('unreleased assigned lesson denies direct activities and PDF signed URL requests')
   chapter_uuid=unpublished_uuid
   assigned=api('/functions/v1/cq-v4-pdf-parent',{'action':'list_assignments'},users['parent']['token'])['assignments']
   assert any(row.get('student_user_id')==users['student']['uid'] and row.get('chapter_uuid',row.get('chapter_id'))==chapter_uuid for row in assigned),'Local parent assignment missing after publish'
