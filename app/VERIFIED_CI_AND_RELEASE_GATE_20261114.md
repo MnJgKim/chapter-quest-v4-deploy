@@ -62,3 +62,13 @@
 5. 실제 Galaxy 실기기 인수검사 후 사용자 확인. 유료 AI는 계속 비활성.
 
 **주의:** 이 순서는 원자적 배포가 아니며 단계별 호환성 구간·장애 위험이 있다. DB 신규 함수/테이블은 코드 롤백만으로 제거되지 않는다. Storage 파일/학생 기록의 삭제·덮어쓰기는 금지. 현재 백업 복원 가능성이 확인되지 않아 **운영 적용 보류**.
+
+## Supabase 보안/성능/상태 Advisor — 운영 읽기 전용 (2026-11-14)
+- `get_advisors(type=security|performance|health)` 실행. **health lints 0건**.
+- Security `rls_enabled_no_policy` INFO 7건: `child_progress`, `cq_pairing_requests`, `cq_v4_activities`, `cq_v4_approval_requests`, `cq_v4_invites`, `cq_v4_lesson_schedule`, `cq_v4_student_submissions`. 일부는 의도된 서버 함수 전용 테이블일 수 있음. RLS 제거 금지.
+- Security `anon_security_definer_function_executable` WARN 9건: 구형 CQ 4건(`cq_approve_pairing`, `cq_create_pairing_request`, `cq_get_my_student`, `cq_is_student`)과 V3D 5건. 네 CQ 함수는 정의를 읽기 전용 확인했으며 관리자 검사, 익명 사용자 검사, `auth.uid()`에 묶인 소유권 조건이 각각 존재. **Advisor 경고만으로 실제 취약점 확정 불가**. V3D 함수는 별도 감사를 마치기 전 변경 금지.
+- Security `authenticated_security_definer_function_executable` WARN 36건: V4의 인증된 RPC 다수 포함. 호출자별 소유권·관리자 검사 검토 필요. Supabase 익명 로그인 사용자는 DB `authenticated` 역할이 될 수 있으므로 역할만으로 신뢰하면 안 됨.
+- Security `auth_allow_anonymous_sign_ins` WARN 다수 및 `auth_leaked_password_protection` WARN 1건. 익명 로그인 중단 시 기존 학생 연결이 끊길 수 있으므로 사전 데이터/계정 영향 분석과 별도 승인 필수.
+- Performance `unindexed_foreign_keys` INFO 15건 (V4·기존 CQ·V3D 혼재). 기능 차단 오류가 아닌 잠재 성능 저하 경고. 기존 DB에 인덱스를 무단 추가하지 않음.
+- 참고: <https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable>, <https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy>, <https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys>.
+- 이번 점검에서 운영 DB/인증/정책/Edge/Storage 변경 **0건**. 보안 권고의 실제 위험도·우선순위는 권한별 호출 시나리오와 V3D 영향 검증 후 확정.
