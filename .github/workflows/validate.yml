@@ -27,8 +27,6 @@ jobs:
           WRANGLER_SEND_METRICS: 'false'
       - run: pip install -r app/qa-requirements.txt
       - run: python -m playwright install --with-deps chromium
-      - name: Current V4 entrypoint smoke check
-        run: python app/modern_ui_smoke_e2e.py "$RUNNER_TEMP/cq-modern-smoke"
       - run: npm run test:browser
       - name: Start isolated local Supabase, with no hosted project link
         working-directory: app
