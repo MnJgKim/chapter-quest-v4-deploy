@@ -42,3 +42,23 @@
 - 운영에 후보 신규 부모 상세 결과 RPC 및 PDF 범위 SQL이 설치됐다고 가정하지 말 것. 후보 Edge를 먼저 교체하면 누락된 RPC로 실패할 수 있음.
 - 위 Edge SHA와 버전은 **복구 대상 식별자**일 뿐이며, 별도의 백업 파일·실제 재배포/복원 권한·Cloudflare 배포 롤백을 검증한 것은 아님.
 - 현재 **배포 승인 요청 전 미해결 차단**: 운영 DB/Auth/Storage 백업 및 복원 접근 검증, Cloudflare 배포 버전/복구 경로 확인, SQL/Edge 호환 순서 확정, 실기기 최종 수락.
+
+## Edge 소스와 후보 SQL의 정확한 차이 (읽기 전용 비교)
+운영 Edge 함수 소스는 `get_edge_function`으로 읽고, 동일 경로의 Draft PR 후보 파일과 비교함. **양쪽 모두 서로 다르며 운영 적용 전 버전 정합성 필요.**
+
+| 항목 | 운영 | 후보 | 배포 전 처리 |
+|---|---|---|---|
+| 부모 Edge `cq-v4-pdf-parent` | v3, index.ts 12,602자 | index.ts 17,135자 | 신규 `create_range`, `download_url` 경로 존재. `cq_v4_commit_pdf_range` RPC 사용. 운영 함수는 해당 경로/RPC 사용하지 않음 |
+| 학생 Edge `cq-v4-pdf-link` | v1, index.ts 3,848자 | index.ts 5,767자 | 후보는 `cq_v4_my_chapter_activities` RPC 참조; 기존 운영 함수는 참조하지 않음. 게시·학생 권한 검증 일치 여부 확인 |
+| 부모 상세 결과 SQL | `cq_v4_parent_lesson` 없음 | `20261111013217_cq_parent_lesson_context.sql` | 신규 SECURITY DEFINER 함수; 소유자·관리자 확인, published activity/approval 조인 |
+| PDF 범위 SQL | `cq_v4_pdf_page_ranges`, `cq_v4_commit_pdf_range`, `cq_v4_register_range_approval_once` 없음 | `20261111233341_cq_verified_pdf_ranges.sql` | 신규 테이블+두 함수. 원본/파생 PDF 참조와 승인/게시 의존성 존재 |
+| 기존 의존 RPC | `cq_is_admin`, `cq_v4_parent_submissions`, `cq_v4_register_approval_once`, `cq_v4_bind_verified_pdf` 모두 존재 | 후보 코드에서 참조 | 운영에서 이름·인자 존재 확인. 세부 동작과 권한은 별도 검토 필요 |
+
+**권장 릴리스 의존 순서(승인 전 설계, 실행 아님):**
+1. DB/Auth/Storage 독립 복구 지점과 Edge·Worker 현행 소스/배포 설정 스냅샷 및 실제 복원 권한 확인.
+2. 후보 SQL 두 파일을 운영의 정확한 테이블/함수 시그니처·권한·RLS와 비교하고, 승인된 신규 SQL만 각각 트랜잭션으로 적용/검증.
+3. Edge 두 함수를 해당 SQL과 호환되는 동일 후보 버전으로 교체하고 JWT/권한·다운로드·업로드·범위 경로 점검. 실패 시 변경 중단 및 사전 확보한 호환 버전으로 복구.
+4. Cloudflare Worker+정적 자산을 고정 커밋에서 배포한 뒤 부모/학생 권한·PDF·녹음·제출·피드백 점검. 배포 전후에 기존 학생 배정/공개 상태를 변경하지 않음.
+5. 실제 Galaxy 실기기 인수검사 후 사용자 확인. 유료 AI는 계속 비활성.
+
+**주의:** 이 순서는 원자적 배포가 아니며 단계별 호환성 구간·장애 위험이 있다. DB 신규 함수/테이블은 코드 롤백만으로 제거되지 않는다. Storage 파일/학생 기록의 삭제·덮어쓰기는 금지. 현재 백업 복원 가능성이 확인되지 않아 **운영 적용 보류**.
