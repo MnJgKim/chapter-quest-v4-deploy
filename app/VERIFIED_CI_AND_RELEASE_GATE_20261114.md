@@ -32,3 +32,13 @@
 - `anon`은 위 테이블 모두 SELECT 권한 없음. `authenticated`은 activities/schedule SELECT 권한 없고, assignments/chapters/enrollments는 SELECT 권한 있으나 RLS 적용. 실제 row 정책은 별도 검증 필요.
 - **배포 차단 요인**: 부분 PDF 범위·부모 상세 결과를 사용하는 후보 기능과 운영 RPC 간 불일치. 새 SQL 두 건의 정확한 적용 대상·복구 방식 및 Edge 버전 동기화 승인 필요.
 - 운영 DB 백업의 독립적 복원 가능 여부와 Cloudflare 직전 배포 정보는 **미확인**.
+
+## 운영 구성 인벤토리 — 읽기 전용 재확인 (2026-11-14)
+- Supabase 프로젝트 `ftffxetmqditfqdvzjdd` (표시명 `english-v3b-test`), `ACTIVE_HEALTHY`, PostgreSQL `17.11`, 리전 `ap-northeast-1`.
+- 운영 Edge `cq-v4-pdf-parent`: **v3**, `ACTIVE`, `verify_jwt=true`, sha256 `4282f51fb8e37b8975447f0556661b9430c2805a62d34b0927e78e77a3ed2248`.
+- 운영 Edge `cq-v4-pdf-link`: **v1**, `ACTIVE`, `verify_jwt=true`, sha256 `c1cf8df7a8439698833f89afd1a7b44de9bdd4413755de67f9ab5bb70cfa46a9`.
+- `get_edge_function`으로 현재 두 함수 소스를 읽기 전용 확인함. 비밀 환경변수/학생 파일은 다운로드하거나 기록하지 않음.
+- 운영 마이그레이션 이력 총 **6건**: `20261110114235`, `20261113103229`, `20261113103331`, `20261113103348`, `20261113103359`, `20261113103519`.
+- 운영에 후보 신규 부모 상세 결과 RPC 및 PDF 범위 SQL이 설치됐다고 가정하지 말 것. 후보 Edge를 먼저 교체하면 누락된 RPC로 실패할 수 있음.
+- 위 Edge SHA와 버전은 **복구 대상 식별자**일 뿐이며, 별도의 백업 파일·실제 재배포/복원 권한·Cloudflare 배포 롤백을 검증한 것은 아님.
+- 현재 **배포 승인 요청 전 미해결 차단**: 운영 DB/Auth/Storage 백업 및 복원 접근 검증, Cloudflare 배포 버전/복구 경로 확인, SQL/Edge 호환 순서 확정, 실기기 최종 수락.
