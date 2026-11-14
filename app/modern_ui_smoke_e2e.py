@@ -24,11 +24,12 @@ try:
   page.goto(origin+'/index.html')
   expect(page.locator('#studentBtn')).to_be_visible()
   expect(page.locator('#parentBtn')).to_be_visible()
-  expect(page.locator('#student')).to_be_visible()
+  expect(page.locator('#student')).to_be_hidden()
   expect(page.locator('#app')).not_to_be_empty()
   report['checks'].append('current student entrypoint renders')
-  expect(page.locator('#app h2').first).to_contain_text('영어원서 학습')
-  report['checks'].append('student library heading renders')
+  expect(page.get_by_role('heading',name='학생 계정 로그인')).to_be_visible()
+  expect(page.get_by_role('button',name='학생 계정 로그인')).to_be_visible()
+  report['checks'].append('unauthenticated student is gated behind account login')
   assert not report['errors'],report['errors']
   browser.close()
 finally:
