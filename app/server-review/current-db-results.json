@@ -1,0 +1,165 @@
+{
+  "scope": "PGlite isolated PostgreSQL with synthetic data; live DDL metadata and functions; not hosted Auth/Storage integration",
+  "checks": [
+    {
+      "name": "range registry migration grants no direct access to authenticated users",
+      "pass": true
+    },
+    {
+      "name": "client cannot execute the privileged range commit",
+      "pass": true
+    },
+    {
+      "name": "server range commit is atomic and idempotent",
+      "pass": true
+    },
+    {
+      "name": "same range request cannot be reused with different pages",
+      "pass": true
+    },
+    {
+      "name": "range approval atomically binds derived PDF and cannot rebind whole original",
+      "pass": true
+    },
+    {
+      "name": "range approval refuses whole original substituted for derived PDF",
+      "pass": true
+    },
+    {
+      "name": "range approval refuses forged page bounds",
+      "pass": true
+    },
+    {
+      "name": "student cannot register verified range approval",
+      "pass": true
+    },
+    {
+      "name": "whole-range commit reuses original without duplicate chapter",
+      "pass": true
+    },
+    {
+      "name": "partial range cannot claim the original UUID",
+      "pass": true
+    },
+    {
+      "name": "whole original reuse requires identical source and result hashes",
+      "pass": true
+    },
+    {
+      "name": "parent approval accepts only verified complete original bounds",
+      "pass": true
+    },
+    {
+      "name": "student cannot publish or assign through parent publication RPC",
+      "pass": true
+    },
+    {
+      "name": "parent cannot publish a missing or foreign approval",
+      "pass": true
+    },
+    {
+      "name": "valid parent approval cannot assign an unenrolled account",
+      "pass": true
+    },
+    {
+      "name": "parent can read only the owned published lesson context",
+      "pass": true
+    },
+    {
+      "name": "student cannot execute privileged parent lesson read",
+      "pass": true
+    },
+    {
+      "name": "different registered parent receives no lesson context",
+      "pass": true
+    },
+    {
+      "name": "assigned student sees published questions without answer key",
+      "pass": true
+    },
+    {
+      "name": "unassigned student sees no chapters",
+      "pass": true
+    },
+    {
+      "name": "unassigned student sees no activities",
+      "pass": true
+    },
+    {
+      "name": "student cannot read approval answer keys directly",
+      "pass": true
+    },
+    {
+      "name": "student cannot issue parent invitation",
+      "pass": true
+    },
+    {
+      "name": "student cannot bind an approval to a PDF",
+      "pass": true
+    },
+    {
+      "name": "parent registration, PDF binding and publication match the client contract",
+      "pass": true
+    },
+    {
+      "name": "unverified PDF cannot bind to an approval",
+      "pass": true
+    },
+    {
+      "name": "feedback stays hidden until parent release, then is visible",
+      "pass": true
+    },
+    {
+      "name": "current live function compiles in isolated PostgreSQL",
+      "pass": true
+    },
+    {
+      "name": "short answer array rejected",
+      "pass": true
+    },
+    {
+      "name": "extra answer rejected",
+      "pass": true
+    },
+    {
+      "name": "empty written answer rejected",
+      "pass": true
+    },
+    {
+      "name": "null answer rejected",
+      "pass": true
+    },
+    {
+      "name": "MC option out of range rejected",
+      "pass": true
+    },
+    {
+      "name": "MC non-integer rejected",
+      "pass": true
+    },
+    {
+      "name": "non-text written answer rejected",
+      "pass": true
+    },
+    {
+      "name": "unassigned student rejected",
+      "pass": true
+    },
+    {
+      "name": "authorized complete submission accepted",
+      "pass": true
+    },
+    {
+      "name": "duplicate submit preserves original answers",
+      "pass": true
+    },
+    {
+      "name": "five-question lesson accepts three MC and two inference answers",
+      "pass": true
+    },
+    {
+      "name": "TRUNCATE privilege removed without changing snapshot CRUD",
+      "pass": true
+    }
+  ]
+}

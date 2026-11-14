@@ -1,0 +1,20 @@
+(node:27) ExperimentalWarning: stripTypeScriptTypes is an experimental feature and might change at any time
+(Use `node --trace-warnings ...` to show where the warning was created)
+✔ baseline reproduces missing parent role guard with mocked clients (104.823055ms)
+✔ authenticated student cannot create privileged service client (6.269461ms)
+✔ unknown user cannot list parent data (5.348571ms)
+✔ truthy non-boolean parent result fails closed (16.580217ms)
+✔ role service error fails closed (14.797511ms)
+✔ invalid identity rejected before role lookup (4.916405ms)
+✔ missing bearer rejected before creating clients (5.871853ms)
+✔ valid parent can use chapter list (4.189751ms)
+✔ valid parent can create own new chapter (4.469243ms)
+✔ preflight and unsupported methods do not create clients (5.026781ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 318.972064

@@ -1,0 +1,22 @@
+{
+  "name": "chapter-quest-v4",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test tests/*.test.mjs",
+    "check": "tsc --noEmit && node --check worker/index.js && node tests/check-html.mjs && node scripts/integration/verify-scripts.mjs",
+    "integration:plan": "node scripts/integration/plan.mjs",
+    "integration:apply": "node scripts/integration/apply.mjs",
+    "integration:probe": "node scripts/integration/probe.mjs",
+    "integration:model": "node scripts/integration/model.mjs"
+  },
+  "devDependencies": {
+    "@electric-sql/pglite": "0.3.14",
+    "pg": "8.16.3",
+    "playwright": "1.65.0",
+    "typescript": "5.9.3"
+  },
+  "engines": {
+    "node": ">=24.22.0"
+  }
+}

@@ -1,0 +1,11 @@
+{
+  "page": {
+    "status": 200,
+    "contentType": "text/html",
+    "sha256": "e8339dbf01495ea78d0d79ad09014c9245e85b15069fba23d58d7db58ad9dfd6"
+  },
+  "health": {
+    "errorType": "HTTPError",
+    "status": 404
+  }
+}
