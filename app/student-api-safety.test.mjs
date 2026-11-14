@@ -19,7 +19,7 @@ function client({responses={}, token='student-token', calls=[]}={}) {
   });
 }
 test('student chapter transport strips answer keys and parent-only evidence',async()=>{
-  const api=client({responses:{cq_v4_my_chapters:[{
+  const api=client({responses:{cq_v4_my_released_chapters:[{
     chapter_uuid:chapter,chapter_title:'Synthetic chapter',
     questions:[{kind:'mc',text:'Choose',options:['A','B'],correct:1,answer_key:'SECRET',parentReview:{note:'PRIVATE'}}]
   }]}});
