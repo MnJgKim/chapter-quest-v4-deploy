@@ -36,7 +36,11 @@ def api(path,data=None,token=None):
  headers={'Content-Type':'application/json','apikey':anon}
  if token:headers['Authorization']='Bearer '+token
  request=urllib.request.Request(base+path,data=json.dumps(data).encode() if data is not None else None,headers=headers)
- with urllib.request.urlopen(request,timeout=90 if path.startswith('/functions/') else 20) as r:return json.load(r)
+ try:
+  with urllib.request.urlopen(request,timeout=90 if path.startswith('/functions/') else 20) as r:return json.load(r)
+ except urllib.error.HTTPError as error:
+  if error.code==404:report['missing_local_api']={'path':path.split('?')[0],'status':404,'body':error.read(600).decode(errors='replace')}
+  raise
 class Assets(SimpleHTTPRequestHandler):
  def log_message(self,*a):pass
  def do_GET(self):
