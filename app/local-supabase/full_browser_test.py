@@ -37,7 +37,10 @@ def api(path,data=None,token=None):
  if token:headers['Authorization']='Bearer '+token
  request=urllib.request.Request(base+path,data=json.dumps(data).encode() if data is not None else None,headers=headers)
  try:
-  with urllib.request.urlopen(request,timeout=90 if path.startswith('/functions/') else 20) as r:return json.load(r)
+  with urllib.request.urlopen(request,timeout=90 if path.startswith('/functions/') else 20) as r:
+   payload=r.read()
+   if not payload.strip():return None  # PostgreSQL RETURNS void RPCs use HTTP 204 with no JSON body.
+   return json.loads(payload)
  except urllib.error.HTTPError as error:
   if error.code==404:report['missing_local_api']={'path':path.split('?')[0],'status':404,'body':error.read(600).decode(errors='replace')}
   raise
