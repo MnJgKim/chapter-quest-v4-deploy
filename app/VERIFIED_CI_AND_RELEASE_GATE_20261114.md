@@ -72,3 +72,13 @@
 - Performance `unindexed_foreign_keys` INFO 15건 (V4·기존 CQ·V3D 혼재). 기능 차단 오류가 아닌 잠재 성능 저하 경고. 기존 DB에 인덱스를 무단 추가하지 않음.
 - 참고: <https://supabase.com/docs/guides/database/database-linter?lint=0028_anon_security_definer_function_executable>, <https://supabase.com/docs/guides/database/database-linter?lint=0008_rls_enabled_no_policy>, <https://supabase.com/docs/guides/database/database-linter?lint=0001_unindexed_foreign_keys>.
 - 이번 점검에서 운영 DB/인증/정책/Edge/Storage 변경 **0건**. 보안 권고의 실제 위험도·우선순위는 권한별 호출 시나리오와 V3D 영향 검증 후 확정.
+
+## 신규 SQL 2건의 운영 스키마 사전 호환성 점검 (2026-11-14)
+`information_schema.columns` 및 `pg_constraint`에 대한 읽기 전용 조회로 후보 SQL이 참조하는 기존 컬럼과 FK를 점검.
+
+- `cq_v4_parent_lesson(uuid)` 참조 컬럼 확인: `cq_v4_pdf_chapters(chapter_id,parent_user_id)`, `cq_v4_activities(chapter_uuid,questions,vocabulary,writing_prompt,speaking_prompt,published_at,approval_id)`, `cq_v4_approval_requests(id,chapter_uuid,parent_user_id,answer_key)` 모두 운영에 존재.
+- `cq_v4_pdf_page_ranges` 참조 대상 확인: `cq_v4_pdf_chapters(chapter_id)` PK, `auth.users(id)` 및 기존 원본 검증 컬럼 `pdf_ready`, `pdf_verified_at`, `storage_path` 존재.
+- `cq_v4_commit_pdf_range`에서 새 `cq_v4_pdf_chapters` 행을 넣을 때 요구되는 `chapter_id,parent_user_id,title,storage_path,pdf_ready,pdf_verified_at` 존재. 기존 `cq_v4_storage_path_owner_binding`, `cq_v4_storage_path_valid`, `cq_v4_pdf_chapters_storage_path_key` 제약과 후보 생성 경로 `parent/uuid.pdf` 형식이 정합.
+- 기존 함수 `cq_is_admin()`, `cq_v4_register_approval_once(...)`, `cq_v4_bind_verified_pdf(uuid,uuid)` 존재 및 인자 확인.
+- **한계**: 운영 DB에 SQL을 적용하지 않았으므로 실제 `CREATE FUNCTION` 컴파일, 트랜잭션 충돌, 실행 시 권한, FK 동작, 전체 Edge 호환성을 보장하지 않음. 운영 승인과 복구 백업 전에는 실행 금지.
+- **배포 안전 결정**: 두 SQL은 신규 객체 생성이지만 후속 Edge 호출은 기존 챕터·승인·Storage에 쓰기를 수행할 수 있으므로, 배포 승인과 실제 학습 데이터 게시 승인을 구분한다.
