@@ -157,13 +157,9 @@ try:
    derived_uuid=pp.locator('#cqPublishVerifiedPdf').input_value();pp.locator('#cqPublishVerifiedPdf').select_option(original_uuid);pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('선택 범위 자료와 서버 PDF가 다릅니다');assert api('/rest/v1/rpc/cq_v4_my_chapters',{},users['student']['token'])==[];pp.locator('#cqPublishVerifiedPdf').select_option(derived_uuid);passed('changing the range lesson binding to the complete original is blocked before publishing or assigning')
   pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(0);passed('newly assigned lesson stays hidden until parent release')
-  published=api('/rest/v1/rpc/cq_v4_parent_list_lesson_releases',{},users['parent']['token'])
-  assigned=next((row for row in published if row['student_user_id']==users['student']['uid']),None)
-  if assigned is None:
-   assignments=api('/rest/v1/cq_v4_pdf_assignments?select=chapter_id,student_user_id',None,users['parent']['token'])
-   assigned=next(({'chapter_id':row['chapter_id'],'student_user_id':row['student_user_id']} for row in assignments if row['student_user_id']==users['student']['uid']),None)
-  assert assigned,'Local parent assignment missing after publish'
-  chapter_uuid=assigned['chapter_id']
+  chapter_uuid=unpublished_uuid
+  assigned=api('/functions/v1/cq-v4-pdf-parent',{'action':'list_assignments'},users['parent']['token'])['assignments']
+  assert any(row.get('student_user_id')==users['student']['uid'] and row.get('chapter_uuid',row.get('chapter_id'))==chapter_uuid for row in assigned),'Local parent assignment missing after publish'
   api('/rest/v1/rpc/cq_v4_parent_schedule_lesson',{'p_student_user_id':users['student']['uid'],'p_chapter_id':chapter_uuid,'p_lesson_date':'2026-11-23'},users['parent']['token'])
   api('/rest/v1/rpc/cq_v4_parent_set_lesson_release',{'p_student_user_id':users['student']['uid'],'p_chapter_id':chapter_uuid,'p_release':True},users['parent']['token'])
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(1);passed('parent explicitly releases the synthetic lesson before student access')
