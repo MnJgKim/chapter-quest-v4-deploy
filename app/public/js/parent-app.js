@@ -198,9 +198,17 @@
 
  async function enrichSubmissions(rows){
   const owner=cloudIdentity(),contexts=new Map();
+  let serverContextUnavailable=false;
   for(const uuid of new Set(rows.map(r=>r.chapter_uuid))){
+   if(serverContextUnavailable){contexts.set(uuid,localLessonContext(uuid));continue;}
    try{const result=await parentRpc('cq_v4_parent_lesson',{p_chapter_uuid:uuid});contexts.set(uuid,Array.isArray(result)?result[0]:null);}
-   catch(error){if(cloudIdentity()!==owner)throw error;contexts.set(uuid,localLessonContext(uuid));}
+   catch(error){
+    if(cloudIdentity()!==owner)throw error;
+    // Older hosted projects do not have this optional parent-only context RPC.
+    // Avoid repeated missing-RPC calls while preserving submissions and feedback.
+    if(/could not find the function|function .* does not exist|PGRST202/i.test(String(error?.message||'')))serverContextUnavailable=true;
+    contexts.set(uuid,localLessonContext(uuid));
+   }
   }
   if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다.');
   return rows.map(row=>({...row,lessonContext:contexts.get(row.chapter_uuid)||localLessonContext(row.chapter_uuid)}));
