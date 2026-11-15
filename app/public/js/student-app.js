@@ -456,11 +456,16 @@
     return;
    }
    if(b.dataset.child==='login'){await login();const owner=childContext(),api=childApi;const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)return;chapters=rows;draw();status(rows.length+'개 배정 챕터를 불러왔습니다.');}
-   else if(session&&['claim','list','view'].includes(b.dataset.child))await childAccessToken();
+   // Capture invite inputs synchronously: token refresh can redraw the form.
+   const claimInput=b.dataset.child==='claim'?{
+     code:el('cqChildInvite')?.value.trim(),
+     name:el('cqChildInviteName')?.value.trim()
+   }:null;
+   if(session&&['claim','list','view'].includes(b.dataset.child)&&b.dataset.child!=='login')await childAccessToken();
    if(b.dataset.child==='claim'&&session?.resumedExisting)throw Error('기존 연결을 유지합니다. 재초대하지 않습니다.');
    if(b.dataset.child==='claim'){
      if(!session)throw Error('학생 로그인 후 요청하세요.');
-     const code=el('cqChildInvite')?.value.trim(),name=el('cqChildInviteName')?.value.trim();
+     const {code,name}=claimInput;
      if(!/^[0-9a-f]{48}$/.test(code||''))throw Error('초대코드 형식을 확인하세요.');
      if(!name||name.length>80)throw Error('학생 이름을 입력하세요.');
      const project=studentProject();
