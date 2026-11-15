@@ -165,7 +165,8 @@ try:
   pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(0);passed('newly assigned lesson stays hidden until parent release')
   # UI hiding is not sufficient: a known chapter UUID must not bypass the release gate.
-  assert api('/rest/v1/rpc/cq_v4_my_chapter_activities',{'p_chapter_uuid':unpublished_uuid},users['student']['token'])==[]
+  unpublished_activities=api('/rest/v1/rpc/cq_v4_my_chapter_activities',{'p_chapter_uuid':unpublished_uuid},users['student']['token'])
+  assert unpublished_activities==[], f'Unreleased activities unexpectedly accessible: {type(unpublished_activities).__name__}, count={len(unpublished_activities) if isinstance(unpublished_activities,list) else "non-list"}'
   try:
    api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':unpublished_uuid},users['student']['token'])
    raise AssertionError('Unreleased assigned PDF signed link was issued')
