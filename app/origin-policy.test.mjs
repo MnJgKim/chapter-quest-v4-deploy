@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import './public/origin-policy.js';
+const allows=globalThis.CQOrigin.allows;
+test('hosted Supabase HTTPS remains allowed',()=>assert.equal(allows('https://example.supabase.co','https://app.example/'),true));
+test('hosted app cannot target local Supabase',()=>assert.equal(allows('http://127.0.0.1:54321','https://app.example/'),false));
+test('local app can target only the local Supabase port',()=>assert.equal(allows('http://127.0.0.1:54321','http://localhost:8000/'),true));
+test('other local services are rejected',()=>assert.equal(allows('http://127.0.0.1:54322','http://localhost:8000/'),false));
+test('remote HTTP service is rejected',()=>assert.equal(allows('http://example.supabase.co','http://localhost:8000/'),false));
+test('credentials and paths cannot change a local target',()=>{for(const target of ['http://user:pass@127.0.0.1:54321','http://127.0.0.1:54321/other','http://127.0.0.1:54321?remote=true'])assert.equal(allows(target,'http://localhost:8000/'),false);});

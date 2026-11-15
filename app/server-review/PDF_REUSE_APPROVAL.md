@@ -1,0 +1,21 @@
+# Existing PDF reuse — production approval required
+
+The user selected the existing verified PDF titled `Chapter` for the first lesson. No hosted data, files, accounts or deployments have been changed for this work.
+
+Candidate: `app/local-supabase/supabase/functions/cq-v4-pdf-parent/index.ts`. The added `download_url` action authenticates the caller, requires the existing authoritative `cq_is_admin()` boolean result, and selects only the chapter matching both chapter UUID and the caller parent UUID. It requires a verified PDF at the exact parent/chapter path, then issues a 120-second read-only signed URL. It performs no INSERT/UPDATE/DELETE/upload/assignment. Students, another owner, invalid paths and unverified originals are denied.
+
+The frontend's `기존 PDF로 학습 준비` button downloads through the guarded PDF transport, stores exact bytes in the parent's local IndexedDB, extracts available text with the bundled PDF.js, and links the local chapter to the existing server UUID. It creates no duplicate hosted chapter and does not publish or assign any lesson. Image-only PDFs remain readable but require separately reviewed source text for AI preparation. Local browser data already present is retained.
+
+Before an approved application, re-fetch the currently deployed Edge source/config and compare against the v2 backup in `current-baseline/`. Confirm the project ref, reviewed candidate commit, JWT verification enabled, and unchanged role guard. Do not deploy all local functions or apply the local bootstrap migration. Capture table fingerprints and storage metadata before/after.
+
+Rollback: restore the immediately preceding captured `cq-v4-pdf-parent` source with its existing JWT verification setting, independently restore the captured Cloudflare frontend version if needed, and leave server rows/storage and local IndexedDB intact. `current-baseline/` captures the known deployed v2, including its admin guard; do not use the historical v1 backup that predates this guard. If the live baseline has changed since capture, preserve and restore that newer baseline instead.
+
+Verified: 12 isolated Node checks cover ownership, denial, short signatures, URL trust and original byte validation; five additional mocked-browser checks cover fresh-parent reuse with exact bytes, extracted source and persistence after reload, repeat-import idempotency and preservation of an existing local TXT original, and clearing stale server links when replacing the local original. Real local Storage/Edge recovery passed in the full 15-check CI suite on runtime commit `ae594f5` (run 42964265817), including real private original recovery and another registered parent denial. These are development results, not production verification.
+
+## Parent recording playback in the same Edge candidate
+
+The complete local Storage/Edge test exposed a parent recording failure after a successful real student upload/submission. The captured Storage SELECT policy joins the assignments table, whose client SELECT policy permits only the assigned student, so the parent cannot obtain a recording link through that direct client path. The former frontend also treated a Storage-relative URL as origin-relative.
+
+The candidate adds read-only `audio_download_url` to the same parent Edge. It first requires parent Auth/admin authorization, then invokes the **existing caller-JWT** `cq_v4_parent_submissions()` RPC filtered to exact chapter and child UUID. That authoritative RPC checks parent ownership, current assignment and enrollment; a final submission with `hasAudio=true` is required. Only then does the service client sign an existing WebM/MP4/OGG path for 120 seconds. The frontend validates origin, exact object path, token and expiry before playback. No Storage policy, table, function, account, row or object is changed by this addition.
+
+Eleven additional isolated Node checks cover denied students/owners/revoked or missing submissions, RPC failure, missing files, MP4 fallback, wrong object and foreign-origin signatures. Mocked Chromium also loads the actual fake-microphone recording through the signed playback URL. Full real local playback, including media readyState=4, passed in CI run 42964265817. Apply and roll back this Edge change together with the PDF action using the current deployed v2 baseline; explicit production approval remains required.

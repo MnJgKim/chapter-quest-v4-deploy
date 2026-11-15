@@ -1,0 +1,30 @@
+{
+  "scope": "operating metadata SELECT only; no file content downloaded or operating mutations",
+  "operatingPDF": {
+    "recordTitle": "Chapter",
+    "bytes": 29306963,
+    "private": true,
+    "verified": true,
+    "internalTitle": null,
+    "pageCount": null,
+    "chapterStructure": null,
+    "chapter1Confirmed": false
+  },
+  "actualChapter1Range": {
+    "start": null,
+    "end": null,
+    "status": "undetermined; earlier 1-11 response withdrawn"
+  },
+  "anonymousAccount": {
+    "existingLinks": 1,
+    "studentAnonymous": true,
+    "studentHasEmail": false,
+    "parentEmailConfirmed": true,
+    "confirmedAsSeowoo": false,
+    "converted": false,
+    "operatingSignInAttempted": false
+  },
+  "operatingRegistrationOrAssignment": false,
+  "cloudflareAuthenticationRequested": false,
+  "paidResourcesCreated": false
+}

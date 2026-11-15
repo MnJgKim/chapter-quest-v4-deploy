@@ -1,0 +1,331 @@
+{
+  "indexes": [
+    "CREATE INDEX cq_v4_invites_parent_idx ON public.cq_v4_invites USING btree (parent_user_id, created_at DESC)",
+    "CREATE INDEX cq_v4_pdf_assignment_student_idx ON public.cq_v4_pdf_assignments USING btree (student_user_id)",
+    "CREATE UNIQUE INDEX cq_v4_invites_one_pending_child_idx ON public.cq_v4_invites USING btree (parent_user_id, claimed_by) WHERE ((claimed_by IS NOT NULL) AND (approved_at IS NULL) AND (revoked_at IS NULL))",
+    "CREATE INDEX cq_pairing_requests_auth_idx ON public.cq_pairing_requests USING btree (auth_user_id)",
+    "CREATE INDEX cq_student_devices_student_idx ON public.cq_student_devices USING btree (student_id)"
+  ],
+  "constraints": [
+    {
+      "name": "cq_pairing_requests_auth_user_id_fkey",
+      "definition": "FOREIGN KEY (auth_user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "cq_pairing_requests"
+    },
+    {
+      "name": "cq_pairing_requests_approved_student_id_fkey",
+      "definition": "FOREIGN KEY (approved_student_id) REFERENCES cq_students(id)",
+      "table_name": "cq_pairing_requests"
+    },
+    {
+      "name": "cq_v4_activities_pkey",
+      "definition": "PRIMARY KEY (chapter_uuid)",
+      "table_name": "cq_v4_activities"
+    },
+    {
+      "name": "cq_pairing_requests_approved_by_fkey",
+      "definition": "FOREIGN KEY (approved_by) REFERENCES auth.users(id)",
+      "table_name": "cq_pairing_requests"
+    },
+    {
+      "name": "cq_students_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "cq_students"
+    },
+    {
+      "name": "cq_books_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "cq_books"
+    },
+    {
+      "name": "cq_chapters_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "cq_chapters"
+    },
+    {
+      "name": "cq_chapters_book_id_chapter_number_key",
+      "definition": "UNIQUE (book_id, chapter_number)",
+      "table_name": "cq_chapters"
+    },
+    {
+      "name": "cq_chapters_book_id_fkey",
+      "definition": "FOREIGN KEY (book_id) REFERENCES cq_books(id) ON DELETE CASCADE",
+      "table_name": "cq_chapters"
+    },
+    {
+      "name": "cq_assignments_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "cq_assignments"
+    },
+    {
+      "name": "cq_assignments_student_id_chapter_id_key",
+      "definition": "UNIQUE (student_id, chapter_id)",
+      "table_name": "cq_assignments"
+    },
+    {
+      "name": "cq_assignments_student_id_fkey",
+      "definition": "FOREIGN KEY (student_id) REFERENCES cq_students(id) ON DELETE CASCADE",
+      "table_name": "cq_assignments"
+    },
+    {
+      "name": "cq_assignments_chapter_id_fkey",
+      "definition": "FOREIGN KEY (chapter_id) REFERENCES cq_chapters(id) ON DELETE CASCADE",
+      "table_name": "cq_assignments"
+    },
+    {
+      "name": "cq_submissions_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "cq_submissions"
+    },
+    {
+      "name": "cq_submissions_assignment_id_key",
+      "definition": "UNIQUE (assignment_id)",
+      "table_name": "cq_submissions"
+    },
+    {
+      "name": "cq_submissions_assignment_id_fkey",
+      "definition": "FOREIGN KEY (assignment_id) REFERENCES cq_assignments(id) ON DELETE CASCADE",
+      "table_name": "cq_submissions"
+    },
+    {
+      "name": "cq_feedback_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "cq_feedback"
+    },
+    {
+      "name": "cq_feedback_submission_id_key",
+      "definition": "UNIQUE (submission_id)",
+      "table_name": "cq_feedback"
+    },
+    {
+      "name": "cq_feedback_submission_id_fkey",
+      "definition": "FOREIGN KEY (submission_id) REFERENCES cq_submissions(id) ON DELETE CASCADE",
+      "table_name": "cq_feedback"
+    },
+    {
+      "name": "cq_student_devices_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "cq_student_devices"
+    },
+    {
+      "name": "cq_student_devices_auth_user_id_key",
+      "definition": "UNIQUE (auth_user_id)",
+      "table_name": "cq_student_devices"
+    },
+    {
+      "name": "cq_student_devices_student_id_fkey",
+      "definition": "FOREIGN KEY (student_id) REFERENCES cq_students(id) ON DELETE CASCADE",
+      "table_name": "cq_student_devices"
+    },
+    {
+      "name": "cq_student_devices_auth_user_id_fkey",
+      "definition": "FOREIGN KEY (auth_user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "cq_student_devices"
+    },
+    {
+      "name": "cq_student_devices_approved_by_fkey",
+      "definition": "FOREIGN KEY (approved_by) REFERENCES auth.users(id)",
+      "table_name": "cq_student_devices"
+    },
+    {
+      "name": "cq_admins_pkey",
+      "definition": "PRIMARY KEY (user_id)",
+      "table_name": "cq_admins"
+    },
+    {
+      "name": "cq_admins_user_id_fkey",
+      "definition": "FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "cq_admins"
+    },
+    {
+      "name": "cq_pairing_requests_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "cq_pairing_requests"
+    },
+    {
+      "name": "cq_pairing_requests_pairing_code_key",
+      "definition": "UNIQUE (pairing_code)",
+      "table_name": "cq_pairing_requests"
+    },
+    {
+      "name": "cq_v4_distinct_users",
+      "definition": "CHECK ((parent_user_id <> student_user_id))",
+      "table_name": "cq_v4_pdf_enrollments"
+    },
+    {
+      "name": "cq_v4_pdf_enrollments_pkey",
+      "definition": "PRIMARY KEY (parent_user_id, student_user_id)",
+      "table_name": "cq_v4_pdf_enrollments"
+    },
+    {
+      "name": "cq_v4_pdf_enrollments_parent_user_id_fkey",
+      "definition": "FOREIGN KEY (parent_user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "cq_v4_pdf_enrollments"
+    },
+    {
+      "name": "cq_v4_pdf_enrollments_student_user_id_fkey",
+      "definition": "FOREIGN KEY (student_user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "cq_v4_pdf_enrollments"
+    },
+    {
+      "name": "cq_v4_pdf_chapters_title_check",
+      "definition": "CHECK (((length(title) >= 1) AND (length(title) <= 200)))",
+      "table_name": "cq_v4_pdf_chapters"
+    },
+    {
+      "name": "cq_v4_storage_path_valid",
+      "definition": "CHECK ((storage_path ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.]pdf$'::text))",
+      "table_name": "cq_v4_pdf_chapters"
+    },
+    {
+      "name": "cq_v4_storage_path_owner_binding",
+      "definition": "CHECK ((storage_path = ((((parent_user_id)::text || '/'::text) || (chapter_id)::text) || '.pdf'::text)))",
+      "table_name": "cq_v4_pdf_chapters"
+    },
+    {
+      "name": "cq_v4_pdf_chapters_pkey",
+      "definition": "PRIMARY KEY (chapter_id)",
+      "table_name": "cq_v4_pdf_chapters"
+    },
+    {
+      "name": "cq_v4_pdf_chapters_storage_path_key",
+      "definition": "UNIQUE (storage_path)",
+      "table_name": "cq_v4_pdf_chapters"
+    },
+    {
+      "name": "cq_v4_pdf_chapters_parent_user_id_fkey",
+      "definition": "FOREIGN KEY (parent_user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "cq_v4_pdf_chapters"
+    },
+    {
+      "name": "cq_v4_pdf_assignments_pkey",
+      "definition": "PRIMARY KEY (chapter_id, student_user_id)",
+      "table_name": "cq_v4_pdf_assignments"
+    },
+    {
+      "name": "cq_v4_pdf_assignments_chapter_id_fkey",
+      "definition": "FOREIGN KEY (chapter_id) REFERENCES cq_v4_pdf_chapters(chapter_id) ON DELETE CASCADE",
+      "table_name": "cq_v4_pdf_assignments"
+    },
+    {
+      "name": "cq_v4_pdf_assignments_student_user_id_fkey",
+      "definition": "FOREIGN KEY (student_user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "cq_v4_pdf_assignments"
+    },
+    {
+      "name": "cq_v4_snapshots_pkey",
+      "definition": "PRIMARY KEY (owner_id)",
+      "table_name": "cq_v4_snapshots"
+    },
+    {
+      "name": "cq_v4_snapshots_owner_id_fkey",
+      "definition": "FOREIGN KEY (owner_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "cq_v4_snapshots"
+    },
+    {
+      "name": "cq_v4_activities_questions_check",
+      "definition": "CHECK ((jsonb_typeof(questions) = 'array'::text))",
+      "table_name": "cq_v4_activities"
+    },
+    {
+      "name": "cq_v4_activities_vocabulary_check",
+      "definition": "CHECK ((jsonb_typeof(vocabulary) = 'array'::text))",
+      "table_name": "cq_v4_activities"
+    },
+    {
+      "name": "cq_v4_activities_chapter_uuid_fkey",
+      "definition": "FOREIGN KEY (chapter_uuid) REFERENCES cq_v4_pdf_chapters(chapter_id) ON DELETE CASCADE",
+      "table_name": "cq_v4_activities"
+    },
+    {
+      "name": "cq_v4_student_submissions_answers_check",
+      "definition": "CHECK ((jsonb_typeof(answers) = 'object'::text))",
+      "table_name": "cq_v4_student_submissions"
+    },
+    {
+      "name": "cq_v4_student_submissions_pkey",
+      "definition": "PRIMARY KEY (chapter_uuid, child_user_id)",
+      "table_name": "cq_v4_student_submissions"
+    },
+    {
+      "name": "cq_v4_student_submissions_chapter_uuid_fkey",
+      "definition": "FOREIGN KEY (chapter_uuid) REFERENCES cq_v4_pdf_chapters(chapter_id) ON DELETE RESTRICT",
+      "table_name": "cq_v4_student_submissions"
+    },
+    {
+      "name": "cq_v4_student_submissions_child_user_id_fkey",
+      "definition": "FOREIGN KEY (child_user_id) REFERENCES auth.users(id) ON DELETE RESTRICT",
+      "table_name": "cq_v4_student_submissions"
+    },
+    {
+      "name": "cq_v4_approval_requests_title_check",
+      "definition": "CHECK (((length(title) >= 1) AND (length(title) <= 200)))",
+      "table_name": "cq_v4_approval_requests"
+    },
+    {
+      "name": "cq_v4_approval_requests_questions_check",
+      "definition": "CHECK ((jsonb_typeof(questions) = 'array'::text))",
+      "table_name": "cq_v4_approval_requests"
+    },
+    {
+      "name": "cq_v4_approval_requests_answer_key_check",
+      "definition": "CHECK ((jsonb_typeof(answer_key) = 'array'::text))",
+      "table_name": "cq_v4_approval_requests"
+    },
+    {
+      "name": "cq_v4_approval_requests_vocabulary_check",
+      "definition": "CHECK ((jsonb_typeof(vocabulary) = 'array'::text))",
+      "table_name": "cq_v4_approval_requests"
+    },
+    {
+      "name": "cq_v4_approval_requests_pkey",
+      "definition": "PRIMARY KEY (id)",
+      "table_name": "cq_v4_approval_requests"
+    },
+    {
+      "name": "cq_v4_approval_requests_parent_user_id_request_key_key",
+      "definition": "UNIQUE (parent_user_id, request_key)",
+      "table_name": "cq_v4_approval_requests"
+    },
+    {
+      "name": "cq_v4_approval_requests_parent_user_id_fkey",
+      "definition": "FOREIGN KEY (parent_user_id) REFERENCES auth.users(id)",
+      "table_name": "cq_v4_approval_requests"
+    },
+    {
+      "name": "cq_v4_approval_requests_chapter_uuid_fkey",
+      "definition": "FOREIGN KEY (chapter_uuid) REFERENCES cq_v4_pdf_chapters(chapter_id)",
+      "table_name": "cq_v4_approval_requests"
+    },
+    {
+      "name": "cq_v4_activities_approval_id_fkey",
+      "definition": "FOREIGN KEY (approval_id) REFERENCES cq_v4_approval_requests(id)",
+      "table_name": "cq_v4_activities"
+    },
+    {
+      "name": "cq_v4_invite_claim_consistency",
+      "definition": "CHECK (((claimed_by IS NULL) = (claimed_at IS NULL)))",
+      "table_name": "cq_v4_invites"
+    },
+    {
+      "name": "cq_v4_invites_pkey",
+      "definition": "PRIMARY KEY (invite_id)",
+      "table_name": "cq_v4_invites"
+    },
+    {
+      "name": "cq_v4_invites_token_hash_key",
+      "definition": "UNIQUE (token_hash)",
+      "table_name": "cq_v4_invites"
+    },
+    {
+      "name": "cq_v4_invites_parent_user_id_fkey",
+      "definition": "FOREIGN KEY (parent_user_id) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "cq_v4_invites"
+    },
+    {
+      "name": "cq_v4_invites_claimed_by_fkey",
+      "definition": "FOREIGN KEY (claimed_by) REFERENCES auth.users(id) ON DELETE CASCADE",
+      "table_name": "cq_v4_invites"
+    }
+  ]
+}

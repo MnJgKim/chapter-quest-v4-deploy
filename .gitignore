@@ -1,0 +1,23 @@
+node_modules/
+.build/
+.wrangler/
+__pycache__/
+.dev.vars
+.env*
+!.env.example
+review/stage1/local-supabase/lean/runtime/
+review/stage1/local-supabase/supabase/.temp/
+
+**/lean/runtime/
+**/supabase/.temp/
+
+app/public/vendor/
+
+# Never stage private source-review material.
+private-transcripts/
+private-lesson/
+*.transcript-private.*
+
+# Local-only tool settings and restored historical test dependencies.
+.local-tools/
+archive/p0-contract-20261113/.integration/

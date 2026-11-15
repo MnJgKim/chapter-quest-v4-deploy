@@ -1,0 +1,265 @@
+{
+  "scope": "isolated Chromium with separate parent/student browser contexts, synthetic Supabase/AI HTTP responses and fake microphone; hosted integration NOT verified",
+  "checks": [
+    {
+      "name": "parent login using default project config",
+      "pass": true
+    },
+    {
+      "name": "student claims parent invitation in independent browser context",
+      "pass": true
+    },
+    {
+      "name": "parent approves child using installed list-child-access RPC",
+      "pass": true
+    },
+    {
+      "name": "parent assignment and the authenticated student show the same account reference before selection",
+      "pass": true
+    },
+    {
+      "name": "parent converts local original TXT to PDF, signs upload, verifies and links the selected chapter",
+      "pass": true
+    },
+    {
+      "name": "parent source storage failure blocks the AI request and never displays a successful save",
+      "pass": true
+    },
+    {
+      "name": "failed AI generation retains the reviewed source and restores its action button",
+      "pass": true
+    },
+    {
+      "name": "a fresh parent tab restores source saved before a failed AI request",
+      "pass": true
+    },
+    {
+      "name": "parent AI preview includes model answers and vocabulary",
+      "pass": true
+    },
+    {
+      "name": "parent approval registers, binds verified PDF, publishes and assigns in order",
+      "pass": true
+    },
+    {
+      "name": "parent logout and re-login reuses the original publication request for unchanged approved material",
+      "pass": true
+    },
+    {
+      "name": "student assigned chapter opens actual PDF and enables submission after render",
+      "pass": true
+    },
+    {
+      "name": "expired student session refreshes without discarding account or answers",
+      "pass": true
+    },
+    {
+      "name": "word review reveals meaning and persists a study check",
+      "pass": true
+    },
+    {
+      "name": "active learning form fits 360x800 mobile/tablet viewport with submit control",
+      "pass": true
+    },
+    {
+      "name": "active learning form fits 412x915 mobile/tablet viewport with submit control",
+      "pass": true
+    },
+    {
+      "name": "active learning form fits 800x1280 mobile/tablet viewport with submit control",
+      "pass": true
+    },
+    {
+      "name": "active learning form fits 1280x800 mobile/tablet viewport with submit control",
+      "pass": true
+    },
+    {
+      "name": "failed recovery backup visibly blocks overwrite and retains both old raw data and current form",
+      "pass": true
+    },
+    {
+      "name": "damaged draft array is preserved exactly and autosave repairs the map before reload",
+      "pass": true
+    },
+    {
+      "name": "page refresh preserves server mode and restores the signed-in student draft after re-login",
+      "pass": true
+    },
+    {
+      "name": "chapter navigation restores autosaved answers and vocabulary study",
+      "pass": true
+    },
+    {
+      "name": "different student in the same browser cannot inherit another student draft",
+      "pass": true
+    },
+    {
+      "name": "original student re-login recovers the correct account draft",
+      "pass": true
+    },
+    {
+      "name": "student records, durably saves and previews real MediaRecorder audio",
+      "pass": true
+    },
+    {
+      "name": "student recording preview and final submit fit 360x800 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "student recording preview and final submit fit 412x915 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "student recording preview and final submit fit 800x1280 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "student recording preview and final submit fit 1280x800 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "failed audio upload blocks server submission and preserves answers",
+      "pass": true
+    },
+    {
+      "name": "damaged audio recovery map is preserved before the durable upload intent is saved",
+      "pass": true
+    },
+    {
+      "name": "lost submit response preserves local recovery data",
+      "pass": true
+    },
+    {
+      "name": "retry uploads audio and submits full answer contract once",
+      "pass": true
+    },
+    {
+      "name": "submitted student has a direct feedback path before the parent releases feedback",
+      "pass": true
+    },
+    {
+      "name": "missing optional read API uses the frozen published answer context, never an edited local draft",
+      "pass": true
+    },
+    {
+      "name": "parent sees submitted answers and releases feedback",
+      "pass": true
+    },
+    {
+      "name": "parent playback uses a short owned-submission link and loads the actual recorded audio",
+      "pass": true
+    },
+    {
+      "name": "student sees released feedback and cannot edit final submission",
+      "pass": true
+    },
+    {
+      "name": "parent results and recording playback fit 360x800 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "parent results and recording playback fit 412x915 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "parent results and recording playback fit 800x1280 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "parent results and recording playback fit 1280x800 mobile/tablet viewport",
+      "pass": true
+    },
+    {
+      "name": "recovering converted server PDF preserves the original local TXT and reviewed chapter",
+      "pass": true
+    },
+    {
+      "name": "parent reviews the recovered original in the bundled PDF viewer before approving questions",
+      "pass": true
+    },
+    {
+      "name": "fresh parent browser reuses owned PDF with exact bytes and extracted text without server writes",
+      "pass": true
+    },
+    {
+      "name": "repeated original recovery reuses the same local chapter and preserves reviewed questions",
+      "pass": true
+    },
+    {
+      "name": "reused original PDF and source survive page reload without an active server login",
+      "pass": true
+    },
+    {
+      "name": "replacing a recovered PDF with a local TXT clears the old server association and recovery marker",
+      "pass": true
+    },
+    {
+      "name": "parent logout clears cached private submission details",
+      "pass": true
+    },
+    {
+      "name": "student account is rejected at the parent login boundary",
+      "pass": true
+    },
+    {
+      "name": "denied PDF access keeps final submission locked",
+      "pass": true
+    },
+    {
+      "name": "no runtime errors or unmocked hosted service requests",
+      "pass": true
+    }
+  ],
+  "page_errors": [],
+  "unexpected_requests": [],
+  "rpc_calls": [
+    "cq_is_admin",
+    "cq_v4_issue_invite",
+    "cq_v4_claim_invite",
+    "cq_v4_list_child_access",
+    "cq_v4_approve_child",
+    "cq_v4_list_child_access",
+    "cq_v4_register_approval_once",
+    "cq_v4_bind_verified_pdf",
+    "cq_v4_publish_approved",
+    "cq_is_admin",
+    "cq_v4_list_child_access",
+    "cq_v4_register_approval_once",
+    "cq_v4_bind_verified_pdf",
+    "cq_v4_publish_approved",
+    "cq_v4_my_chapters",
+    "cq_v4_my_submission",
+    "cq_v4_my_chapter_activities",
+    "cq_v4_my_chapters",
+    "cq_v4_my_submission",
+    "cq_v4_my_chapter_activities",
+    "cq_v4_my_chapters",
+    "cq_v4_my_submission",
+    "cq_v4_my_chapter_activities",
+    "cq_v4_my_chapters",
+    "cq_v4_my_submission",
+    "cq_v4_my_chapter_activities",
+    "cq_v4_my_chapters",
+    "cq_v4_my_submission",
+    "cq_v4_my_chapter_activities",
+    "cq_v4_my_submission",
+    "cq_v4_my_submission",
+    "cq_v4_my_submission",
+    "cq_v4_submit_answers",
+    "cq_v4_my_submission",
+    "cq_v4_my_submission",
+    "cq_v4_my_chapter_activities",
+    "cq_v4_parent_submissions",
+    "cq_v4_parent_lesson",
+    "cq_v4_release_feedback",
+    "cq_v4_parent_submissions",
+    "cq_v4_parent_lesson",
+    "cq_v4_my_submission",
+    "cq_v4_my_chapter_activities",
+    "cq_is_admin",
+    "cq_is_admin",
+    "cq_v4_my_chapters",
+    "cq_v4_my_submission",
+    "cq_v4_my_chapter_activities"
+  ]
+}

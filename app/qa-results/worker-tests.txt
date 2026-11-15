@@ -1,0 +1,39 @@
+
+> chapter-quest-v4-launch@4.0.0 test
+> node --test worker.test.mjs origin-policy.test.mjs
+
+✔ hosted Supabase HTTPS remains allowed (1.491849ms)
+✔ hosted app cannot target local Supabase (0.284952ms)
+✔ local app can target only the local Supabase port (0.205354ms)
+✔ other local services are rejected (1.481124ms)
+✔ remote HTTP service is rejected (0.195529ms)
+✔ credentials and paths cannot change a local target (0.216811ms)
+✔ unconfigured server fails closed without model use (38.585144ms)
+✔ GET cannot trigger AI billing (0.584796ms)
+✔ cross-origin generation is denied (0.602803ms)
+✔ missing authentication is denied before any upstream request (0.976576ms)
+✔ expired Supabase session is denied (0.701829ms)
+✔ student or unapproved account is denied before model call (1.588212ms)
+✔ untrusted editable metadata cannot grant parent access (0.651244ms)
+✔ short chapter is rejected (3.001245ms)
+✔ oversized chapter is rejected (0.909247ms)
+✔ stream size limit prevents oversized payload (2.06646ms)
+✔ valid authenticated parent receives sanitized draft (1.518098ms)
+✔ markdown JSON output is parsed (0.591636ms)
+✔ malformed model output is blocked (0.453712ms)
+✔ out-of-range MC answer is blocked (0.206916ms)
+✔ literal questions normalize to the server publication contract (0.151765ms)
+✔ unknown API paths return JSON 404 (0.286094ms)
+✔ static asset paths preserve asset delivery (0.248077ms)
+✔ server parent role is required even for an allowlisted user (0.489975ms)
+✔ configured server uses cq_is_admin without a separate editable parent list (0.457718ms)
+✔ missing written model answer cannot be approved for publication (0.118395ms)
+✔ AI disabled until free-plan confirmation; no upstream requests (0.2166ms)
+ℹ tests 27
+ℹ suites 0
+ℹ pass 27
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 227.828556

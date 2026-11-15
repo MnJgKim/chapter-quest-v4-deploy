@@ -1,0 +1,50 @@
+name: Free validation
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: cq-validation-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  local-learning:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - run: python -m compileall -q -x 'node_modules|runtime' app
+      - run: npm test
+      - run: npm run build
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+      - run: pip install -r app/qa-requirements.txt
+      - run: python -m playwright install --with-deps chromium
+      - run: npm run test:browser
+      - name: Start isolated local Supabase, with no hosted project link
+        working-directory: app
+        run: |
+          npx --no-install supabase --workdir local-supabase start --exclude realtime,imgproxy,studio,logflare,vector,supavisor,postgres-meta,mailpit > "$RUNNER_TEMP/supabase-start.log" 2>&1
+          npx --no-install supabase --workdir local-supabase status -o json > "$RUNNER_TEMP/cq-local-status.json"
+          chmod 600 "$RUNNER_TEMP/cq-local-status.json"
+          nohup npx --no-install supabase --workdir local-supabase functions serve > "$RUNNER_TEMP/cq-functions.log" 2>&1 < /dev/null &
+      - name: Real local Auth, Storage, Edge and learning flow
+        run: |
+          python app/local-supabase/full_browser_test.py "$RUNNER_TEMP/cq-local-status.json" "$RUNNER_TEMP/cq-full-txt/results.json" txt
+          python app/local-supabase/full_browser_test.py "$RUNNER_TEMP/cq-local-status.json" "$RUNNER_TEMP/cq-full-pdf/results.json" pdf
+          python app/local-supabase/full_browser_test.py "$RUNNER_TEMP/cq-local-status.json" "$RUNNER_TEMP/cq-full-range/results.json" range
+          python app/local-supabase/full_browser_test.py "$RUNNER_TEMP/cq-local-status.json" "$RUNNER_TEMP/cq-full-whole/results.json" whole
+      - name: Sanitized local startup diagnostics
+        if: failure()
+        run: python app/local-supabase/ci-diagnostics.py
+      - name: Stop only the local test stack
+        if: always()
+        working-directory: app
+        run: npx --no-install supabase --workdir local-supabase stop

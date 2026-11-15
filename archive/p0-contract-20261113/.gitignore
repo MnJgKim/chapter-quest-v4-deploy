@@ -1,0 +1,11 @@
+node_modules/
+.wrangler/
+.env
+.env.*
+!.env.example
+.dev.vars*
+supabase/.temp/
+supabase/.branches/
+.integration/
+integration/target.json
+integration/.dev.vars*

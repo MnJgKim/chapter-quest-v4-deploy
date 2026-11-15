@@ -1,0 +1,3 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {readFileSync,existsSync} from 'node:fs';import path from 'node:path';import {fileURLToPath} from 'node:url';
+const root=path.dirname(fileURLToPath(import.meta.url));
+test('all application scripts are bundled local assets in a single entry HTML',()=>{const html=readFileSync(path.join(root,'public/index.html'),'utf8');const tags=[...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script>/g)];assert.ok(tags.length>10);for(const [,attrs,body] of tags){assert.equal(body.trim(),'');const source=attrs.match(/src="([^"]+)"/)?.[1];assert.ok(source?.startsWith('/'));assert.ok(existsSync(path.join(root,'public',source)),source);}});
