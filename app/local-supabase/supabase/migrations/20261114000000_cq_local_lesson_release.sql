@@ -94,3 +94,23 @@ revoke all on function public.cq_v4_parent_set_lesson_release(uuid,uuid,boolean)
 revoke all on function public.cq_v4_parent_list_lesson_releases() from public,anon;
 revoke all on function public.cq_v4_my_released_chapters() from public,anon;
 grant execute on function public.cq_v4_parent_schedule_lesson(uuid,uuid,date),public.cq_v4_parent_set_lesson_release(uuid,uuid,boolean),public.cq_v4_parent_list_lesson_releases(),public.cq_v4_my_released_chapters() to authenticated;
+
+-- Keep the isolated local activity RPC aligned with the hosted release gate.
+-- The original local bootstrap RPC predates the per-student schedule release.
+CREATE OR REPLACE FUNCTION public.cq_v4_my_chapter_activities(p_chapter_uuid uuid)
+ RETURNS TABLE(vocabulary jsonb, writing_prompt text, speaking_prompt text)
+ LANGUAGE sql
+ STABLE SECURITY DEFINER
+ SET search_path TO ''
+AS $function$
+ select act.vocabulary,act.writing_prompt,act.speaking_prompt
+ from public.cq_v4_activities act
+ join public.cq_v4_pdf_chapters c on c.chapter_id=act.chapter_uuid
+ join public.cq_v4_pdf_assignments a on a.chapter_id=c.chapter_id
+ join public.cq_v4_pdf_enrollments e on e.parent_user_id=c.parent_user_id and e.student_user_id=a.student_user_id
+ join public.cq_v4_lesson_schedule s on s.parent_user_id=c.parent_user_id and s.chapter_id=c.chapter_id and s.student_user_id=a.student_user_id
+ where act.chapter_uuid=p_chapter_uuid and a.student_user_id=(select auth.uid())
+ and act.published_at is not null and c.pdf_ready is true and s.released_at is not null;
+$function$;
+REVOKE ALL ON FUNCTION public.cq_v4_my_chapter_activities(uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_my_chapter_activities(uuid) TO authenticated;
