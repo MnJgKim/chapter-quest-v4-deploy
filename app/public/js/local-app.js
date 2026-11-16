@@ -43,21 +43,40 @@ async function loadAudio(){const el=$('#audioPreview');if(!el)return;const expec
 let parentUnlocked=false;
 const PARENT_PIN_KEY='cq_v4_parent_pin_hash';
 async function pinDigest(pin){const bytes=new TextEncoder().encode('CQ-V4-parent-local-v1:'+pin);return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(x=>x.toString(16).padStart(2,'0')).join('')}
+function requestMaskedPin(message){
+ return new Promise(resolve=>{
+  const overlay=document.createElement('div');
+  overlay.setAttribute('role','presentation');
+  overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px';
+  const dialog=document.createElement('form');dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label','부모 관리자 PIN');
+  dialog.style.cssText='background:#fff;color:#172033;border-radius:14px;padding:22px;max-width:400px;width:100%;box-shadow:0 12px 36px #0005';
+  const heading=document.createElement('h3');heading.textContent=message;
+  const input=document.createElement('input');input.type='password';input.inputMode='numeric';input.autocomplete='off';input.autocapitalize='off';input.spellcheck=false;input.setAttribute('aria-label','부모 관리자 PIN');input.setAttribute('maxlength','12');input.style.cssText='width:100%;box-sizing:border-box;padding:12px;font-size:20px;letter-spacing:3px';
+  const actions=document.createElement('div');actions.style.cssText='display:flex;gap:10px;justify-content:flex-end;margin-top:16px';
+  const cancel=document.createElement('button');cancel.type='button';cancel.textContent='취소';
+  const ok=document.createElement('button');ok.type='submit';ok.textContent='확인';
+  actions.append(cancel,ok);dialog.append(heading,input,actions);overlay.append(dialog);document.body.append(overlay);
+  const finish=value=>{input.value='';overlay.remove();resolve(value)};
+  cancel.addEventListener('click',()=>finish(null));
+  dialog.addEventListener('submit',event=>{event.preventDefault();finish(input.value)});
+  input.focus();
+ });
+}
 async function requestParentAccess(){
  if(parentUnlocked)return true;
  if(!crypto.subtle){alert('관리자 잠금을 지원하지 않는 환경입니다. HTTPS 환경에서 사용하세요.');return false}
  const existing=localStorage.getItem(PARENT_PIN_KEY);
  if(!existing){
-   const pin=prompt('부모 관리자용 숫자 PIN 6~12자리를 새로 설정하세요. 이 PIN은 기기 내 화면 잠금용이며 서버 인증을 대체하지 않습니다.');
-   if(pin===null)return false;
-   if(!/^\d{6,12}$/.test(pin)){alert('숫자 6~12자리로 설정하세요.');return false}
-   const repeat=prompt('부모 PIN을 다시 입력하세요.');
-   if(repeat!==pin){alert('PIN이 일치하지 않습니다.');return false}
-   localStorage.setItem(PARENT_PIN_KEY,await pinDigest(pin));
+  const pin=await requestMaskedPin('부모 관리자용 숫자 PIN 6~12자리를 새로 설정하세요.');
+  if(pin===null)return false;
+  if(!/^\\d{6,12}$/.test(pin)){alert('숫자 6~12자리로 설정하세요.');return false}
+  const repeat=await requestMaskedPin('부모 PIN을 다시 입력하세요.');
+  if(repeat!==pin){alert('PIN이 일치하지 않습니다.');return false}
+  localStorage.setItem(PARENT_PIN_KEY,await pinDigest(pin));
  }else{
-   const pin=prompt('부모 관리자 PIN을 입력하세요.');
-   if(pin===null)return false;
-   if(await pinDigest(pin)!==existing){alert('PIN이 일치하지 않습니다.');return false}
+  const pin=await requestMaskedPin('부모 관리자 PIN을 입력하세요.');
+  if(pin===null)return false;
+  if(await pinDigest(pin)!==existing){alert('PIN이 일치하지 않습니다.');return false}
  }
  parentUnlocked=true;return true;
 }
