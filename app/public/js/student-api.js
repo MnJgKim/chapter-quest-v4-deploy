@@ -38,7 +38,9 @@
           }
           return {kind:q.kind,text:q.text};
         });
-        return {chapter_uuid:row.chapter_uuid,chapter_title:String(row.chapter_title||'학습 챕터'),questions};
+        const lessonDate=row.lesson_date??null;
+        if(lessonDate!==null&&(typeof lessonDate!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(lessonDate)||!Number.isFinite(Date.parse(lessonDate))||new Date(lessonDate).toISOString().slice(0,10)!==lessonDate))throw Error('학습 예정일 형식을 확인해 주세요.');
+        return {chapter_uuid:row.chapter_uuid,chapter_title:String(row.chapter_title||'학습 챕터'),questions,lesson_date:lessonDate};
       });
     }
     async function submit(chapterUuid,answers,options={}){

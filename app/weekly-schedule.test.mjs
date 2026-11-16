@@ -49,3 +49,12 @@ test('parent-configured schedule overrides default days',()=>{
  const result=planWeek(s,'서우','2026-11-16');
  assert.deepEqual(Object.keys(result),['화','목']);
 });
+
+test('previous dated assignments are not assigned again the following week',()=>{
+ const s=state();s.weekly['2026-11-16']={서우:{월:assignment('1'),목:assignment('2')}};
+ assert.deepEqual(Object.values(planWeek(s,'서우','2026-11-23')).filter(Boolean).map(x=>x.chapterId),['3','4']);
+});
+test('manual off-day assignments remain visible after changing preferred days',()=>{
+ const s=state();s.weekly['2026-11-16']={서우:{금:assignment('2')}};
+ assert.equal(planWeek(s,'서우','2026-11-16').금.chapterId,'2');
+});

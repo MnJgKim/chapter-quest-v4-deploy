@@ -15,3 +15,11 @@ test('activity response is sanitized without changing approved vocabulary',async
 
 for(const [name,rows] of [['empty',[]],['object',{}],['missing fields',[{}]],['foreign chapter',[{...submitted,chapter_uuid:'22222222-2222-4222-8222-222222222222'}]],['invalid date',[{...submitted,submitted_at:'bad'}]]])test('malformed submit acknowledgment '+name+' must preserve recovery state',async()=>assert.rejects(client(rows).submit(uuid,{essay:'Synthetic answer'}),/제출 확인 응답/));
 test('valid submit acknowledgment identifies the same chapter and submission time',async()=>assert.deepEqual(await client([submitted]).submit(uuid,{essay:'Synthetic answer'}),[{chapter_uuid:uuid,submitted_at:submitted.submitted_at}]));
+
+test('server lesson date is retained without deriving recurring weekdays',async()=>{
+ const rows=await client([{chapter_uuid:uuid,lesson_date:'2026-11-25',questions:[{kind:'short',text:'Why?'}]}]).assignedChapters();
+ assert.equal(rows[0].lesson_date,'2026-11-25');
+});
+test('invalid calendar date cannot replace the current lesson list',async()=>{
+ await assert.rejects(client([{chapter_uuid:uuid,lesson_date:'2026-02-30',questions:[{kind:'short',text:'Why?'}]}]).assignedChapters(),/예정일/);
+});
