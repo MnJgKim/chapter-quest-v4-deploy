@@ -21,6 +21,27 @@
    }});
  };
 
+ const SESSION_KEY='cq_v4_parent_cloud_session_v1';
+ const clearSaved=()=>{try{localStorage.removeItem(SESSION_KEY)}catch(_){}};
+ const saveSaved=()=>{if(session?.refreshToken&&project?.url)try{localStorage.setItem(SESSION_KEY,JSON.stringify({url:project.url,uid:session.uid,refresh:session.refreshToken}))}catch(_){}};
+ async function resumeSaved(){
+  let stored;try{stored=JSON.parse(localStorage.getItem(SESSION_KEY)||'null')}catch(_){clearSaved();return}
+  if(!stored)return;
+  if(!project||stored.url!==project.url||!stored.refresh||!stored.uid){clearSaved();return}
+  const generation=sessionGeneration;
+  try{
+   const data=await auth('token?grant_type=refresh_token',{refresh_token:stored.refresh});
+   if(generation!==sessionGeneration||!data.access_token||!data.refresh_token||data.user?.id!==stored.uid)throw Error('session');
+   const response=await fetch(project.url+'/rest/v1/rpc/cq_is_admin',{method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+data.access_token,'Content-Type':'application/json'},body:'{}'});
+   if(!response.ok||(await response.json())!==true)throw Error('role');
+   if(generation!==sessionGeneration)return;
+   session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
+   CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);saveSaved();saveSaved();
+   const owner=cloudIdentity();const snapshot=await parentStore().loadParentSnapshot();
+   if(cloudIdentity()!==owner)return;
+   baseline=snapshot?.updated_at??null;aligned=false;auto=false;render();status('부모 계정 로그인 유지 중');
+  }catch(_){if(generation===sessionGeneration){session=null;clearSaved();CQCloud.reset();render();status('다시 로그인해 주세요.')}}
+ }
  const auth=async(path,body)=>{
    const response=await fetch(project.url+'/auth/v1/'+path,{method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},body:JSON.stringify(body)});
    const data=await response.json();if(!response.ok)throw Error(data.msg||data.error_description||data.message||'인증 오류');return data;
@@ -37,7 +58,7 @@
      if(!result.access_token||!result.refresh_token)throw Error('로그인 갱신에 실패했습니다.');
      session.token=result.access_token;session.refreshToken=result.refresh_token;
      session.expiresAt=Date.now()+(result.expires_in||3600)*1000;
-     CQCloud.updateToken(session.token);
+     CQCloud.updateToken(session.token);saveSaved();
    })();
    try{await refreshPromise}finally{refreshPromise=null}
  }
@@ -406,12 +427,12 @@
     const url=document.getElementById('cloudUrl').value.trim().replace(/\/$/,'');
     const anonKey=document.getElementById('cloudKey').value.trim();
     if(!(globalThis.CQOrigin?.allows(url)??/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url))||!anonKey)throw Error('Supabase URL과 공개 키를 확인하세요.');
-    sessionGeneration++;project={url,anonKey};auto=false;dirty=false;clearTimeout(syncTimer);baseline=undefined;aligned=false;localStorage.setItem('cq_v4_cloud_project',JSON.stringify(project));session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();render();status('프로젝트 설정 저장 완료');
+    sessionGeneration++;clearSaved();project={url,anonKey};auto=false;dirty=false;clearTimeout(syncTimer);baseline=undefined;aligned=false;localStorage.setItem('cq_v4_cloud_project',JSON.stringify(project));session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();render();status('프로젝트 설정 저장 완료');
    }else if(action==='login'){
     if(!project)throw Error('먼저 프로젝트 설정을 저장하세요.');
     const email=document.getElementById('cloudEmail').value.trim(),password=document.getElementById('cloudPassword').value;
     if(!email||!password)throw Error('이메일과 비밀번호를 입력하세요.');
-    auto=false;dirty=false;clearTimeout(syncTimer);sessionGeneration++;session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();
+    auto=false;dirty=false;clearTimeout(syncTimer);sessionGeneration++;clearSaved();session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();
     const loginGeneration=sessionGeneration;const data=await auth('token?grant_type=password',{email,password});
     if(loginGeneration!==sessionGeneration)throw Error('프로젝트 설정이 변경되어 로그인을 취소했습니다.');
     if(!data.access_token||!data.user?.id)throw Error('로그인 정보를 확인하지 못했습니다.');
@@ -421,7 +442,7 @@
     if(isParent!==true)throw Error('부모 관리자로 등록된 계정이 아닙니다. 학생 화면에서 학생 계정으로 로그인하세요.');
     sessionGeneration++;session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};baseline=undefined;auto=false;aligned=false;CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);
     const loginSession=session;const existing=await parentStore().loadParentSnapshot();if(session!==loginSession)throw Error('로그인 상태가 변경되었습니다.');baseline=existing?.updated_at??null;render();status(existing?'로그인 성공 · 클라우드 기록이 있습니다. 복원 또는 수동 저장 후 자동 동기화를 켜세요.':'로그인 성공 · 클라우드 기록이 없습니다. 자동 동기화를 켤 수 있습니다.');
-   }else if(action==='logout'){sessionGeneration++;session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
+   }else if(action==='logout'){sessionGeneration++;clearSaved();session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
    else if(action==='push'){
     if(!session)throw Error('로그인이 필요합니다.');
     if(!confirm('현재 이 기기의 기록을 클라우드에 저장할까요? 다른 기기의 변경 사항이 감지되면 덮어쓰지 않습니다.'))return;
