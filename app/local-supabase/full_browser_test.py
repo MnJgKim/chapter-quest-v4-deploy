@@ -176,7 +176,7 @@ try:
   chapter_uuid=unpublished_uuid
   assigned=api('/functions/v1/cq-v4-pdf-parent',{'action':'list_assignments'},users['parent']['token'])['assignments']
   assert any(row.get('student_user_id')==users['student']['uid'] and row.get('chapter_uuid',row.get('chapter_id'))==chapter_uuid for row in assigned),'Local parent assignment missing after publish'
-  api('/rest/v1/rpc/cq_v4_parent_schedule_lesson',{'p_student_user_id':users['student']['uid'],'p_chapter_id':chapter_uuid,'p_lesson_date':'2026-11-23'},users['parent']['token'])
+  api('/rest/v1/rpc/cq_v4_parent_schedule_lesson',{'p_student_user_id':users['student']['uid'],'p_chapter_id':chapter_uuid,'p_lesson_date':time.strftime('%Y-%m-%d',time.gmtime(time.time()+9*3600))},users['parent']['token'])
   api('/rest/v1/rpc/cq_v4_parent_set_lesson_release',{'p_student_user_id':users['student']['uid'],'p_chapter_id':chapter_uuid,'p_release':True},users['parent']['token'])
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(2);assert set(sp.locator('[data-child="view"]').evaluate_all('(buttons)=>buttons.map(b=>b.dataset.uuid)'))=={chapter_uuid};passed('parent releases exactly one synthetic lesson, rendered in weekly and all-chapters views')
   context=api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['parent']['token']);assert context[0]['answer_key'][0]==0
