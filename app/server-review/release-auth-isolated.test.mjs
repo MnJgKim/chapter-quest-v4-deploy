@@ -51,6 +51,12 @@ INSERT INTO public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_
 VALUES ('${parent}','${child}','${chapter}',(now() AT TIME ZONE 'Asia/Seoul')::date,now());
 INSERT INTO storage.objects VALUES ('cq-v4-speaking','${path}');
 `);
+// Prove the original release function exposes a release boolean to an unrelated admin.
+// This must be true in the isolated baseline and false after applying the candidate.
+await check('baseline reproduces unrelated-admin release disclosure',()=>asUser(outsider,async()=>{
+ const r=await db.query('SELECT public.cq_v4_is_released($1,$2) AS allowed',[chapter,child]);
+ assert.equal(r.rows[0].allowed,true);
+}));
 await db.exec(await read('./release-auth-candidate.sql'));
 const release=(u,student=child)=>asUser(u,async()=>{
  const r=await db.query('SELECT public.cq_v4_is_released($1,$2) AS allowed',[chapter,student]);
