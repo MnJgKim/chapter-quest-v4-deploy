@@ -514,4 +514,5 @@
    }else{auto=false;clearTimeout(syncTimer);status('자동 동기화 해제')}
  });
  render();
+ resumeSaved();
 })();
