@@ -43,21 +43,40 @@ async function loadAudio(){const el=$('#audioPreview');if(!el)return;const expec
 let parentUnlocked=false;
 const PARENT_PIN_KEY='cq_v4_parent_pin_hash';
 async function pinDigest(pin){const bytes=new TextEncoder().encode('CQ-V4-parent-local-v1:'+pin);return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(x=>x.toString(16).padStart(2,'0')).join('')}
+function requestMaskedPin(message){
+ return new Promise(resolve=>{
+  const overlay=document.createElement('div');
+  overlay.setAttribute('role','presentation');
+  overlay.style.cssText='position:fixed;inset:0;z-index:2147483647;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;padding:16px';
+  const dialog=document.createElement('form');dialog.setAttribute('role','dialog');dialog.setAttribute('aria-modal','true');dialog.setAttribute('aria-label','부모 관리자 PIN');
+  dialog.style.cssText='background:#fff;color:#172033;border-radius:14px;padding:22px;max-width:400px;width:100%;box-shadow:0 12px 36px #0005';
+  const heading=document.createElement('h3');heading.textContent=message;
+  const input=document.createElement('input');input.type='password';input.inputMode='numeric';input.autocomplete='off';input.autocapitalize='off';input.spellcheck=false;input.setAttribute('aria-label','부모 관리자 PIN');input.setAttribute('maxlength','12');input.style.cssText='width:100%;box-sizing:border-box;padding:12px;font-size:20px;letter-spacing:3px';
+  const actions=document.createElement('div');actions.style.cssText='display:flex;gap:10px;justify-content:flex-end;margin-top:16px';
+  const cancel=document.createElement('button');cancel.type='button';cancel.textContent='취소';
+  const ok=document.createElement('button');ok.type='submit';ok.textContent='확인';
+  actions.append(cancel,ok);dialog.append(heading,input,actions);overlay.append(dialog);document.body.append(overlay);
+  const finish=value=>{input.value='';overlay.remove();resolve(value)};
+  cancel.addEventListener('click',()=>finish(null));
+  dialog.addEventListener('submit',event=>{event.preventDefault();finish(input.value)});
+  input.focus();
+ });
+}
 async function requestParentAccess(){
  if(parentUnlocked)return true;
  if(!crypto.subtle){alert('관리자 잠금을 지원하지 않는 환경입니다. HTTPS 환경에서 사용하세요.');return false}
  const existing=localStorage.getItem(PARENT_PIN_KEY);
  if(!existing){
-   const pin=prompt('부모 관리자용 숫자 PIN 6~12자리를 새로 설정하세요. 이 PIN은 기기 내 화면 잠금용이며 서버 인증을 대체하지 않습니다.');
-   if(pin===null)return false;
-   if(!/^\d{6,12}$/.test(pin)){alert('숫자 6~12자리로 설정하세요.');return false}
-   const repeat=prompt('부모 PIN을 다시 입력하세요.');
-   if(repeat!==pin){alert('PIN이 일치하지 않습니다.');return false}
-   localStorage.setItem(PARENT_PIN_KEY,await pinDigest(pin));
+  const pin=await requestMaskedPin('부모 관리자용 숫자 PIN 6~12자리를 새로 설정하세요.');
+  if(pin===null)return false;
+  if(!/^\d{6,12}$/.test(pin)){alert('숫자 6~12자리로 설정하세요.');return false}
+  const repeat=await requestMaskedPin('부모 PIN을 다시 입력하세요.');
+  if(repeat!==pin){alert('PIN이 일치하지 않습니다.');return false}
+  localStorage.setItem(PARENT_PIN_KEY,await pinDigest(pin));
  }else{
-   const pin=prompt('부모 관리자 PIN을 입력하세요.');
-   if(pin===null)return false;
-   if(await pinDigest(pin)!==existing){alert('PIN이 일치하지 않습니다.');return false}
+  const pin=await requestMaskedPin('부모 관리자 PIN을 입력하세요.');
+  if(pin===null)return false;
+  if(await pinDigest(pin)!==existing){alert('PIN이 일치하지 않습니다.');return false}
  }
  parentUnlocked=true;return true;
 }
@@ -369,6 +388,8 @@ document.addEventListener('input',e=>{let t=e.target;if((t.matches('[data-draftq
 document.addEventListener('change',async e=>{let t=e.target;if(t.id==='cqDraftImport'){const file=t.files?.[0];t.value='';if(!file)return;if(mode!=='parent'||!parentUnlocked)return;const target=chapter();try{if(file.size>200000)throw Error('초안은 200KB 이하 JSON 파일이어야 합니다.');const value=JSON.parse(await file.text());if(chapter()!==target||mode!=='parent'||!parentUnlocked)throw Error('현재 챕터가 변경되었습니다.');const issue=cqValidateAIDraft(value);if(issue)throw Error(issue);draft={...value,chapterId:target.id};persistReviewDraft();render();setStatus('초안을 가져왔습니다. 원문과 정답을 검토한 뒤 승인하세요.');}catch(err){alert('초안 가져오기 실패: '+err.message)}return;}
 if((t.id==='assignStudent'||t.id==='focusBook'||t.dataset.active||t.dataset.bookstudent||t.id==='v3Input'||t.id==='restoreInput')&&(!parentUnlocked||mode!=='parent')){alert('부모 관리자 인증이 필요합니다.');render();return}
 if(t.id==='student'||t.id==='assignStudent'){changeStudent(t.value)}if(t.id==='focusBook'){state.focus??={};state.focus[state.who]=t.value;save();render()}if(t.dataset.release){const r=state.records[t.dataset.release];if(r&&r.submitted&&parentUnlocked&&mode==='parent'){if(t.checked&&!String(r.feedback||'').trim()){alert('피드백을 작성한 뒤 공개해 주세요.');render();return}r.feedbackReleased=t.checked;save();render()}}if(t.dataset.field==='read'&&!rec().submitted){rec().read=t.checked;save()}if(t.dataset.active){let s=state.students.find(x=>x.name===t.dataset.active);s.active=t.checked;save();render()}if(t.dataset.bookstudent){let b=state.books.find(x=>x.id===t.dataset.bookstudent),n=t.dataset.name;b.students=t.checked?[...new Set([...b.students,n])]:b.students.filter(x=>x!==n);save()}if(t.id==='textFile')await extractFile(t.files[0]);if(t.id==='v3Input'){let f=t.files[0];if(!f)return;try{let old=JSON.parse(await f.text()),result=CQCore.migrateV3(old,state);if(!confirm(`V3 책 ${result.importedBooks}권, 학습 기록 ${result.importedRecords}개를 가져올까요?\n기존 V4 기록은 유지됩니다. 녹음 ${result.skippedAudio}개는 가져오지 않습니다.`))return;state=result.state;save();render();alert('V3 학습 데이터 가져오기 완료')}catch(err){alert('V3 이전 실패: '+err.message)}}if(t.id==='restoreInput'){let f=t.files[0];if(!f)return;try{let v=JSON.parse(await f.text());if(v.format!=='chapter-quest-v4'||!v.state?.books)throw Error('이 버전의 백업 파일이 아닙니다.');if(!confirm('현재 V4 데이터를 백업 파일로 교체할까요?'))return;const guard=new Event('cq:before-device-restore',{cancelable:true});window.dispatchEvent(guard);if(guard.defaultPrevented)throw Error('클라우드 저장이 끝난 뒤 다시 복원하세요.');const checked=CQState.restore(localStorage,KEY,v,STUDENTS);state=checked.state;storageWriteBlocked=false;recoveryRaw=null;view='home';render();setStatus('학습 기록 복원 완료 · 이전 기록의 복구 사본과 이 기기의 원본·녹음은 보존했습니다.')}catch(err){alert('복원 실패: '+err.message)}}});
+window.addEventListener('cq:parent-session-restored',()=>{parentUnlocked=true;mode='parent';view='home';render()});
+window.addEventListener('cq:parent-session-ended',()=>{parentUnlocked=false;mode='student';view='home';render()});
 $('#studentBtn').onclick=()=>{mode='student';parentUnlocked=false;view='home';render()};
 $('#parentBtn').onclick=async()=>{if(!await requestParentAccess())return;mode='parent';view='home';render()};
 initState();render();

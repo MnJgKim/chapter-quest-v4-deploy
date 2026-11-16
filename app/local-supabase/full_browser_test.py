@@ -111,8 +111,20 @@ try:
     if r.request.url.startswith(origin+'/') or r.request.url.startswith(base+'/'):r.continue_()
     else:report['blocked_requests'].append(r.request.url);r.abort()
    context.route('**/*',route);tab=context.new_page();tab.on('dialog',lambda d:d.accept('123456') if d.type=='prompt' else d.accept());tab.on('pageerror',lambda e:report['page_errors'].append(str(e)));tab.goto(origin);return tab
-  pp=page();pp.locator('#parentBtn').click();pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인 성공');passed('parent browser is authorized through real Auth and admin RPC')
-  pp.locator('[data-parent-invite="issue"]').click();expect(pp.locator('#cqInviteCode')).to_have_text(__import__('re').compile('^[0-9a-f]{48}$'));invite=pp.locator('#cqInviteCode').inner_text();private.append(invite)
+  def unlock_parent(tab):
+   tab.locator('#parentBtn').click()
+   dialog=tab.get_by_role('dialog',name='부모 관리자 PIN')
+   expect(dialog).to_be_visible()
+   pin=dialog.locator('input[type="password"]')
+   assert pin.get_attribute('type')=='password','Parent PIN must be masked'
+   pin.fill('123456')
+   dialog.get_by_role('button',name='확인').click()
+   if dialog.is_visible():
+    dialog.locator('input[type="password"]').fill('123456')
+    dialog.get_by_role('button',name='확인').click()
+   expect(tab.locator('#cloudEmail')).to_be_visible()
+  pp=page();unlock_parent(pp);pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인 성공');passed('parent browser is authorized through real Auth and admin RPC')
+  pp.locator('[data-parent-invite="issue"]').click();expect(pp.locator('#cqInviteStatus')).to_contain_text('발급',timeout=15000);expect(pp.locator('#cqInviteCode')).to_have_text(__import__('re').compile('^[0-9a-f]{48}$'));invite=pp.locator('#cqInviteCode').inner_text();private.append(invite)
   sp=page();sp.locator('#cqChildEmail').fill(users['student']['email']);sp.locator('#cqChildPassword').fill(users['student']['password']);sp.locator('[data-child="login"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('배정 챕터를 불러왔습니다');expect(sp.locator('#cqChildInvite')).to_be_visible();sp.locator('#cqChildInvite').fill(invite);sp.locator('#cqChildInviteName').fill('Synthetic Student');assert sp.locator('#cqChildInvite').input_value()==invite,'Invite input was changed before claim';sp.locator('[data-child="claim"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('연결 요청 완료');pp.locator('[data-parent-invite="refresh"]').click();pp.locator('[data-parent-invite="approve"]').click();expect(pp.locator('#cqInviteStatus')).to_contain_text('승인 완료');passed('real invitation claim and parent enrollment approval')
   pp.locator('#bookTitle').fill('Synthetic Local Book');pp.locator('[data-act="addBook"]').click();pp.locator('#chapterTitle').fill('Synthetic Chapter');pp.locator('[data-act="addChapter"]').click();pp.locator('#cqOriginalPDF').set_input_files(str(original));pp.locator('[data-act="savePDF"]').click()
   if original_kind=='txt':expect(pp.locator('#sourceText')).to_have_value(source)
@@ -240,7 +252,7 @@ try:
   pp.set_viewport_size({'width':1280,'height':900});pp.locator('[data-parent-feedback-text]').fill('Great explanation!');pp.locator('[data-parent-feedback-release]').check();pp.locator('[data-parent-feedback="save"]').click();expect(pp.locator('#cqParentFeedbackStatus')).to_contain_text('다시 확인');sp.locator('[data-child="feedback"]').click();expect(sp.locator('#cqChildDetail')).to_contain_text('Great explanation!');passed('parent reads real answers and releases feedback visible in independent student browser')
   # Fresh browser has no local book: recover the parent's existing private original read-only.
   before=api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])
-  rp=page();rp.locator('#parentBtn').click();rp.locator('#cloudEmail').fill(users['parent']['email']);rp.locator('#cloudPassword').fill(users['parent']['password']);rp.locator('[data-cloud="login"]').click();expect(rp.locator('#cloudStatus')).to_contain_text('로그인 성공');rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs);selected_title=next(x['title'] for x in before['chapters'] if x['chapter_uuid']==chapter_uuid);rp.locator('#cqPdfParentPanel .book').filter(has=rp.get_by_text(selected_title,exact=True)).locator('[data-pdf-parent="use-existing"]').click();expect(rp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다',timeout=90000)
+  rp=page();unlock_parent(rp);rp.locator('#cloudEmail').fill(users['parent']['email']);rp.locator('#cloudPassword').fill(users['parent']['password']);rp.locator('[data-cloud="login"]').click();expect(rp.locator('#cloudStatus')).to_contain_text('로그인 성공');rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs);selected_title=next(x['title'] for x in before['chapters'] if x['chapter_uuid']==chapter_uuid);rp.locator('#cqPdfParentPanel .book').filter(has=rp.get_by_text(selected_title,exact=True)).locator('[data-pdf-parent="use-existing"]').click();expect(rp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다',timeout=90000)
   assert rp.evaluate("async()=>{const c=chapter(),f=await pdfGet(pdfKey(book().id,c.id));return c.serverPdfUuid==='"+chapter_uuid+"'&&f.size>5&&(await f.slice(0,5).text())==='%PDF-'}")
   assert api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])==before
   try:api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student read parent PDF endpoint')
@@ -278,6 +290,8 @@ try:
    try:api('/storage/v1/object/sign/cq-v4-speaking/'+users[target]['uid']+'/'+chapter_uuid+'.webm',{'expiresIn':30},users[caller]['token']);raise AssertionError('Assigned students could read one another recording')
    except urllib.error.HTTPError as error:assert error.code in (400,403,404),'Unexpected cross-student recording response '+str(error.code)
   passed('two students assigned to the same chapter cannot sign each other private recording')
+  pp.reload();expect(pp.locator('#cloudEmail')).to_be_visible(timeout=30000);passed('parent refresh preserves authenticated session and unlocked admin view')
+  pp.locator('[data-cloud="logout"]').click();expect(pp.locator('#cloudEmail')).to_have_count(0);passed('parent logout locks parent UI and clears active cloud session')
   assert not report['page_errors'] and not report['blocked_requests'];passed('no runtime errors or non-local service requests')
   browser.close()
 except Exception as error:
