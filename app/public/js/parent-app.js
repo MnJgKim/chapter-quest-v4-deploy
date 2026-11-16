@@ -36,10 +36,10 @@
    if(!response.ok||(await response.json())!==true)throw Error('role');
    if(generation!==sessionGeneration)return;
    session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
-   CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);saveSaved();saveSaved();
+   CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);saveSaved();
    const owner=cloudIdentity();const snapshot=await parentStore().loadParentSnapshot();
    if(cloudIdentity()!==owner)return;
-   baseline=snapshot?.updated_at??null;aligned=false;auto=false;render();status('부모 계정 로그인 유지 중');
+   baseline=snapshot?.updated_at??null;aligned=false;auto=false;window.dispatchEvent(new Event('cq:parent-session-restored'));render();status('부모 계정 로그인 유지 중');
   }catch(_){if(generation===sessionGeneration){session=null;clearSaved();CQCloud.reset();render();status('다시 로그인해 주세요.')}}
  }
  const auth=async(path,body)=>{
@@ -427,7 +427,7 @@
     const url=document.getElementById('cloudUrl').value.trim().replace(/\/$/,'');
     const anonKey=document.getElementById('cloudKey').value.trim();
     if(!(globalThis.CQOrigin?.allows(url)??/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url))||!anonKey)throw Error('Supabase URL과 공개 키를 확인하세요.');
-    sessionGeneration++;clearSaved();project={url,anonKey};auto=false;dirty=false;clearTimeout(syncTimer);baseline=undefined;aligned=false;localStorage.setItem('cq_v4_cloud_project',JSON.stringify(project));session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();render();status('프로젝트 설정 저장 완료');
+    sessionGeneration++;clearSaved();window.dispatchEvent(new Event('cq:parent-session-ended'));project={url,anonKey};auto=false;dirty=false;clearTimeout(syncTimer);baseline=undefined;aligned=false;localStorage.setItem('cq_v4_cloud_project',JSON.stringify(project));session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();render();status('프로젝트 설정 저장 완료');
    }else if(action==='login'){
     if(!project)throw Error('먼저 프로젝트 설정을 저장하세요.');
     const email=document.getElementById('cloudEmail').value.trim(),password=document.getElementById('cloudPassword').value;
@@ -442,7 +442,7 @@
     if(isParent!==true)throw Error('부모 관리자로 등록된 계정이 아닙니다. 학생 화면에서 학생 계정으로 로그인하세요.');
     sessionGeneration++;session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};baseline=undefined;auto=false;aligned=false;CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);
     const loginSession=session;const existing=await parentStore().loadParentSnapshot();if(session!==loginSession)throw Error('로그인 상태가 변경되었습니다.');baseline=existing?.updated_at??null;render();status(existing?'로그인 성공 · 클라우드 기록이 있습니다. 복원 또는 수동 저장 후 자동 동기화를 켜세요.':'로그인 성공 · 클라우드 기록이 없습니다. 자동 동기화를 켤 수 있습니다.');
-   }else if(action==='logout'){sessionGeneration++;clearSaved();session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
+   }else if(action==='logout'){sessionGeneration++;clearSaved();session=null;window.dispatchEvent(new Event('cq:parent-session-ended'));issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
    else if(action==='push'){
     if(!session)throw Error('로그인이 필요합니다.');
     if(!confirm('현재 이 기기의 기록을 클라우드에 저장할까요? 다른 기기의 변경 사항이 감지되면 덮어쓰지 않습니다.'))return;
