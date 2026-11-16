@@ -37,9 +37,15 @@
    if(generation!==sessionGeneration)return;
    session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
    CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);saveSaved();
-   const owner=cloudIdentity();const snapshot=await parentStore().loadParentSnapshot();
-   if(cloudIdentity()!==owner)return;
-   baseline=snapshot?.updated_at??null;aligned=false;auto=false;window.dispatchEvent(new Event('cq:parent-session-restored'));render();status('부모 계정 로그인 유지 중');
+   // Cloud snapshot availability must not invalidate an otherwise valid parent Auth session.
+   window.dispatchEvent(new Event('cq:parent-session-restored'));render();status('부모 계정 로그인 유지 중');
+   const owner=cloudIdentity();
+   try{
+    const snapshot=await parentStore().loadParentSnapshot();
+    if(cloudIdentity()!==owner)return;
+    baseline=snapshot?.updated_at??null;aligned=false;auto=false;render();
+   }catch(_){if(cloudIdentity()===owner){baseline=undefined;auto=false;status('로그인은 유지 중 · 클라우드 기록 확인은 나중에 다시 시도하세요.')}}
+
   }catch(_){if(generation===sessionGeneration){session=null;clearSaved();CQCloud.reset();render();status('다시 로그인해 주세요.')}}
  }
  const auth=async(path,body)=>{
