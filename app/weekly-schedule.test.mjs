@@ -31,3 +31,21 @@ test('no book and insufficient remaining chapters return empty slots',()=>{
  assert.equal(planWeek(s,'서우','2026-11-16').수,null);
  assert.equal(planWeek(s,'서진','2026-11-16').월,null);
 });
+
+test('Seojin gets Tuesday Wednesday Friday by default',()=>{
+ const s=state();s.books[0].students.push('서진');
+ const result=planWeek(s,'서진','2026-11-16');
+ assert.deepEqual(Object.keys(result),['화','수','금']);
+ assert.deepEqual(Object.values(result).map(x=>x.chapterId),['1','2','3']);
+});
+test('Siwoo gets five weekdays by default, with empty slots after available chapters',()=>{
+ const s=state();s.books[0].students.push('시우');
+ const result=planWeek(s,'시우','2026-11-16');
+ assert.deepEqual(Object.keys(result),['월','화','수','목','금']);
+ assert.equal(result.금,null);
+});
+test('parent-configured schedule overrides default days',()=>{
+ const s=state();s.schedules={서우:[2,4]};
+ const result=planWeek(s,'서우','2026-11-16');
+ assert.deepEqual(Object.keys(result),['화','목']);
+});
