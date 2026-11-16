@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline'; media-src blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
+<title>Chapter Quest 기기 마이크 단독 점검 (서버 미전송)</title>
+<style>body{font-family:system-ui,sans-serif;max-width:620px;margin:24px auto;padding:0 18px;line-height:1.65;color:#172b4d}button{font:inherit;padding:12px 16px;margin:6px 5px 6px 0;border:1px solid #abc;border-radius:9px;background:#edf3ff}button:disabled{opacity:.4}audio{width:100%;margin-top:16px}#status{padding:12px;background:#f3f6fa;border-radius:8px}small{color:#526273}</style></head>
+<body><h1>🎙️ 기기 마이크 단독 점검</h1>
+<p>실제 학생 계정이나 Supabase에 연결하지 않는 독립 테스트입니다. 녹음은 이 페이지의 메모리에만 저장되며 업로드·자동 제출·기기 영구 저장을 하지 않습니다.</p>
+<p><strong>HTTPS 주소 또는 localhost</strong>에서 실행해야 마이크 접근이 가능합니다. 마이크 권한은 브라우저에서 허용하세요.</p>
+<button id="start">녹음 시작</button><button id="stop" disabled>녹음 종료</button><button id="clear" disabled>녹음 지우기</button>
+<p id="status" role="status" aria-live="polite">대기 중 · 서버 전송 차단</p>
+<div id="playback"></div><small>이 페이지는 외부 네트워크 연결을 CSP 정책으로 차단합니다. 창을 닫으면 녹음이 사라집니다. 녹음 중 창을 닫으면 브라우저가 마이크 사용을 종료합니다.</small>
+<script>
+(()=>{'use strict';
+const $=id=>document.getElementById(id),status=$('status');let recorder=null,stream=null,objectUrl=null,parts=[];
+const set=(message,active)=>{status.textContent=message+' · 서버 전송 차단';$('start').disabled=active;$('stop').disabled=!active;};
+function clear(){if(objectUrl){URL.revokeObjectURL(objectUrl);objectUrl=null;}$('playback').replaceChildren();$('clear').disabled=true;}
+function release(){if(stream){stream.getTracks().forEach(t=>t.stop());stream=null;}}
+$('start').onclick=async()=>{clear();try{if(!navigator.mediaDevices?.getUserMedia||!window.MediaRecorder)throw Error('브라우저에서 녹음 API를 지원하지 않습니다. HTTPS 주소인지 확인하세요.');
+const acquired=await navigator.mediaDevices.getUserMedia({audio:true});stream=acquired;
+const type=['audio/webm','audio/mp4','audio/ogg'].find(t=>MediaRecorder.isTypeSupported(t));
+if(!type)throw Error('지원되는 녹음 형식이 없습니다.');
+parts=[];const current=new MediaRecorder(acquired,{mimeType:type});recorder=current;
+current.ondataavailable=e=>{if(e.data.size)parts.push(e.data);};
+current.onerror=()=>{release();set('녹음 오류가 발생했습니다.',false);};
+current.onstop=()=>{release();set('녹음 종료 · 아래 재생 버튼으로 소리를 확인하세요.',false);
+const blob=new Blob(parts,{type});parts=[];if(!blob.size){status.textContent='녹음 데이터가 비어 있습니다.';return;}
+objectUrl=URL.createObjectURL(blob);const audio=document.createElement('audio');audio.controls=true;audio.src=objectUrl;$('playback').replaceChildren(audio);$('clear').disabled=false;};
+current.start();set('녹음 중...',true);
+}catch(e){release();set('녹음 시작 실패: '+e.message,false);}};
+$('stop').onclick=()=>{if(recorder?.state==='recording')recorder.stop();};
+$('clear').onclick=()=>{clear();set('녹음 삭제 완료',false);};
+window.addEventListener('pagehide',()=>{if(recorder?.state==='recording')recorder.stop();release();clear();});
+})();
+</script></body></html>
