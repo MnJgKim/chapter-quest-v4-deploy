@@ -37,3 +37,25 @@
 
 ## Approval gate
 Do not run production writes, merge PR, or deploy Cloudflare until the user explicitly approves the exact production change and rollback scope.
+
+
+## Deployment execution record — 2026-11-16 (supersedes the review-only status above)
+
+The user explicitly approved deployment of the two functions only. Both were applied to the production Supabase project without Cloudflare deployment, student-data changes, or Storage writes.
+
+- **Edge Function:** `cq-v4-pdf-link` deployed as **ACTIVE v2**, with `verify_jwt=true`. Post-deployment `get_edge_function` confirmed the authenticated `cq_v4_is_released` guard in the live source.
+- **SQL schedule function:** `public.cq_v4_my_lesson_schedule()` replaced via migration `cq_v4_lesson_schedule_release_guard_20261116`; post-deployment function inspection confirmed the same release gate. Privileges remained: `anon EXECUTE=false`, `authenticated EXECUTE=true`.
+- **Release state:** `Chapter` (2026-11-23; parent released) is still denied before lesson date; `Chapter 2` (2026-11-26; parent not released) is denied. No lesson dates or release flags were modified.
+- **Data-count baseline comparison:** unchanged before and after: chapters 4; activity records 2; assignments 2; enrollments 2; schedules 2; snapshots 1; approval requests 1; invites 0; submissions 0; relevant Storage object records 6.
+- **Automated validation:** latest review-branch GitHub Actions run [43817239877](https://github.com/MnJgKim/chapter-quest-v4-deploy/actions/runs/43817239877) passed npm tests, build, Playwright browser tests and isolated local Supabase Auth/Storage/Edge full learning flow.
+- **Not yet verified:** an authenticated request to the *production* v2 Edge Function; student and parent real-device UI, recording, submission, and feedback; full database and Storage recovery backup. Production HTTP logs only showed earlier v1 calls, not post-deployment v2 calls.
+- **Hosting:** Supabase organization plan is Free; platform-level backup/PITR was not established. Source snapshots above remain available, but they do not replace database or Storage backups.
+
+### Operational follow-up (no production writes)
+
+1. On the actual production site, authenticate as the assigned student before 2026-11-23. Attempt the Chapter PDF. The expected result is `403 LESSON_NOT_RELEASED`, and no signed URL. Do **not** change the date or release flags to force a test.
+2. After the lesson's Asia/Seoul calendar date starts, confirm the parent-approved Chapter can open its original PDF and complete learning. Chapter 2 must remain unavailable until both its lesson date and parent release are satisfied.
+3. Test reading, questions, writing, microphone permission, recording, submit immutability, and parent feedback on a Galaxy tablet and phone. Preserve existing student submissions; use an isolated synthetic account for destructive workflow tests where possible.
+4. If a regression occurs, use the versioned Edge v1 and SQL snapshots above for rollback, with explicit awareness that reverting the Edge function reopens the early-PDF-access defect. Prefer a forward correction if feasible.
+
+**Status:** Supabase two-function deployment completed; authenticated production end-to-end and real-device verification pending. This document records the completed authorized deployment and does not authorize any further production changes.
