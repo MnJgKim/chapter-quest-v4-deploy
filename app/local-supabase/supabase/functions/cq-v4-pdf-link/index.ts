@@ -38,6 +38,12 @@ Deno.serve(async req=>{
   if(!enrollment)return json({error:'FORBIDDEN'},403);
   const {data:activities,error:activityError}=await userClient.rpc('cq_v4_my_chapter_activities',{p_chapter_uuid:chapter});
   if(activityError||!Array.isArray(activities)||activities.length!==1)return json({error:'PUBLISHED_LESSON_REQUIRED'},403);
+  // Keep PDF access aligned with the server-side lesson-date and parent-release gate.
+  const {data:released,error:releaseError}=await userClient.rpc('cq_v4_is_released',{
+    p_chapter:chapter,p_student:userId
+  });
+  if(releaseError)return json({error:'LESSON_RELEASE_CHECK_FAILED'},503);
+  if(released!==true)return json({error:'LESSON_NOT_RELEASED'},403);
   const admin=createClient(url,service,{auth:{persistSession:false}});
   const {data:range,error:rangeError}=await admin.from('cq_v4_pdf_page_ranges').select('*').eq('derived_pdf_uuid',chapter).maybeSingle();
   if(rangeError)return json({error:'RANGE_ACCESS_CHECK_FAILED'},503);
