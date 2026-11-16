@@ -31,6 +31,10 @@ CREATE TABLE public.cq_v4_activities(chapter_uuid uuid NOT NULL,published_at tim
 CREATE TABLE storage.objects(bucket_id text NOT NULL,name text NOT NULL);
 GRANT USAGE ON SCHEMA public,auth,storage TO authenticated;
 GRANT SELECT,INSERT ON storage.objects TO authenticated;
+-- Storage RLS joins these public tables as the authenticated caller.
+-- Synthetic fixture has no public-table RLS; only release-function/Storage-RLS behavior is in scope.
+GRANT SELECT ON public.cq_v4_pdf_chapters,public.cq_v4_pdf_assignments,
+ public.cq_v4_pdf_enrollments,public.cq_v4_activities TO authenticated;
 CREATE FUNCTION public.cq_is_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO '' AS $$
 SELECT EXISTS (SELECT 1 FROM public.cq_admins a WHERE a.user_id=(SELECT auth.uid()))
