@@ -69,7 +69,7 @@ async function requestParentAccess(){
  if(!existing){
   const pin=await requestMaskedPin('부모 관리자용 숫자 PIN 6~12자리를 새로 설정하세요.');
   if(pin===null)return false;
-  if(!/^\\d{6,12}$/.test(pin)){alert('숫자 6~12자리로 설정하세요.');return false}
+  if(!/^\d{6,12}$/.test(pin)){alert('숫자 6~12자리로 설정하세요.');return false}
   const repeat=await requestMaskedPin('부모 PIN을 다시 입력하세요.');
   if(repeat!==pin){alert('PIN이 일치하지 않습니다.');return false}
   localStorage.setItem(PARENT_PIN_KEY,await pinDigest(pin));
