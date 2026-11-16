@@ -1,0 +1,25 @@
+name: Isolated release authorization regression
+on:
+  push:
+    branches:
+      - test/release-auth-isolated-20261116
+  workflow_dispatch:
+jobs:
+  release-auth:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: app/server-review
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: app/server-review/package-lock.json
+      - name: Install isolated test dependencies
+        run: npm ci --ignore-scripts
+      - name: Run release authorization and Storage RLS regression
+        run: node release-auth-isolated.test.mjs
