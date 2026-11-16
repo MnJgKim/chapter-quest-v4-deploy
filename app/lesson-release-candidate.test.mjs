@@ -22,3 +22,15 @@ test('schedule candidate uses same release predicate without changing output col
   assert.match(schedule,/ORDER BY s\.lesson_date, s\.chapter_id/);
   assert.doesNotMatch(schedule,/\b(?:DELETE|TRUNCATE|DROP)\b/i);
 });
+
+const localEdge=readFileSync(new URL('./local-supabase/supabase/functions/cq-v4-pdf-link/index.ts',import.meta.url),'utf8');
+
+test('local integration Edge retains PDF integrity checks and enforces release before signing',()=>{
+  const release=localEdge.indexOf("userClient.rpc('cq_v4_is_released'");
+  const sign=localEdge.indexOf("createSignedUrl(chapterRow.storage_path,120)");
+  assert.ok(release>=0&&release<sign);
+  assert.match(localEdge,/if\(released!==true\)return json\(\{error:'LESSON_NOT_RELEASED'\},403\)/);
+  assert.match(localEdge,/APPROVED_RANGE_REQUIRED/);
+  assert.match(localEdge,/DERIVED_PDF_INTEGRITY_FAILED/);
+  assert.match(localEdge,/page_count:pageCount/);
+});
