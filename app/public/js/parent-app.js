@@ -440,7 +440,7 @@
     const isParent=roleResponse.ok?await roleResponse.json():false;
     if(loginGeneration!==sessionGeneration)throw Error('로그인 상태가 변경되었습니다.');
     if(isParent!==true)throw Error('부모 관리자로 등록된 계정이 아닙니다. 학생 화면에서 학생 계정으로 로그인하세요.');
-    sessionGeneration++;session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};baseline=undefined;auto=false;aligned=false;CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);
+    sessionGeneration++;session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};baseline=undefined;auto=false;aligned=false;CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);saveSaved();
     const loginSession=session;const existing=await parentStore().loadParentSnapshot();if(session!==loginSession)throw Error('로그인 상태가 변경되었습니다.');baseline=existing?.updated_at??null;render();status(existing?'로그인 성공 · 클라우드 기록이 있습니다. 복원 또는 수동 저장 후 자동 동기화를 켜세요.':'로그인 성공 · 클라우드 기록이 없습니다. 자동 동기화를 켤 수 있습니다.');
    }else if(action==='logout'){sessionGeneration++;clearSaved();session=null;window.dispatchEvent(new Event('cq:parent-session-ended'));issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
    else if(action==='push'){
