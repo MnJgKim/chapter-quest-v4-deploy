@@ -21,5 +21,8 @@ test('opening preflight has no orphaned SQL or repeated coverage query',async()=
  assert.ok(source.includes("act.approval_hash ~ '^([0-9a-f]{32}|[0-9a-f]{64})$'"));
  assert.ok(source.includes('group by lesson_date order by lesson_date;'));
  assert.ok(source.includes('Target weekday coverage (read only)'));
- assert.ok(source.trimEnd().endsWith('order by x.student_user_id,x.lesson_date;'));
+ assert.ok(source.includes('order by x.student_user_id,x.lesson_date;'));
+ assert.equal(occurrences(source,'-- Read-only launch identity gate:'),1);
+ assert.ok(source.includes("st.name in ('이서우','이서진','이시우')"));
+ assert.ok(source.trimEnd().endsWith('group by st.id,st.name order by st.name;'));
 });
