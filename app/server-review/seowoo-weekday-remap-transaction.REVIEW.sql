@@ -58,7 +58,7 @@ begin
     raise exception 'STOP: temporary dates occupied';
   end if;
   update public.cq_v4_lesson_schedule s
-  set lesson_date=date '2099-01-01'+(m.seq-1)
+  set lesson_date=date '2099-01-01'+(m.seq::integer-1)
   from (select chapter_id,row_number() over(order by old_date,chapter_id) seq from cq_remap) m
   where s.student_user_id=v_student and s.chapter_id=m.chapter_id;
   update public.cq_v4_lesson_schedule s set lesson_date=m.new_date
