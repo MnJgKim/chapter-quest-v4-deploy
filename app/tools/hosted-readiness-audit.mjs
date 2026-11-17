@@ -23,7 +23,9 @@ const checks={
  ai_disabled_by_default:wrangler.vars?.AI_FREE_PLAN_CONFIRMED==='false',
  worker_static_assets:wrangler.assets?.binding==='ASSETS'
 };
-// The fixture predates the live release RPC; a missing captured name is a stale-fixture warning, not evidence that hosted lacks it.\nconst informational=new Set(['captured_release_gate']);\nconst missing=Object.entries(checks).filter(([name,ok])=>!ok&&!informational.has(name)).map(([name])=>name);\nconst staleFixture=Object.entries(checks).filter(([name,ok])=>!ok&&informational.has(name)).map(([name])=>name);
+// The fixture predates the live release RPC; a missing captured name is a stale-fixture warning, not evidence that hosted lacks it.\nconst informational=new Set(['captured_release_gate']);
+const missing=Object.entries(checks).filter(([name,ok])=>!ok&&!informational.has(name)).map(([name])=>name);
+const staleFixture=Object.entries(checks).filter(([name,ok])=>!ok&&informational.has(name)).map(([name])=>name);
 const report={scope:'offline source/captured-schema audit only',checks,missing,staleFixture,
  hosted_schema_applied:'UNVERIFIED',hosted_storage_bytes:'UNVERIFIED',
  ai_real_inference:'NOT_TESTED_DISABLED',audio_real_microphone:'NOT_TESTED',
