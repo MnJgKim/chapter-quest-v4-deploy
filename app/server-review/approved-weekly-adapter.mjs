@@ -13,7 +13,7 @@ function date(v){if(typeof v!=='string'||!/^\d{4}-\d{2}-\d{2}$/.test(v))return f
  */
 export function proposeFromScopedRows({student,studentUserId,parentUserId,monday,days,chapters,assignments}){
  if(!uuid(studentUserId)||!uuid(parentUserId)||!Array.isArray(chapters)||!Array.isArray(assignments))throw Error('Trusted parent/student scope required');
- const candidates=chapters.filter(row=>
+ // Duplicate or conflicting chapter records must never silently decide authorization.\n const seen=new Set();\n if(chapters.some(row=>{if(!uuid(row?.chapter_id))return false;const key=row.chapter_id;if(seen.has(key))return true;seen.add(key);return false;}))throw Error('Duplicate chapter evidence');\n const candidates=chapters.filter(row=>
    row?.parent_user_id===parentUserId&&row?.student_user_id===studentUserId
    &&uuid(row.chapter_id)&&row.pdf_ready===true
    &&typeof row.pdf_verified_at==='string'&&Number.isFinite(Date.parse(row.pdf_verified_at))
