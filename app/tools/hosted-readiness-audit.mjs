@@ -12,7 +12,11 @@ const coreSql=read('server-review/hosted-core-contract-readonly.REVIEW.sql');
 const storageSql=read('server-review/hosted-storage-security-readonly.REVIEW.sql');
 const approvalSql=read('server-review/hosted-approval-readiness-readonly.REVIEW.sql');
 const stripSql=s=>s.replace(/--[^\n]*/g,'').replace(/\/\*[\s\S]*?\*\//g,'');
-const readonlySql=s=>!(/\b(create|alter|drop|truncate|insert|update|delete|grant|revoke|execute|call|copy)\b/i.test(stripSql(s)));
+const readonlySql=s=>{
+ const clean=stripSql(s).trim();
+ // A read-only audit must consist of SELECT/WITH statements only; reject procedural and DDL/DML verbs.
+ return /^(?:select|with)\\b/i.test(clean)&&!(/\\b(create|alter|drop|truncate|insert|update|delete|merge|grant|revoke|execute|call|copy|do|vacuum|refresh|lock)\\b/i.test(clean))&&!/\\bselect\\s+[^;]*\\binto\\b/i.test(clean);
+};
 
 const names=new Set(tables.map(t=>t.name.startsWith('public.')?t.name.slice(7):t.name));
 const functions=new Set(schema.functions.map(f=>f.name));
