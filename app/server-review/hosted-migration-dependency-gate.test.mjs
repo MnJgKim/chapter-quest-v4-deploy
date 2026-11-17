@@ -46,3 +46,18 @@ test('parent-facing RPCs do not grant anonymous execution',()=>{
   assert.match(src[key],/grant execute on function[\s\S]*to authenticated;/i,key);
  }
 });
+
+test('automatic release never bypasses the date gate or writes an unapproved chapter',()=>{
+ assert.match(src.autoWeek,/v_today\s+date\s*:=\s*\(now\(\) at time zone 'Asia\/Seoul'\)::date/i);
+ assert.match(src.autoWeek,/v_date\s*<\s*v_today/);
+ assert.match(src.autoWeek,/extract\(isodow from v_date\)/i);
+ assert.match(src.baseWeek,/c\.pdf_ready\s*=\s*true/);
+ assert.match(src.baseWeek,/c\.pdf_verified_at is not null/);
+ assert.match(src.baseWeek,/act\.published_at is not null/);
+ assert.match(src.autoWeek,/update public\.cq_v4_lesson_schedule set released_at=now\(\)/i);
+});
+test('review-only migrations use a fixed search path for privileged RPCs',()=>{
+ for(const key of ['policyRpc','listRpc','cancelRpc','baseWeek','autoWeek','manualOverride']){
+  assert.match(src[key],/security definer\s+set search_path\s*=\s*''/i,key);
+ }
+});
