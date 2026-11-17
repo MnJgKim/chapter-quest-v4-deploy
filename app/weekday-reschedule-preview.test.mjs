@@ -8,3 +8,5 @@ test('past lessons require preservation',()=>assert.ok(run({asOfDate:'2026-11-24
 test('not enough weekday slots blocks',()=>assert.ok(run({throughDate:'2026-11-23'}).blockers.includes('insufficient-weekday-slots')));
 test('duplicate chapter is refused',()=>assert.throws(()=>run({existing:[existing[0],{...existing[1],chapterId:'1'}]}),/Conflicting/));
 test('Seojin starts Tue Wed Fri',()=>assert.deepEqual(preview({student:'서진',existing:[{chapterId:'1',lessonDate:'2026-11-24'},{chapterId:'2',lessonDate:'2026-11-27'}],throughDate:'2026-11-30'}).changes.map(c=>c.toDate),['2026-11-24','2026-11-25']));
+
+test('released date change explicitly requires rollback review',()=>{const r=run({existing:[existing[0],{...existing[1],released:true}]});assert.ok(r.blockers.includes('released-lesson-date-change-requires-rollback-review'));assert.equal(r.readyForParentReview,false)});
