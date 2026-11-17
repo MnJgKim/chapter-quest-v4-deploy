@@ -6,6 +6,9 @@ on:
       - 'app/worker.mjs'
       - 'app/worker-ai-readiness.test.mjs'
       - 'app/audio-hosted-compatibility.test.mjs'
+      - 'app/server-review/hosted-migration-dependency-gate.test.mjs'
+      - 'app/server-review/auto-release-*.REVIEW.sql'
+      - 'app/server-review/weekly-atomic-rpc.REVIEW.sql'
       - 'app/public/js/audio-vault.js'
       - 'app/public/js/student-app.js'
       - 'app/server-review/hosted-core-contract-readonly.REVIEW.sql'
@@ -32,3 +35,5 @@ jobs:
         run: node --test app/worker-ai-readiness.test.mjs
       - name: Offline audio and hosted Storage compatibility (no device or upload)
         run: node --test app/audio-hosted-compatibility.test.mjs
+      - name: Hosted migration dependency and authorization gate (offline)
+        run: node --test app/server-review/hosted-migration-dependency-gate.test.mjs
