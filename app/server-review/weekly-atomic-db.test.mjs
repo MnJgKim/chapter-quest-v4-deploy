@@ -129,6 +129,30 @@ try {
   await db.query('delete from public.cq_v4_auto_release_cancellations where chapter_id=$1',[chapter2]);
   await auto([item(chapter2,'2026-11-27')]);
  });
+ await db.exec(await sql('./auto-release-policy-rpc.REVIEW.sql'));
+ const changePolicy=async(enabled,weekdays)=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[parent]);
+  return db.query('select public.cq_v4_parent_set_auto_release_policy($1,$2,$3::smallint[])',[child,enabled,weekdays]);
+ };
+ await test('disabling auto policy does not silently revoke previously armed lesson',async()=>{
+  await changePolicy(false,[1,3,5]);
+  const before=(await db.query('select released_at from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2])).rows[0];
+  assert.ok(before.released_at);
+  const arm=(await db.query('select revoked_at from public.cq_v4_auto_release_arms where chapter_id=$1',[chapter2])).rows[0];
+  assert.equal(arm.revoked_at,null);
+  assert.equal((await db.query('select enabled from public.cq_v4_auto_release_policies')).rows[0].enabled,false);
+ });
+ await test('disabled auto policy rejects new auto batches but preserves existing schedule',async()=>{
+  await assert.rejects(auto([item(chapter1,'2026-11-30')]),e=>e.code==='42501');
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_lesson_schedule')).rows[0].n,2);
+ });
+ await test('weekday change affects future batches only, not already armed lesson',async()=>{
+  await changePolicy(true,[1,3,4]);
+  await assert.rejects(auto([item(chapter1,'2026-11-27')]),e=>e.code==='42501');
+  const row=(await db.query('select released_at from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2])).rows[0];
+  assert.ok(row.released_at);
+  await changePolicy(true,[1,3,5]);
+ });
  await test('auto scheduling cannot reassign an already scheduled chapter',async()=>{
   await assert.rejects(auto([item(chapter2,'2026-11-30')]),e=>e.code==='23505');
  });
