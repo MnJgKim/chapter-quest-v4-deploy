@@ -9,11 +9,15 @@ export const FIRST_WEEK=Object.freeze([
 ]);
 export function firstWeekReadiness({identities,scheduled}){
  if(!identities||!Array.isArray(scheduled)) throw new TypeError('Invalid input');
+ const names=['서우','서진'];
+ const identityIds=names.map(name=>identities[name]?.studentUserId).filter(Boolean);
+ const sharedIdentity=identityIds.length!==new Set(identityIds).size;
  const findings=FIRST_WEEK.map(slot=>{
   const identity=identities[slot.student];
   const matching=scheduled.filter(r=>r.date===slot.date&&r.student===slot.student);
   const blockers=[];
-  if(!identity||identity.approved!==true||identity.enrolled!==true) blockers.push('approved-enrolled-identity-required');
+  if(!identity||identity.approved!==true||identity.enrolled!==true||typeof identity.studentUserId!=='string'||!identity.studentUserId) blockers.push('approved-enrolled-identity-required');
+  if(sharedIdentity) blockers.push('shared-student-identity');
   if(matching.length!==1) blockers.push(matching.length?'duplicate-slot':'missing-slot');
   if(matching.length===1){
    const r=matching[0];
