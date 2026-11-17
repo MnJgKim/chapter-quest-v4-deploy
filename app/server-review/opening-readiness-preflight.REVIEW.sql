@@ -87,3 +87,22 @@ select lesson_date,extract(isodow from lesson_date)::integer as iso_weekday,
 from public.cq_v4_lesson_schedule
 where lesson_date between date '2026-11-23' and date '2026-11-29'
 group by lesson_date order by lesson_date;
+
+-- Target weekday coverage (read only). Student identities must be verified in parent UI.
+-- This shows missing dates for each enrolled student without modifying existing schedules.
+with target_days as (
+ select gs::date lesson_date, extract(isodow from gs)::integer iso_weekday
+ from generate_series(date '2026-11-23',date '2026-11-29',interval '1 day') gs
+), expected as (
+ select e.parent_user_id,e.student_user_id,d.lesson_date,d.iso_weekday
+ from public.cq_v4_pdf_enrollments e cross join target_days d
+ where d.iso_weekday in (1,2,3,4,5)
+)
+select x.student_user_id,x.lesson_date,x.iso_weekday,
+ case when s.chapter_id is null then 'missing' else 'scheduled' end as schedule_status,
+ (s.released_at is not null) as prearmed
+from expected x
+left join public.cq_v4_lesson_schedule s
+ on s.parent_user_id=x.parent_user_id and s.student_user_id=x.student_user_id
+ and s.lesson_date=x.lesson_date
+order by x.student_user_id,x.lesson_date;
