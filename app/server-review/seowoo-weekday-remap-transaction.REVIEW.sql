@@ -8,14 +8,13 @@ begin;
 do $$
 declare
   v_student uuid := null; -- MUST supply verified Seowoo student UUID in approved migration
-  v_parent uuid;
   v_count integer;
 begin
   if v_student is null then raise exception 'STOP: verified student identity required'; end if;
   -- Lock target rows to prevent concurrent edits; no changes to other students.
   perform 1 from public.cq_v4_lesson_schedule
    where student_user_id=v_student for update;
-  select count(*),min(parent_user_id) into v_count,v_parent
+  select count(*) into v_count
     from public.cq_v4_lesson_schedule
     where student_user_id=v_student and lesson_date>=date '2026-11-23';
   if v_count<>10 then raise exception 'STOP: expected 10 future lessons, found %',v_count; end if;
