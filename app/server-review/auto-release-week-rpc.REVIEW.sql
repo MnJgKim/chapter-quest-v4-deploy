@@ -59,8 +59,7 @@ begin
   insert into public.cq_v4_auto_release_arms(parent_user_id,student_user_id,chapter_id)
    values(v_parent,p_student_user_id,v_chapter);
   update public.cq_v4_lesson_schedule set released_at=now()
-   where parent_user_id=v_parent and student_user_id=p_student_user_id
-    and chapter_id=v_chapter;
+   where student_user_id=p_student_user_id and chapter_id=v_chapter;
  end loop;
  return v_count;
 end $fn$;
