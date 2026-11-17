@@ -47,3 +47,19 @@ test('batch booking does not reject a different student or date',()=>{
  const releases=[{student_user_id:'student-2',chapter_id:'other',lesson_date:'2026-11-23'},{student_user_id:'student-1',chapter_id:'other',lesson_date:'2026-11-24'}];
  assert.equal(batchDateConflicts('student-1',items,releases).length,0);
 });
+
+const mappingMatch=source.match(/const batchMappingChanged=\(preview,mappings\)=>[^;]+;/);
+assert.ok(mappingMatch,'batch mapping validation must exist');
+const batchMappingChanged=vm.runInNewContext('('+mappingMatch[0].replace(/^const batchMappingChanged=/,'').replace(/;$/,'')+')');
+test('batch preview invalidates when chapter number changes',()=>{
+ const preview={book:'book-1',items:[{chapter_id:'a',chapter_number:2}]};
+ assert.equal(batchMappingChanged(preview,[{book_id:'book-1',chapter_id:'a',chapter_number:3}]),true);
+});
+test('batch preview invalidates when chapter moves to another book',()=>{
+ const preview={book:'book-1',items:[{chapter_id:'a',chapter_number:2}]};
+ assert.equal(batchMappingChanged(preview,[{book_id:'book-2',chapter_id:'a',chapter_number:2}]),true);
+});
+test('batch preview accepts unchanged book and chapter number',()=>{
+ const preview={book:'book-1',items:[{chapter_id:'a',chapter_number:2}]};
+ assert.equal(batchMappingChanged(preview,[{book_id:'book-1',chapter_id:'a',chapter_number:2}]),false);
+});
