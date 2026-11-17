@@ -78,3 +78,12 @@ union all select 'published_with_matching_approval_request',count(*)::bigint
  join public.cq_v4_approval_requests r
   on r.id=a.approval_id and r.content_hash=a.approval_hash
  where a.published_at is not null;
+
+-- Opening week aggregate coverage only; do not infer student identity from dates.
+-- 2026-11-23..29 is the first target week.
+select lesson_date,extract(isodow from lesson_date)::integer as iso_weekday,
+ count(*)::bigint as scheduled_students,
+ count(*) filter(where released_at is not null)::bigint as prearmed_students
+from public.cq_v4_lesson_schedule
+where lesson_date between date '2026-11-23' and date '2026-11-29'
+group by lesson_date order by lesson_date;
