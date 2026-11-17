@@ -14,6 +14,9 @@ try {
  insert into public.cq_v4_pdf_chapters values('${chapter}');`);
  await db.exec(await sql('./auto-release-policy.REVIEW.sql'));
  await db.exec(await sql('./auto-release-cancellations.REVIEW.sql'));
+ await db.exec(`create schema auth;create role anon;create role authenticated;create table public.cq_admins(user_id uuid primary key);insert into public.cq_admins values('${parent}');create function auth.uid() returns uuid language sql stable as $select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$;create function public.cq_is_admin() returns boolean language sql stable as $select exists(select 1 from public.cq_admins where user_id=auth.uid())$;`);
+ await db.exec(await sql('./auto-release-policy-rpc.REVIEW.sql'));
+ const setPolicy=async(user,enabled,days)=>{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user]);return db.query('select public.cq_v4_parent_set_auto_release_policy($1,$2,$3::smallint[])',[child,enabled,days]);};
  await test('policy defaults to disabled and persists selected weekdays',async()=>{
   await db.query('insert into public.cq_v4_auto_release_policies(parent_user_id,student_user_id,weekdays) values($1,$2,$3::smallint[])',[parent,child,[1,3,4]]);
   const row=(await db.query('select enabled,weekdays from public.cq_v4_auto_release_policies')).rows[0];
@@ -29,6 +32,25 @@ try {
   await db.query('insert into public.cq_v4_auto_release_cancellations(parent_user_id,student_user_id,chapter_id) values($1,$2,$3)',[parent,child,chapter]);
   await db.query('update public.cq_v4_auto_release_policies set enabled=true');
   await db.query('update public.cq_v4_auto_release_policies set enabled=false');
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_cancellations')).rows[0].n,1);
+ });
+ await test('parent RPC enables valid weekly policy',async()=>{
+  await setPolicy(parent,true,[1,3,4]);
+  const row=(await db.query('select enabled,weekdays from public.cq_v4_auto_release_policies')).rows[0];
+  assert.equal(row.enabled,true);assert.deepEqual(row.weekdays,[1,3,4]);
+ });
+ await test('student cannot change parent policy',async()=>{
+  await assert.rejects(setPolicy(child,false,[2,3,5]),e=>e.code==='42501');
+ });
+ await test('duplicate weekdays are rejected',async()=>{
+  await assert.rejects(setPolicy(parent,true,[1,1,3]),e=>e.code==='22023');
+ });
+ await test('null enabled flag is rejected',async()=>{
+  await assert.rejects(setPolicy(parent,null,[1,3,4]),e=>e.code==='22023');
+ });
+ await test('parent RPC can disable without deleting cancellation',async()=>{
+  await setPolicy(parent,false,[1,3,4]);
+  assert.equal((await db.query('select enabled from public.cq_v4_auto_release_policies')).rows[0].enabled,false);
   assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_cancellations')).rows[0].n,1);
  });
  await test('duplicate cancellation cannot be silently overwritten',async()=>{
