@@ -30,3 +30,11 @@ test('foreign or malformed assignment list fails closed',()=>{
 test('untrusted identifiers cannot request proposals',()=>{
  assert.throws(()=>proposeFromScopedRows(input({studentUserId:'서우'})),/scope required/);
 });
+
+test('duplicate approval evidence is rejected instead of choosing a row',()=>{
+ assert.throws(()=>proposeFromScopedRows(input({chapters:[row(),{...row(),approval_verified:false}]})),/Duplicate chapter evidence/);
+});
+test('no candidate can be inferred from missing approval verification',()=>{
+ const unverified=row();delete unverified.approval_verified;
+ assert.deepEqual(proposeFromScopedRows(input({chapters:[unverified]})),[]);
+});
