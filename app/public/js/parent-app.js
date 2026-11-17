@@ -182,12 +182,11 @@
      }else if(action==='assign'||action==='unassign'){
        const i=Number(button.dataset.index),chapter=pdfServerChapters[i];
        const student=document.querySelector(`[data-pdf-student="${i}"]`)?.value;
-       if(!chapter?.ready||!student||!pdfServerStudents.some(s=>s.student_user_id===student))throw Error('검증된 챕터와 승인된 학생을 선택하세요.');
        if(action==='unassign')throw Error('기존 학생 배정 보호를 위해 배정 취소는 지원하지 않습니다.');
-       if(pdfServerAssignments.some(a=>a.chapter_uuid===chapter.uuid&&a.student_user_id===student))throw Error('이미 배정된 챕터입니다. 기존 배정을 유지합니다.');
-       if(student!=="7169dd67-99d7-4b86-85f8-bafce01e51b7"||!pendingChildren.some(x=>x.child_user_id===student&&x.active===true))throw Error('승인된 활성 학생 계정인지 확인하세요.');
+       const payload=globalThis.CQTestAssignmentGuard?.validate({chapter,studentId:student,students:pdfServerStudents,children:pendingChildren,assignments:pdfServerAssignments});
+       if(!payload)throw Error('테스트 계정 보호 기능이 로드되지 않았습니다.');
        if(!window.confirm('선택한 학생 계정에 이 챕터를 추가 배정할까요? 기존 배정은 유지됩니다.'))return;
-       await pdfParentCall(action,{chapter_uuid:chapter.uuid,student_user_id:student});
+       await pdfParentCall(action,payload);
        try{await refreshPdfParentLists();pdfParentStatus(action==='assign'?'학생 배정 완료. 서버 목록을 갱신했습니다.':'학생 배정 취소 완료. 서버 목록을 갱신했습니다.')}catch(refreshError){pdfParentStatus('서버 배정 요청은 처리됐지만 목록 갱신에 실패했습니다: '+refreshError.message)}
      }
    }catch(error){
