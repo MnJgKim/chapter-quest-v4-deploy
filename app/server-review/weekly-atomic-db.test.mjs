@@ -38,23 +38,23 @@ try {
   return db.query('select public.cq_v4_parent_schedule_week_atomic($1,$2::jsonb) as inserted',[child,JSON.stringify(items)]);
  };
  const item=(id,date)=>({chapter_id:id,lesson_date:date});
- test('two approved chapters insert atomically with unreleased rows',async()=>{
+ await test('two approved chapters insert atomically with unreleased rows',async()=>{
   const r=await run([item(chapter1,'2026-11-23'),item(chapter2,'2026-11-25')]);
   assert.equal(r.rows[0].inserted,2);
   const rows=(await db.query('select lesson_date,released_at from public.cq_v4_lesson_schedule order by lesson_date')).rows;
   assert.equal(rows.length,2);assert.ok(rows.every(r=>r.released_at===null));
  });
- test('duplicate chapter does not overwrite manual date',async()=>{
+ await test('duplicate chapter does not overwrite manual date',async()=>{
   await assert.rejects(run([item(chapter1,'2026-11-26')]),e=>e.code==='23505');
   assert.equal((await db.query('select lesson_date::text as date from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter1])).rows[0].date,'2026-11-23');
  });
- test('student/date unique index blocks other chapter on occupied day',async()=>{
+ await test('student/date unique index blocks other chapter on occupied day',async()=>{
   await assert.rejects(db.query('insert into public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date) values ($1,$2,$3,$4)',[parent,child,chapter2,'2026-11-23']),e=>e.code==='23505');
  });
- test('unauthorized user cannot schedule',async()=>{
+ await test('unauthorized user cannot schedule',async()=>{
   await assert.rejects(run([],child),e=>e.code==='42501');
  });
- test('malformed batch rejects and preserves existing rows',async()=>{
+ await test('malformed batch rejects and preserves existing rows',async()=>{
   await assert.rejects(run([{chapter_id:'bad',lesson_date:'2026-11-26'}]),e=>e.code==='22023');
   assert.equal((await db.query('select count(*)::int as n from public.cq_v4_lesson_schedule')).rows[0].n,2);
  });
