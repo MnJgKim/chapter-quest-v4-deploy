@@ -11,3 +11,6 @@ test('invalid date rejected',()=>assert.throws(()=>run('서우','2026-11-31','20
 test('unknown student rejected',()=>assert.throws(()=>run('시우','2026-11-23','2026-11-24',['a']),/Unknown student/));
 test('duplicate chapter IDs rejected',()=>assert.throws(()=>run('서우','2026-11-23','2026-11-24',['a','a']),/Invalid chapter/));
 test('excessive planning horizon rejected',()=>assert.throws(()=>run('서우','2026-11-23','2028-11-23',['a']),/range/));
+
+test('conflicting existing dates fail closed without altering assignments',()=>assert.throws(()=>run('서우','2026-11-23','2026-11-26',['a','b','c'],[{chapterId:'a',lessonDate:'2026-11-23'},{chapterId:'b',lessonDate:'2026-11-23'}]),/Conflicting existing/));
+test('duplicate existing chapter across dates fails closed',()=>assert.throws(()=>run('서우','2026-11-23','2026-11-26',['a','b'],[{chapterId:'a',lessonDate:'2026-11-23'},{chapterId:'a',lessonDate:'2026-11-25'}]),/Conflicting existing/));
