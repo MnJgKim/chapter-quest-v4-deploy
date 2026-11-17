@@ -4,6 +4,7 @@ on:
     paths:
       - 'app/tools/hosted-readiness-audit.mjs'
       - 'app/worker.mjs'
+      - 'app/worker-ai-readiness.test.mjs'
       - 'app/public/js/student-app.js'
       - 'app/server-review/hosted-core-contract-readonly.REVIEW.sql'
       - 'app/server-review/hosted-storage-security-readonly.REVIEW.sql'
@@ -25,3 +26,5 @@ jobs:
           node-version: '22'
       - name: Offline hosted contract audit (no credentials or remote writes)
         run: node app/tools/hosted-readiness-audit.mjs
+      - name: Targeted AI disabled-mode tests (no model calls)
+        run: node --test app/worker-ai-readiness.test.mjs
