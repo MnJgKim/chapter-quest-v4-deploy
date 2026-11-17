@@ -17,6 +17,7 @@ try {
  await db.exec(await sql('./auto-release-cancellations.REVIEW.sql'));
  await db.exec(`create schema auth;create table public.cq_admins(user_id uuid primary key);insert into public.cq_admins values('${parent}');create function auth.uid() returns uuid language sql stable as $fn$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$fn$;create function public.cq_is_admin() returns boolean language sql stable as $fn$select exists(select 1 from public.cq_admins where user_id=auth.uid())$fn$;`);
  await db.exec(await sql('./auto-release-policy-rpc.REVIEW.sql'));
+ await db.exec(await sql('./auto-release-policy-list-rpc.REVIEW.sql'));
  await db.exec(await sql('./auto-release-arms.REVIEW.sql'));
  await db.exec(`create table public.cq_v4_lesson_schedule(parent_user_id uuid,student_user_id uuid,chapter_id uuid,lesson_date date,released_at timestamptz,primary key(student_user_id,chapter_id));insert into public.cq_v4_lesson_schedule values('${parent}','${child}','${chapter}','2026-11-25',now());`);
  await db.exec(await sql('./auto-release-cancel-rpc.REVIEW.sql'));
@@ -50,6 +51,18 @@ try {
   await setPolicy(parent,true,[1,3,4]);
   const row=(await db.query('select enabled,weekdays from public.cq_v4_auto_release_policies')).rows[0];
   assert.equal(row.enabled,true);assert.deepEqual(row.weekdays,[1,3,4]);
+ });
+ await test('parent can read only enrolled students policy settings',async()=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[parent]);
+  const rows=(await db.query('select * from public.cq_v4_parent_list_auto_release_policies()')).rows;
+  assert.equal(rows.length,1);
+  assert.equal(rows[0].student_user_id,child);
+  assert.equal(rows[0].enabled,true);
+  assert.deepEqual(rows[0].weekdays,[1,3,4]);
+ });
+ await test('student cannot list parent automatic release policies',async()=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[child]);
+  await assert.rejects(db.query('select * from public.cq_v4_parent_list_auto_release_policies()'),e=>e.code==='42501');
  });
  await test('student cannot change parent policy',async()=>{
   await assert.rejects(setPolicy(child,false,[2,3,5]),e=>e.code==='42501');
