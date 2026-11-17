@@ -72,7 +72,7 @@
    }else{
     const open=b.dataset.open==='true';
     if(open&&!window.confirm('지금 학생에게 이 챕터를 공개하시겠습니까?'))return;
-    await parentRpc('cq_v4_parent_set_lesson_release',{p_student_user_id:student,p_chapter_id:chapter,p_release:open});
+    await parentRpc('cq_v4_parent_override_lesson_release',{p_student_user_id:student,p_chapter_id:chapter,p_release:open});
    }
    await refreshLessonReleases();
   }catch(err){lessonStatus('오류: '+err.message);}finally{b.disabled=false;}
