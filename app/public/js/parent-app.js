@@ -79,6 +79,15 @@
     const dates=nextAutoDates(start,policy.weekdays,count);
     const assigned=pdfServerAssignments.filter(a=>a.student_user_id===student&&!lessonReleases.some(v=>v.student_user_id===student&&v.chapter_id===a.chapter_uuid)).map(a=>({chapter_id:a.chapter_uuid,title:pdfServerChapters.find(c=>c.uuid===a.chapter_uuid)?.title||a.chapter_uuid,ready:pdfServerChapters.find(c=>c.uuid===a.chapter_uuid)?.ready}));
     if(assigned.length<count)throw Error('미예약 챕터가 부족합니다.');
+    // Only unambiguous numeric chapter titles may be auto-ordered.
+    const chapterOrder=title=>{
+     const match=String(title).match(/(?:^|\\s)(\\d+)\\s*[-–]\\s*(\\d+)(?:\\s|$)/);
+     if(!match)return null;
+     return [Number(match[1]),Number(match[2])];
+    };
+    if(assigned.some(x=>!chapterOrder(x.title)))throw Error('책-챕터 번호가 불명확합니다. 개별 예약을 사용하세요.');
+    assigned.sort((a,b)=>{const x=chapterOrder(a.title),y=chapterOrder(b.title);return x[0]-y[0]||x[1]-y[1];});
+    if(assigned.some((x,i)=>i&&chapterOrder(x.title).join('-')===chapterOrder(assigned[i-1].title).join('-')))throw Error('중복된 책-챕터 번호가 있습니다.');
     const chosen=assigned.slice(0,count);
     if(chosen.some(x=>!x.ready))throw Error('PDF 미준비 챕터가 포함되어 있습니다.');
     batchAutoPreview={student,owner:cloudIdentity(),items:chosen.map((x,i)=>({...x,lesson_date:dates[i]}))};
@@ -86,6 +95,8 @@
    }else if(b.dataset.batchAuto==='confirm'){
     const p=batchAutoPreview;if(!p||p.owner!==cloudIdentity())throw Error('미리보기를 다시 생성하세요.');
     if(!window.confirm(p.items.length+'개 챕터를 자동 공개 예약하시겠습니까?'))return;
+    await refreshPdfParentLists();
+    if(p.owner!==cloudIdentity()||p.items.some(x=>!pdfServerAssignments.some(a=>a.student_user_id===p.student&&a.chapter_uuid===x.chapter_id)||!pdfServerChapters.some(c=>c.uuid===x.chapter_id&&c.ready)||lessonReleases.some(v=>v.student_user_id===p.student&&v.chapter_id===x.chapter_id)))throw Error('예약 전 서버 자료가 변경되었습니다. 다시 미리보기를 확인하세요.');
     await parentRpc('cq_v4_parent_schedule_auto_week',{p_student_user_id:p.student,p_items:p.items.map(({chapter_id,lesson_date})=>({chapter_id,lesson_date}))});
     batchAutoPreview=null;await refreshLessonReleases();
     document.getElementById('cqBatchStatus').textContent='서버 예약 완료';
