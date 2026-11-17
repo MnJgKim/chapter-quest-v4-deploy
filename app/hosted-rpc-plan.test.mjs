@@ -8,3 +8,6 @@ test('missing student UUID is rejected',()=>assert.throws(()=>plan([{student:'�
 test('non UUID chapter is rejected',()=>assert.throws(()=>plan([{student:'서우',lessonDate:'2026-11-23',chapterId:'demo'}]),/Invalid hosted/));
 test('duplicate lesson date is rejected',()=>assert.throws(()=>plan([{student:'서우',lessonDate:'2026-11-23',chapterId:chapter},{student:'서우',lessonDate:'2026-11-23',chapterId:chapter}]),/Duplicate/));
 test('approval flag does not enable execution',()=>{const r=buildParentRpcPlan({proposed:[],studentUserIds:{},parentApproved:true});assert.equal(r.executable,false);assert.equal(r.requiresLivePreflight,true)});
+
+test('wrong student weekday is rejected',()=>assert.throws(()=>plan([{student:'서우',lessonDate:'2026-11-24',chapterId:chapter}]),/weekday/));
+test('same chapter across two allowed dates is rejected',()=>assert.throws(()=>plan([{student:'서우',lessonDate:'2026-11-23',chapterId:chapter},{student:'서우',lessonDate:'2026-11-25',chapterId:chapter}]),/Duplicate student chapter/));
