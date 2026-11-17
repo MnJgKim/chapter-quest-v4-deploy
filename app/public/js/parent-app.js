@@ -100,6 +100,11 @@
   }catch(err){if(b.dataset.bookCatalog==='refresh'){bookCatalogReady=false;bookCatalog=[];}render();document.getElementById('cqBookStatus').textContent='책 관리: '+err.message;}
   finally{b.disabled=false;}
  });
+ const chaptersForBook=(assigned,mappings,book)=>{
+  const mapped=assigned.filter(x=>mappings.some(m=>m.book_id===book&&m.chapter_id===x.chapter_id));
+  mapped.sort((a,b)=>mappings.find(m=>m.book_id===book&&m.chapter_id===a.chapter_id).chapter_number-mappings.find(m=>m.book_id===book&&m.chapter_id===b.chapter_id).chapter_number);
+  return mapped;
+ };
  const batchAutoPanel=()=>!parentUnlocked||!session?'':`<section class="card"><h2>📚 여러 챕터 자동 공개 예약</h2><p>승인된 챕터만 서버에서 최종 확인합니다. 미리보기 후 확정하세요.</p><select id="cqBatchStudent"><option value="">학생 선택</option>${autoPolicies.filter(p=>p.enabled).map(p=>`<option value="${escapeHtml(p.student_user_id)}" ${batchAutoForm.student===p.student_user_id?'selected':''}>${escapeHtml(p.student_user_id.slice(-8))}</option>`).join('')}</select><select id="cqBatchBook"><option value="">책 선택 (필수)</option>${bookCatalogReady?bookCatalog.map(b=>`<option value="${escapeHtml(b.book_id)}" ${batchAutoForm.book===b.book_id?'selected':''}>${escapeHtml(b.title)}</option>`).join(''):''} </select><input id="cqBatchStart" type="date" value="${escapeHtml(batchAutoForm.start)}"><input id="cqBatchCount" type="number" min="1" max="31" value="${escapeHtml(batchAutoForm.count)}"><button data-batch-auto="preview" ${autoPolicyReady?'':'disabled'}>예약 미리보기</button>${batchAutoPreview?`<p>${escapeHtml(batchAutoPreview.items.map(x=>x.lesson_date+' · '+x.title).join(' / '))}</p><button data-batch-auto="confirm">예약 확정</button>`:''}<p id="cqBatchStatus" class="status"></p></section>`;
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-batch-auto]');if(!b||b.disabled||mode!=='parent'||!parentUnlocked||!session)return;
@@ -116,9 +121,8 @@
     const assigned=pdfServerAssignments.filter(a=>a.student_user_id===student&&!lessonReleases.some(v=>v.student_user_id===student&&v.chapter_id===a.chapter_uuid)).map(a=>({chapter_id:a.chapter_uuid,title:pdfServerChapters.find(c=>c.uuid===a.chapter_uuid)?.title||a.chapter_uuid,ready:pdfServerChapters.find(c=>c.uuid===a.chapter_uuid)?.ready}));
     if(assigned.length<count)throw Error('미예약 챕터가 부족합니다.');
     // Book membership is explicit, never inferred from title or number.
-    const mapped=assigned.filter(x=>bookMappings.some(m=>m.book_id===book&&m.chapter_id===x.chapter_id));
+    const mapped=chaptersForBook(assigned,bookMappings,book);
     if(mapped.length<count)throw Error('선택한 책에 배정된 미예약 챕터가 부족합니다.');
-    mapped.sort((a,b)=>bookMappings.find(m=>m.book_id===book&&m.chapter_id===a.chapter_id).chapter_number-bookMappings.find(m=>m.book_id===book&&m.chapter_id===b.chapter_id).chapter_number);
     const chosen=mapped.slice(0,count);
     if(chosen.some(x=>!x.ready))throw Error('PDF 미준비 챕터가 포함되어 있습니다.');
     batchAutoPreview={student,book,owner:cloudIdentity(),items:chosen.map((x,i)=>({...x,lesson_date:dates[i]}))};
