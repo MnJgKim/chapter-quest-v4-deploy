@@ -6,6 +6,7 @@ const read=p=>fs.readFileSync(path.join(root,p),'utf8');
 const schema=JSON.parse(read('server-review/fixtures/live_schema.json'));
 const tables=JSON.parse(read('server-review/fixtures/table_metadata.json'));
 const worker=read('worker.mjs');
+const student=read('public/js/student-app.js');
 const wrangler=JSON.parse(read('../wrangler.jsonc'));
 const names=new Set(tables.map(t=>t.name.startsWith('public.')?t.name.slice(7):t.name));
 const functions=new Set(schema.functions.map(f=>f.name));
@@ -21,7 +22,11 @@ const checks={
  ai_auth_gate_source:worker.includes("'/auth/v1/user'"),
  ai_binding_declared:wrangler.ai?.binding==='AI',
  ai_disabled_by_default:wrangler.vars?.AI_FREE_PLAN_CONFIRMED==='false',
- worker_static_assets:wrangler.assets?.binding==='ASSETS'
+ worker_static_assets:wrangler.assets?.binding==='ASSETS',
+ audio_capture_supported:student.includes('navigator.mediaDevices?.getUserMedia')&&student.includes('MediaRecorder'),
+ audio_private_storage_path:student.includes('/storage/v1/object/sign/cq-v4-speaking/'),
+ audio_recovery_supported:student.includes('readRecovery(')&&student.includes('downloadUnsavedVoice('),
+ audio_mime_types_supported:student.includes("'audio/webm'")&&student.includes("'audio/mp4'")&&student.includes("'audio/ogg'")
 };
 // The fixture predates the live release RPC; a missing captured name is a stale-fixture warning, not evidence that hosted lacks it.
 const informational=new Set(['captured_release_gate']);
