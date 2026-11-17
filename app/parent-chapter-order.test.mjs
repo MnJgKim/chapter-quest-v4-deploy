@@ -85,7 +85,7 @@ assert.ok(readbackMatch,'batch readback validation must exist');
 const batchReadbackMatches=vm.runInNewContext('('+readbackMatch[0].replace(/^const batchReadbackMatches=/,'').replace(/;$/,'')+')');
 test('batch readback verifies every persisted chapter and date',()=>{
  const items=[{chapter_id:'a',lesson_date:'2026-11-23'},{chapter_id:'b',lesson_date:'2026-11-25'}];
- const rows=[{student_user_id:'s1',chapter_id:'a',lesson_date:'2026-11-23'},{student_user_id:'s1',chapter_id:'b',lesson_date:'2026-11-25'}];
+ const rows=[{student_user_id:'s1',chapter_id:'a',lesson_date:'2026-11-23',released_at:'2026-11-17T01:00:00Z'},{student_user_id:'s1',chapter_id:'b',lesson_date:'2026-11-25',released_at:'2026-11-17T01:00:00Z'}];
  assert.equal(batchReadbackMatches('s1',items,rows),true);
  assert.equal(batchReadbackMatches('s1',items,rows.slice(0,1)),false);
 });
@@ -94,4 +94,11 @@ test('batch readback rejects wrong student, date, or malformed response',()=>{
  assert.equal(batchReadbackMatches('s1',items,[{student_user_id:'s2',chapter_id:'a',lesson_date:'2026-11-23'}]),false);
  assert.equal(batchReadbackMatches('s1',items,[{student_user_id:'s1',chapter_id:'a',lesson_date:'2026-11-24'}]),false);
  assert.equal(batchReadbackMatches('s1',items,null),false);
+});
+
+test('batch readback rejects schedules that are not pre-armed for automatic release',()=>{
+ const items=[{chapter_id:'a',lesson_date:'2026-11-23'}];
+ assert.equal(batchReadbackMatches('s1',items,[{student_user_id:'s1',chapter_id:'a',lesson_date:'2026-11-23',released_at:null}]),false);
+ assert.equal(batchReadbackMatches('s1',items,[{student_user_id:'s1',chapter_id:'a',lesson_date:'2026-11-23',released_at:'invalid'}]),false);
+ assert.equal(batchReadbackMatches('s1',items,[{student_user_id:'s1',chapter_id:'a',lesson_date:'2026-11-23',released_at:'2026-11-17T01:00:00Z'}]),true);
 });
