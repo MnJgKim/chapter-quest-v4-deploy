@@ -10,7 +10,6 @@ declare
   v_student uuid := null; -- MUST supply verified Seowoo student UUID in approved migration
   v_parent uuid;
   v_count integer;
-  v_bad integer;
 begin
   if v_student is null then raise exception 'STOP: verified student identity required'; end if;
   -- Lock target rows to prevent concurrent edits; no changes to other students.
@@ -50,19 +49,10 @@ begin
        and s.chapter_id not in (select chapter_id from cq_remap)) then
     raise exception 'STOP: external date conflict';
   end if;
-  -- Phase 1: move the ten dates to temporary unique dates. This avoids
-  -- unique(student_user_id,lesson_date) collisions during date swaps.
-  -- Phase 2: move to final dates, in the SAME transaction.
-  -- A guard rejects temporary dates already used by this student.
-  if exists(select 1 from public.cq_v4_lesson_schedule s
-    where s.student_user_id=v_student
-      and s.lesson_date between date '2099-01-01' and date '2099-01-10') then
-    raise exception 'STOP: temporary dates occupied';
-  end if;
-  update public.cq_v4_lesson_schedule s
-  set lesson_date=date '2099-01-01'+(m.seq-1)
-  from (select chapter_id,row_number() over(order by old_date,chapter_id) seq from cq_remap) m
-  where s.student_user_id=v_student and s.chapter_id=m.chapter_id;
+  -- Production constraint audit (2026-11-17): primary key is
+  -- (student_user_id,chapter_id), NOT (student_user_id,lesson_date).
+  -- Date collisions are protected by the guards above, so a direct
+  -- single-transaction update is safer than temporary dates in year 2099.
   update public.cq_v4_lesson_schedule s set lesson_date=m.new_date
   from cq_remap m
   where s.student_user_id=v_student and s.chapter_id=m.chapter_id;
