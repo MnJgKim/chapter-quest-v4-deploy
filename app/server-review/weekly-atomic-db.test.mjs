@@ -51,6 +51,13 @@ try {
  await test('student/date unique index blocks other chapter on occupied day',async()=>{
   await assert.rejects(db.query('insert into public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date) values ($1,$2,$3,$4)',[parent,child,chapter2,'2026-11-23']),e=>e.code==='23505');
  });
+ await test('multi-item failure rolls back earlier inserts',async()=>{
+  await db.query('delete from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2]);
+  await assert.rejects(run([item(chapter2,'2026-11-25'),item(chapter1,'2026-11-26')]),e=>e.code==='23505');
+  const rows=(await db.query('select chapter_id from public.cq_v4_lesson_schedule')).rows;
+  assert.equal(rows.length,1);assert.equal(rows[0].chapter_id,chapter1);
+  await run([item(chapter2,'2026-11-25')]);
+ });
  await test('unauthorized user cannot schedule',async()=>{
   await assert.rejects(run([],child),e=>e.code==='42501');
  });
