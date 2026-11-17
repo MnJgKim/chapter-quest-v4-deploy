@@ -8,3 +8,5 @@ test('missing Seowoo identity blocks',()=>assert.ok(firstWeekReadiness({identiti
 test('mixed identity blocks',()=>assert.ok(firstWeekReadiness({identities:ids,scheduled:[{...ready[0],studentUserId:'b'},...ready.slice(1)]}).findings[0].blockers.includes('identity-mismatch')));
 test('missing published material blocks',()=>assert.ok(firstWeekReadiness({identities:ids,scheduled:[{...ready[0],activityPublished:false},...ready.slice(1)]}).findings[0].blockers.includes('material-not-ready')));
 test('duplicate student slot blocks',()=>assert.ok(firstWeekReadiness({identities:ids,scheduled:[...ready,ready[0]]}).findings[0].blockers.includes('duplicate-slot')));
+
+test('same account cannot be both students',()=>{const r=firstWeekReadiness({identities:{'서우':ids['서우'],'서진':{...ids['서진'],studentUserId:'a'}},scheduled:ready});assert.equal(r.allReadyForDeviceTest,false);assert.ok(r.findings[0].blockers.includes('shared-student-identity'))});
