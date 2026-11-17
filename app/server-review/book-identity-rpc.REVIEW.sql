@@ -64,3 +64,21 @@ begin
 end $fn$;
 revoke all on function public.cq_v4_parent_link_book_chapter(uuid,uuid,integer) from public,anon;
 grant execute on function public.cq_v4_parent_link_book_chapter(uuid,uuid,integer) to authenticated;
+
+-- REVIEW ONLY. Parent-scoped mapping list for avoiding duplicate links in the UI.
+create or replace function public.cq_v4_parent_list_book_chapters()
+returns table(book_id uuid,chapter_id uuid,chapter_number integer)
+language plpgsql security definer set search_path=''
+as $fn$
+begin
+ if auth.uid() is null or not public.cq_is_admin() then
+  raise exception 'Parent authorization required' using errcode='42501';
+ end if;
+ return query
+ select bc.book_id,bc.chapter_id,bc.chapter_number
+ from public.cq_v4_book_chapters bc
+ where bc.parent_user_id=auth.uid()
+ order by bc.book_id,bc.chapter_number;
+end $fn$;
+revoke all on function public.cq_v4_parent_list_book_chapters() from public,anon;
+grant execute on function public.cq_v4_parent_list_book_chapters() to authenticated;
