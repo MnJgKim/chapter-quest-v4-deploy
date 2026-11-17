@@ -13,3 +13,6 @@ test('unverified PDF fails closed',()=>assert.ok(run({lessons:[{...row,pdfVerifi
 test('unpublished activity fails closed',()=>assert.ok(run({lessons:[{...row,activityPublished:false}]}).blockers.includes('activity-unpublished')));
 test('off-day existing lesson fails closed',()=>assert.ok(run({lessons:[row,{...row,lessonDate:'2026-11-24'}]}).blockers.includes('off-day-existing')));
 test('Seojin first Tuesday absent fails closed',()=>{const r=check({student:'서진',identity:{...identity,name:'서진'},lessons:[]});assert.equal(r.firstLessonDate,'2026-11-24');assert.ok(r.blockers.includes('first-lesson-missing'))});
+
+test('invalid calendar day rejected',()=>assert.throws(()=>run({lessons:[{...row,lessonDate:'2026-11-31'}]}),/Invalid lesson date/));
+test('other student lesson cannot be mixed in same roster',()=>assert.ok(run({lessons:[row,{...row,studentUserId:chapter,lessonDate:'2026-11-25'}]}).blockers.includes('student-ownership-mismatch')));
