@@ -15,7 +15,7 @@ export function reviewRecurringAssignments({student,studentUserId,approved,enrol
   used.add(r.chapterId);occupied.add(r.lessonDate);
   if(r.lessonDate>=(fromDate??(student==='서우'?'2026-11-23':'2026-11-24'))&&r.lessonDate<=throughDate&&!dates.includes(r.lessonDate))blockers.push('existing-date-outside-target-schedule');
  }
- if(existing.some(r=>r.released===true&&r.lessonDate>=dates[0]&&!dates.includes(r.lessonDate)))blockers.push('released-existing-lesson-requires-separate-approval');
+ if(existing.some(r=>r.released===true&&r.lessonDate>=(fromDate??(student==='서우'?'2026-11-23':'2026-11-24'))&&r.lessonDate<=throughDate&&!dates.includes(r.lessonDate)))blockers.push('released-existing-lesson-requires-separate-approval');
  const available=chapters.filter(c=>!used.has(c.chapterId)&&c.pdfReady===true&&c.pdfVerified===true&&c.activityPublished===true);
  const proposals=[];
  for(const date of dates){if(occupied.has(date))continue;const c=available.shift();if(!c){blockers.push('insufficient-verified-unassigned-chapters');break}proposals.push({student,studentUserId,lessonDate:date,chapterId:c.chapterId,timezone:'Asia/Seoul'})}
