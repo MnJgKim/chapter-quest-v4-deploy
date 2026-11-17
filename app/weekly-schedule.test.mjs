@@ -58,3 +58,28 @@ test('manual off-day assignments remain visible after changing preferred days',(
  const s=state();s.weekly['2026-11-16']={서우:{금:assignment('2')}};
  assert.equal(planWeek(s,'서우','2026-11-16').금.chapterId,'2');
 });
+
+test('planning a week is read-only and does not change student records',()=>{
+ const s=state();s.books[0].students.push('서진');
+ s.weekly['2026-11-16']={서우:{월:assignment('1')}};
+ s.records['서우::book::1']={submitted:false,writing:'preserved draft'};
+ const before=JSON.stringify(s);
+ planWeek(s,'서우','2026-11-23');
+ assert.equal(JSON.stringify(s),before);
+});
+test('assignments are isolated by student even when they use the same book',()=>{
+ const s=state();s.books[0].students.push('서진');
+ s.weekly['2026-11-16']={서우:{월:assignment('1')}};
+ const seowoo=planWeek(s,'서우','2026-11-23');
+ const seojin=planWeek(s,'서진','2026-11-23');
+ assert.equal(seowoo.월.chapterId,'2');
+ assert.equal(seojin.화.chapterId,'1');
+});
+test('a future manual assignment is preserved on its own date',()=>{
+ const s=state();
+ s.weekly['2026-11-23']={서우:{월:assignment('3')}};
+ const result=planWeek(s,'서우','2026-11-23');
+ assert.equal(result.월.chapterId,'3');
+ assert.equal(result.수.chapterId,'1');
+ assert.equal(result.목.chapterId,'2');
+});
