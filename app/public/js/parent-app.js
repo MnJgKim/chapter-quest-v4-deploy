@@ -67,6 +67,39 @@
   if(result.length!==count)throw Error('예약 날짜가 부족합니다.');
   return result;
  };
+ let bookCatalog=[],bookCatalogReady=false,bookCatalogOwner=null;
+ const bookCatalogPanel=()=>!parentUnlocked||!session?'':`<section class="card"><h2>📚 책별 챕터 연결</h2><p>기존 PDF를 유지하고 책에 연결합니다. 서버 API가 미설치된 경우 등록할 수 없습니다.</p><button data-book-catalog="refresh">책 목록 조회</button>${bookCatalogReady?`<div class="row"><input id="cqBookTitle" maxlength="300" placeholder="새 책 제목"><button data-book-catalog="create">책 등록</button></div><div class="row"><select id="cqBookSelect"><option value="">책 선택</option>${bookCatalog.map(b=>`<option value="${escapeHtml(b.book_id)}">${escapeHtml(b.title)}</option>`).join('')}</select><select id="cqBookChapter"><option value="">PDF 챕터 선택</option>${pdfServerChapters.map(c=>`<option value="${escapeHtml(c.uuid)}">${escapeHtml(c.title)}</option>`).join('')}</select><input id="cqBookNumber" type="number" min="1" max="10000" placeholder="챕터 번호"><button data-book-catalog="link">챕터 연결</button></div>`:''}<p id="cqBookStatus" class="status"></p></section>`;
+ document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-book-catalog]');if(!b||b.disabled||mode!=='parent'||!parentUnlocked||!session)return;
+  b.disabled=true;
+  try{
+   const action=b.dataset.bookCatalog;
+   if(action==='refresh'){
+    const books=await parentRpc('cq_v4_parent_list_books');
+    if(!Array.isArray(books))throw Error('책 목록 응답 오류');
+    bookCatalog=books;bookCatalogOwner=cloudIdentity();bookCatalogReady=true;
+   }else{
+    if(!bookCatalogReady||bookCatalogOwner!==cloudIdentity())throw Error('책 목록을 먼저 조회하세요.');
+    if(action==='create'){
+     const title=document.getElementById('cqBookTitle')?.value?.trim();
+     if(!title||title.length>300)throw Error('책 제목을 확인하세요.');
+     if(!window.confirm('책을 등록하시겠습니까?'))return;
+     await parentRpc('cq_v4_parent_create_book',{p_title:title});
+    }else if(action==='link'){
+     const book=document.getElementById('cqBookSelect')?.value;
+     const chapter=document.getElementById('cqBookChapter')?.value;
+     const number=Number(document.getElementById('cqBookNumber')?.value);
+     if(!bookCatalog.some(x=>x.book_id===book)||!pdfServerChapters.some(x=>x.uuid===chapter)||!Number.isInteger(number)||number<1||number>10000)throw Error('책·챕터·번호를 확인하세요.');
+     if(!window.confirm('이 PDF 챕터를 선택한 책에 연결하시겠습니까?'))return;
+     await parentRpc('cq_v4_parent_link_book_chapter',{p_book_id:book,p_chapter_id:chapter,p_chapter_number:number});
+    }
+    const books=await parentRpc('cq_v4_parent_list_books');
+    if(!Array.isArray(books))throw Error('목록 갱신 오류');bookCatalog=books;
+   }
+   render();document.getElementById('cqBookStatus').textContent='서버 작업 완료';
+  }catch(err){if(b.dataset.bookCatalog==='refresh'){bookCatalogReady=false;bookCatalog=[];}render();document.getElementById('cqBookStatus').textContent='책 관리: '+err.message;}
+  finally{b.disabled=false;}
+ });
  const batchAutoPanel=()=>!parentUnlocked||!session?'':`<section class="card"><h2>📚 여러 챕터 자동 공개 예약</h2><p>승인된 챕터만 서버에서 최종 확인합니다. 미리보기 후 확정하세요.</p><select id="cqBatchStudent"><option value="">학생 선택</option>${autoPolicies.filter(p=>p.enabled).map(p=>`<option value="${escapeHtml(p.student_user_id)}">${escapeHtml(p.student_user_id.slice(-8))}</option>`).join('')}</select><input id="cqBatchStart" type="date"><input id="cqBatchCount" type="number" min="1" max="31" value="3"><button data-batch-auto="preview" ${autoPolicyReady?'':'disabled'}>예약 미리보기</button>${batchAutoPreview?`<p>${escapeHtml(batchAutoPreview.items.map(x=>x.lesson_date+' · '+x.title).join(' / '))}</p><button data-batch-auto="confirm">예약 확정</button>`:''}<p id="cqBatchStatus" class="status"></p></section>`;
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-batch-auto]');if(!b||b.disabled||mode!=='parent'||!parentUnlocked||!session)return;
@@ -432,7 +465,7 @@
   }
  });
  const originalRender=render;
- render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+autoPolicyPanel()+batchAutoPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel())}};
+ render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+bookCatalogPanel()+autoPolicyPanel()+batchAutoPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel())}};
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-parent-invite]');if(!b)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project){inviteStatus('부모 Supabase 로그인이 필요합니다.');return;}
