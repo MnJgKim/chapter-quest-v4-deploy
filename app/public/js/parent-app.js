@@ -77,7 +77,7 @@
    if(action==='refresh'){
     const [books,mappings]=await Promise.all([parentRpc('cq_v4_parent_list_books'),parentRpc('cq_v4_parent_list_book_chapters')]);
     if(!Array.isArray(books)||!Array.isArray(mappings))throw Error('책 목록 응답 오류');
-    bookMappings=mappings;bookCatalog=books;bookCatalogOwner=cloudIdentity();bookCatalogReady=true;
+    bookMappings=mappings;bookCatalog=books;bookCatalogOwner=cloudIdentity();bookCatalogReady=true;batchAutoPreview=null;
    }else{
     if(!bookCatalogReady||bookCatalogOwner!==cloudIdentity())throw Error('책 목록을 먼저 조회하세요.');
     if(action==='create'){
@@ -94,12 +94,13 @@
      await parentRpc('cq_v4_parent_link_book_chapter',{p_book_id:book,p_chapter_id:chapter,p_chapter_number:number});
     }
     const [books,mappings]=await Promise.all([parentRpc('cq_v4_parent_list_books'),parentRpc('cq_v4_parent_list_book_chapters')]);
-    if(!Array.isArray(books)||!Array.isArray(mappings))throw Error('목록 갱신 오류');bookCatalog=books;bookMappings=mappings;
+    if(!Array.isArray(books)||!Array.isArray(mappings))throw Error('목록 갱신 오류');bookCatalog=books;bookMappings=mappings;batchAutoPreview=null;
    }
    render();document.getElementById('cqBookStatus').textContent='서버 작업 완료';
   }catch(err){if(b.dataset.bookCatalog==='refresh'){bookCatalogReady=false;bookCatalog=[];}render();document.getElementById('cqBookStatus').textContent='책 관리: '+err.message;}
   finally{b.disabled=false;}
  });
+ const batchMappingChanged=(preview,mappings)=>preview.items.some(x=>!mappings.some(m=>m.book_id===preview.book&&m.chapter_id===x.chapter_id&&m.chapter_number===x.chapter_number));
  const batchDateConflicts=(student,items,releases)=>items.filter(x=>releases.some(r=>r.student_user_id===student&&String(r.lesson_date||'').slice(0,10)===x.lesson_date&&r.chapter_id!==x.chapter_id));
  const chaptersForBook=(assigned,mappings,book)=>{
   const mapped=assigned.filter(x=>mappings.some(m=>m.book_id===book&&m.chapter_id===x.chapter_id));
@@ -126,7 +127,7 @@
     if(mapped.length<count)throw Error('선택한 책에 배정된 미예약 챕터가 부족합니다.');
     const chosen=mapped.slice(0,count);
     if(chosen.some(x=>!x.ready))throw Error('PDF 미준비 챕터가 포함되어 있습니다.');
-    const items=chosen.map((x,i)=>({...x,lesson_date:dates[i]}));
+    const items=chosen.map((x,i)=>({...x,lesson_date:dates[i],chapter_number:bookMappings.find(m=>m.book_id===book&&m.chapter_id===x.chapter_id).chapter_number}));
     if(batchDateConflicts(student,items,lessonReleases).length)throw Error('선택한 날짜에 이미 예약된 학습이 있습니다. 다른 시작일을 선택하세요.');
     batchAutoPreview={student,book,owner:cloudIdentity(),items};
     render();document.getElementById('cqBatchStatus').textContent='미리보기: 아직 저장되지 않았습니다.';
@@ -143,7 +144,7 @@
     await refreshPdfParentLists({requireReleases:true});
     if(batchDateConflicts(p.student,p.items,lessonReleases).length)throw Error('예약 날짜가 다른 학습과 겹칩니다. 미리보기를 다시 생성하세요.');
     const latestMappings=await parentRpc('cq_v4_parent_list_book_chapters');
-    if(!Array.isArray(latestMappings)||p.items.some(x=>!latestMappings.some(m=>m.book_id===p.book&&m.chapter_id===x.chapter_id)))throw Error('책·챕터 연결이 변경되었습니다. 다시 미리보기를 생성하세요.');
+    if(!Array.isArray(latestMappings)||batchMappingChanged(p,latestMappings))throw Error('책·챕터 연결이 변경되었습니다. 다시 미리보기를 생성하세요.');
     if(p.owner!==cloudIdentity()||p.items.some(x=>!pdfServerAssignments.some(a=>a.student_user_id===p.student&&a.chapter_uuid===x.chapter_id)||!pdfServerChapters.some(c=>c.uuid===x.chapter_id&&c.ready)||lessonReleases.some(v=>v.student_user_id===p.student&&v.chapter_id===x.chapter_id)))throw Error('예약 전 서버 자료가 변경되었습니다. 다시 미리보기를 확인하세요.');
     await parentRpc('cq_v4_parent_schedule_auto_week',{p_student_user_id:p.student,p_items:p.items.map(({chapter_id,lesson_date})=>({chapter_id,lesson_date}))});
     batchAutoPreview=null;await refreshLessonReleases();
