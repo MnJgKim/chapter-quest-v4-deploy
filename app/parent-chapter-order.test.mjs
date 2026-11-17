@@ -33,3 +33,17 @@ test('chapter title text cannot override book membership or order',()=>{
  const changed=assigned.map(x=>({...x,title:'Chapter 999'}));
  assert.deepEqual(Array.from(chaptersForBook(changed,mappings,'book-1'),x=>x.chapter_id),['c','b','a']);
 });
+
+const conflictMatch=source.match(/const batchDateConflicts=\(student,items,releases\)=>[^;]+;/);
+assert.ok(conflictMatch,'batch date conflict checker must exist');
+const batchDateConflicts=vm.runInNewContext('('+conflictMatch[0].replace(/^const batchDateConflicts=/,'').replace(/;$/,'')+')');
+test('batch booking rejects an existing different chapter on same student date',()=>{
+ const items=[{chapter_id:'a',lesson_date:'2026-11-23'}];
+ const releases=[{student_user_id:'student-1',chapter_id:'other',lesson_date:'2026-11-23'}];
+ assert.equal(batchDateConflicts('student-1',items,releases).length,1);
+});
+test('batch booking does not reject a different student or date',()=>{
+ const items=[{chapter_id:'a',lesson_date:'2026-11-23'}];
+ const releases=[{student_user_id:'student-2',chapter_id:'other',lesson_date:'2026-11-23'},{student_user_id:'student-1',chapter_id:'other',lesson_date:'2026-11-24'}];
+ assert.equal(batchDateConflicts('student-1',items,releases).length,0);
+});
