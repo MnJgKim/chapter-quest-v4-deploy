@@ -9,7 +9,7 @@ export function buildParentRpcPlan({proposed, studentUserIds, parentApproved = f
   const occupied = new Map();
   const dates = new Map();
   for (const row of existing) {
-    if (!row || !['서우','서진'].includes(row.student) || typeof row.chapterId !== 'string' || typeof row.lessonDate !== 'string') throw new TypeError('Invalid existing snapshot row');
+    if (!row || !['서우','서진'].includes(row.student) || !uuid.test(row.chapterId || '') || !/^\d{4}-\d{2}-\d{2}$/.test(row.lessonDate || '') || !Number.isFinite(Date.parse(row.lessonDate+'T00:00:00Z')) || new Date(row.lessonDate+'T00:00:00Z').toISOString().slice(0,10) !== row.lessonDate) throw new TypeError('Invalid existing snapshot row');
     const key = row.student+'::'+row.chapterId;
     if (occupied.has(key) || dates.has(row.student+'::'+row.lessonDate)) throw new Error('Conflicting existing snapshot');
     occupied.set(key,row.lessonDate);
