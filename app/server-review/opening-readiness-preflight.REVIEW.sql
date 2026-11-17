@@ -49,3 +49,17 @@ union all select 'schedule_without_published_activity',count(*)::bigint
 union all select 'duplicate_student_dates',count(*)::bigint
  from (select student_user_id,lesson_date from public.cq_v4_lesson_schedule
        group by 1,2 having count(*)>1) x;
+
+-- Strict auto-scheduler approval evidence, distinct from merely published content.
+-- Existing manually scheduled lessons may remain visible through the legacy gate;
+-- never rewrite or synthesize approval hashes to force migration.
+select 'scheduled_without_strict_approval_evidence' metric,count(*)::bigint value
+from public.cq_v4_lesson_schedule s
+where not exists (
+ select 1 from public.cq_v4_activities act
+ join public.cq_v4_approval_requests ar
+  on ar.id=act.approval_id and ar.parent_user_id=s.parent_user_id
+  and ar.chapter_uuid=s.chapter_id and ar.content_hash=act.approval_hash
+ where act.chapter_uuid=s.chapter_id and act.published_at is not null
+  and act.approval_hash ~ '^[0-9a-f]{64}$'
+);
