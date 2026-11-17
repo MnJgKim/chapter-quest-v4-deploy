@@ -116,3 +116,13 @@ test('batch preview reloads current chapter readiness, assignments and schedules
  assert.ok(preview.indexOf('await refreshPdfParentLists({requireReleases:true})')<preview.indexOf('const assigned='));
  assert.ok(preview.includes("await parentRpc('cq_v4_parent_list_book_chapters')"));
 });
+
+test('book management distinguishes committed mutation from failed follow-up refresh',()=>{
+ const start=source.indexOf("const bookCatalogPanel=");
+ const end=source.indexOf("const batchReadbackMatches=",start);
+ const bookHandler=source.slice(start,end);
+ assert.ok(bookHandler.includes('let mutationCommitted=false'));
+ assert.ok(bookHandler.includes("await parentRpc('cq_v4_parent_create_book',{p_title:title});mutationCommitted=true;"));
+ assert.ok(bookHandler.includes("await parentRpc('cq_v4_parent_link_book_chapter',{p_book_id:book,p_chapter_id:chapter,p_chapter_number:number});mutationCommitted=true;"));
+ assert.ok(bookHandler.includes("mutationCommitted?'서버 변경 요청은 완료됐지만 목록 재확인에 실패했습니다."));
+});
