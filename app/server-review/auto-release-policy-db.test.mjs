@@ -20,6 +20,14 @@ try {
  await db.exec(`create table public.cq_v4_lesson_schedule(parent_user_id uuid,student_user_id uuid,chapter_id uuid,lesson_date date,released_at timestamptz,primary key(student_user_id,chapter_id));insert into public.cq_v4_lesson_schedule values('${parent}','${child}','${chapter}','2026-11-25',now());`);
  await db.exec(await sql('./auto-release-cancel-rpc.REVIEW.sql'));
  const setPolicy=async(user,enabled,days)=>{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user]);return db.query('select public.cq_v4_parent_set_auto_release_policy($1,$2,$3::smallint[])',[child,enabled,days]);};
+ await test('auto-release tables deny direct client writes and have RLS enabled',async()=>{
+  for(const name of ['cq_v4_auto_release_policies','cq_v4_auto_release_cancellations','cq_v4_auto_release_arms']){
+   const r=await db.query("select has_table_privilege('authenticated',$1,'INSERT') as insert_ok,has_table_privilege('authenticated',$1,'UPDATE') as update_ok,has_table_privilege('anon',$1,'SELECT') as anon_read",[ 'public.'+name ]);
+   assert.deepEqual(r.rows[0],{insert_ok:false,update_ok:false,anon_read:false});
+   const q=await db.query('select relrowsecurity from pg_class where oid=$1::regclass',['public.'+name]);
+   assert.equal(q.rows[0].relrowsecurity,true);
+  }
+ });
  await test('policy defaults to disabled and persists selected weekdays',async()=>{
   await db.query('insert into public.cq_v4_auto_release_policies(parent_user_id,student_user_id,weekdays) values($1,$2,$3::smallint[])',[parent,child,[1,3,4]]);
   const row=(await db.query('select enabled,weekdays from public.cq_v4_auto_release_policies')).rows[0];
