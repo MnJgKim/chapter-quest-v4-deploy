@@ -56,7 +56,18 @@ begin
    where c.chapter_id=v_chapter and c.parent_user_id=v_parent
      and c.pdf_ready=true and c.pdf_verified_at is not null
      and act.published_at is not null
-     and act.approval_hash ~ '^[0-9a-f]{64}$'
+     and act.approval_hash ~ '^([0-9a-f]{32}|[0-9a-f]{64})
+  ) then raise exception 'Unapproved or unassigned chapter' using errcode='42501'; end if;
+  insert into public.cq_v4_lesson_schedule
+    (parent_user_id,student_user_id,chapter_id,lesson_date,timezone)
+  values(v_parent,p_student_user_id,v_chapter,v_date,'Asia/Seoul');
+  v_count := v_count+1;
+ end loop;
+ return v_count;
+end $$;
+revoke all on function public.cq_v4_parent_schedule_week_atomic(uuid,jsonb) from public,anon;
+grant execute on function public.cq_v4_parent_schedule_week_atomic(uuid,jsonb) to authenticated;
+
   ) then raise exception 'Unapproved or unassigned chapter' using errcode='42501'; end if;
   insert into public.cq_v4_lesson_schedule
     (parent_user_id,student_user_id,chapter_id,lesson_date,timezone)
