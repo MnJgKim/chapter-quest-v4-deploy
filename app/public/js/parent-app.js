@@ -100,7 +100,7 @@
   }catch(err){bookCatalogReady=false;bookCatalog=[];bookMappings=[];batchAutoPreview=null;render();document.getElementById('cqBookStatus').textContent='책 관리: '+err.message;}
   finally{b.disabled=false;}
  });
- const batchReadbackMatches=(student,items,rows)=>Array.isArray(rows)&&items.every(x=>rows.some(r=>r.student_user_id===student&&r.chapter_id===x.chapter_id&&String(r.lesson_date||'').slice(0,10)===x.lesson_date));
+ const batchReadbackMatches=(student,items,rows)=>Array.isArray(rows)&&items.every(x=>rows.some(r=>r.student_user_id===student&&r.chapter_id===x.chapter_id&&String(r.lesson_date||'').slice(0,10)===x.lesson_date&&typeof r.released_at==='string'&&!Number.isNaN(Date.parse(r.released_at))));
  const validBookCatalogResponse=(books,mappings)=>Array.isArray(books)&&Array.isArray(mappings)&&books.every(b=>/^[0-9a-f-]{36}$/i.test(String(b.book_id||''))&&typeof b.title==='string')&&mappings.every(m=>/^[0-9a-f-]{36}$/i.test(String(m.book_id||''))&&/^[0-9a-f-]{36}$/i.test(String(m.chapter_id||''))&&Number.isInteger(m.chapter_number)&&m.chapter_number>=1&&m.chapter_number<=10000&&books.some(b=>b.book_id===m.book_id));
  const batchMappingChanged=(preview,mappings)=>preview.items.some(x=>!mappings.some(m=>m.book_id===preview.book&&m.chapter_id===x.chapter_id&&m.chapter_number===x.chapter_number));
  const batchDateConflicts=(student,items,releases)=>items.filter(x=>releases.some(r=>r.student_user_id===student&&String(r.lesson_date||'').slice(0,10)===x.lesson_date&&r.chapter_id!==x.chapter_id));
