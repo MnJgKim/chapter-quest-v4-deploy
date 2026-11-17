@@ -38,6 +38,10 @@ try {
   return db.query('select public.cq_v4_parent_schedule_week_atomic($1,$2::jsonb) as inserted',[child,JSON.stringify(items)]);
  };
  const item=(id,date)=>({chapter_id:id,lesson_date:date});
+ await test('empty atomic scheduling batch is rejected without mutation',async()=>{
+  await assert.rejects(run([]),e=>e.code==='22023');
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_lesson_schedule')).rows[0].n,0);
+ });
  await test('two approved chapters insert atomically with unreleased rows',async()=>{
   const r=await run([item(chapter1,'2026-11-23'),item(chapter2,'2026-11-25')]);
   assert.equal(r.rows[0].inserted,2);
