@@ -100,6 +100,7 @@
   }catch(err){if(b.dataset.bookCatalog==='refresh'){bookCatalogReady=false;bookCatalog=[];}render();document.getElementById('cqBookStatus').textContent='책 관리: '+err.message;}
   finally{b.disabled=false;}
  });
+ const batchDateConflicts=(student,items,releases)=>items.filter(x=>releases.some(r=>r.student_user_id===student&&String(r.lesson_date||'').slice(0,10)===x.lesson_date&&r.chapter_id!==x.chapter_id));
  const chaptersForBook=(assigned,mappings,book)=>{
   const mapped=assigned.filter(x=>mappings.some(m=>m.book_id===book&&m.chapter_id===x.chapter_id));
   mapped.sort((a,b)=>mappings.find(m=>m.book_id===book&&m.chapter_id===a.chapter_id).chapter_number-mappings.find(m=>m.book_id===book&&m.chapter_id===b.chapter_id).chapter_number);
@@ -125,7 +126,9 @@
     if(mapped.length<count)throw Error('선택한 책에 배정된 미예약 챕터가 부족합니다.');
     const chosen=mapped.slice(0,count);
     if(chosen.some(x=>!x.ready))throw Error('PDF 미준비 챕터가 포함되어 있습니다.');
-    batchAutoPreview={student,book,owner:cloudIdentity(),items:chosen.map((x,i)=>({...x,lesson_date:dates[i]}))};
+    const items=chosen.map((x,i)=>({...x,lesson_date:dates[i]}));
+    if(batchDateConflicts(student,items,lessonReleases).length)throw Error('선택한 날짜에 이미 예약된 학습이 있습니다. 다른 시작일을 선택하세요.');
+    batchAutoPreview={student,book,owner:cloudIdentity(),items};
     render();document.getElementById('cqBatchStatus').textContent='미리보기: 아직 저장되지 않았습니다.';
    }else if(b.dataset.batchAuto==='confirm'){
     const p=batchAutoPreview;if(!p||p.owner!==cloudIdentity())throw Error('미리보기를 다시 생성하세요.');
@@ -138,6 +141,7 @@
      return !latestPolicy.weekdays.includes((d.getUTCDay()+6)%7+1);
     }))throw Error('학생의 자동 공개 요일이 변경되었습니다. 미리보기를 다시 생성하세요.');
     await refreshPdfParentLists({requireReleases:true});
+    if(batchDateConflicts(p.student,p.items,lessonReleases).length)throw Error('예약 날짜가 다른 학습과 겹칩니다. 미리보기를 다시 생성하세요.');
     const latestMappings=await parentRpc('cq_v4_parent_list_book_chapters');
     if(!Array.isArray(latestMappings)||p.items.some(x=>!latestMappings.some(m=>m.book_id===p.book&&m.chapter_id===x.chapter_id)))throw Error('책·챕터 연결이 변경되었습니다. 다시 미리보기를 생성하세요.');
     if(p.owner!==cloudIdentity()||p.items.some(x=>!pdfServerAssignments.some(a=>a.student_user_id===p.student&&a.chapter_uuid===x.chapter_id)||!pdfServerChapters.some(c=>c.uuid===x.chapter_id&&c.ready)||lessonReleases.some(v=>v.student_user_id===p.student&&v.chapter_id===x.chapter_id)))throw Error('예약 전 서버 자료가 변경되었습니다. 다시 미리보기를 확인하세요.');
