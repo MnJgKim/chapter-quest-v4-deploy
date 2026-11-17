@@ -72,6 +72,7 @@
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-book-catalog]');if(!b||b.disabled||mode!=='parent'||!parentUnlocked||!session)return;
   b.disabled=true;
+  let mutationCommitted=false;
   try{
    const action=b.dataset.bookCatalog;
    if(action==='refresh'){
@@ -84,20 +85,20 @@
      const title=document.getElementById('cqBookTitle')?.value?.trim();
      if(!title||title.length>300)throw Error('책 제목을 확인하세요.');
      if(!window.confirm('책을 등록하시겠습니까?'))return;
-     await parentRpc('cq_v4_parent_create_book',{p_title:title});
+     await parentRpc('cq_v4_parent_create_book',{p_title:title});mutationCommitted=true;
     }else if(action==='link'){
      const book=document.getElementById('cqBookSelect')?.value;
      const chapter=document.getElementById('cqBookChapter')?.value;
      const number=Number(document.getElementById('cqBookNumber')?.value);
      if(!bookCatalog.some(x=>x.book_id===book)||!pdfServerChapters.some(x=>x.uuid===chapter)||bookMappings.some(x=>x.chapter_id===chapter)||bookMappings.some(x=>x.book_id===book&&x.chapter_number===number)||!Number.isInteger(number)||number<1||number>10000)throw Error('책·챕터·번호를 확인하세요.');
      if(!window.confirm('이 PDF 챕터를 선택한 책에 연결하시겠습니까?'))return;
-     await parentRpc('cq_v4_parent_link_book_chapter',{p_book_id:book,p_chapter_id:chapter,p_chapter_number:number});
+     await parentRpc('cq_v4_parent_link_book_chapter',{p_book_id:book,p_chapter_id:chapter,p_chapter_number:number});mutationCommitted=true;
     }
     const [books,mappings]=await Promise.all([parentRpc('cq_v4_parent_list_books'),parentRpc('cq_v4_parent_list_book_chapters')]);
     if(!validBookCatalogResponse(books,mappings))throw Error('목록 갱신 오류');bookCatalog=books;bookMappings=mappings;batchAutoPreview=null;
    }
    render();document.getElementById('cqBookStatus').textContent='서버 작업 완료';
-  }catch(err){bookCatalogReady=false;bookCatalog=[];bookMappings=[];batchAutoPreview=null;render();document.getElementById('cqBookStatus').textContent='책 관리: '+err.message;}
+  }catch(err){bookCatalogReady=false;bookCatalog=[];bookMappings=[];batchAutoPreview=null;render();document.getElementById('cqBookStatus').textContent=mutationCommitted?'서버 변경 요청은 완료됐지만 목록 재확인에 실패했습니다. 책 목록을 다시 조회하세요. 중복 등록하지 마세요.':'책 관리: '+err.message;}
   finally{b.disabled=false;}
  });
  const batchReadbackMatches=(student,items,rows)=>Array.isArray(rows)&&items.every(x=>rows.some(r=>r.student_user_id===student&&r.chapter_id===x.chapter_id&&String(r.lesson_date||'').slice(0,10)===x.lesson_date&&typeof r.released_at==='string'&&!Number.isNaN(Date.parse(r.released_at))));
