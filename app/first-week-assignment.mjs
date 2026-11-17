@@ -29,5 +29,5 @@ export function planFirstWeekAssignments({student,studentUserId,approved,enrolle
   if(!chapter){blockers.push('insufficient-unassigned-published-chapters');break;}
   proposals.push({student,studentUserId,lessonDate:date,chapterId:chapter.chapterId,timezone:'Asia/Seoul'});
  }
- return {student,slots,proposals,existingUnchanged:true,blockers:[...new Set(blockers)],readyForParentReview:blockers.length===0,writesPerformed:0,executable:false};
+ return {student,slots,proposals:blockers.length===0?proposals:[],existingUnchanged:true,blockers:[...new Set(blockers)],readyForParentReview:blockers.length===0,writesPerformed:0,executable:false};
 }
