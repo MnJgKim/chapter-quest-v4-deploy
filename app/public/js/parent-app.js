@@ -100,6 +100,8 @@
    pdfServerAssignments=assignments.assignments.filter(a=>/^[0-9a-f-]{36}$/i.test(a.chapter_uuid||'')&&/^[0-9a-f-]{36}$/i.test(a.student_user_id||''));
    try{const releases=await parentRpc('cq_v4_parent_list_lesson_releases');if(Array.isArray(releases))lessonReleases=releases;}catch(error){console.warn('Lesson release status unavailable:',error.message);}
 
+   const owner=cloudIdentity();
+   try{const children=await parentRpc('cq_v4_list_child_access',{});if(cloudIdentity()!==owner)throw Error('부모 계정 변경');if(Array.isArray(children))pendingChildren=children;}catch(error){console.warn('Linked student names unavailable:',error.message)}
    render();pdfParentStatus('서버 목록을 다시 불러왔습니다. 승인된 학생과 PDF 목록을 확인했습니다.');
  }
  let pdfParentBusy=false;
