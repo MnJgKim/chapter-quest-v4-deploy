@@ -4,24 +4,32 @@ import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 
 const source=readFileSync(new URL('./public/js/parent-app.js',import.meta.url),'utf8');
-const match=source.match(/const chapterOrder=title=>\{[\s\S]*?\n    \};/);
-assert.ok(match,'chapterOrder function must exist in parent app');
-const chapterOrder=vm.runInNewContext('('+match[0].replace(/^const chapterOrder=/,'').replace(/;$/,'')+')');
+const match=source.match(/const chaptersForBook=\(assigned,mappings,book\)=>\{[\s\S]*?\n \};/);
+assert.ok(match,'book-scoped chapter selection must exist in parent app');
+const chaptersForBook=vm.runInNewContext('('+match[0].replace(/^const chaptersForBook=/,'').replace(/;$/,'')+')');
+const assigned=[
+ {chapter_id:'a',title:'Chapter 10'},
+ {chapter_id:'b',title:'Chapter 2'},
+ {chapter_id:'c',title:'Chapter 1'},
+ {chapter_id:'d',title:'Chapter 3'}
+];
+const mappings=[
+ {book_id:'book-1',chapter_id:'a',chapter_number:10},
+ {book_id:'book-1',chapter_id:'b',chapter_number:2},
+ {book_id:'book-1',chapter_id:'c',chapter_number:1},
+ {book_id:'book-2',chapter_id:'d',chapter_number:3}
+];
 
-test('production Chapter N titles sort numerically',()=>{
- const titles=['Chapter 10 : One Mystery Solved','Chapter 2 : Leaving Again','Chapter 1 : The Dark Woods'];
- const sorted=titles.sort((a,b)=>chapterOrder(a).chapter-chapterOrder(b).chapter);
- assert.deepEqual(sorted,['Chapter 1 : The Dark Woods','Chapter 2 : Leaving Again','Chapter 10 : One Mystery Solved']);
+test('book-scoped chapter ordering follows explicit numeric metadata',()=>{
+ assert.deepEqual(Array.from(chaptersForBook(assigned,mappings,'book-1'),x=>x.chapter_id),['c','b','a']);
 });
-test('book-chapter labels preserve book and chapter order',()=>{
- assert.equal(chapterOrder('2-3').book,2);
- assert.equal(chapterOrder('2-3').chapter,3);
- assert.equal(chapterOrder('2-10').chapter,10);
+test('a different book never leaks into the selected book',()=>{
+ assert.deepEqual(Array.from(chaptersForBook(assigned,mappings,'book-2'),x=>x.chapter_id),['d']);
 });
-test('ambiguous titles are rejected rather than guessed',()=>{
- for(const title of ['Chapter X','Chapter','Book Two',''])assert.equal(chapterOrder(title),null);
+test('unmapped chapters cannot be selected for batch booking',()=>{
+ assert.equal(chaptersForBook([{chapter_id:'unmapped',title:'Chapter 1'}],mappings,'book-1').length,0);
 });
-test('chapter-only and book-chapter formats are distinguishable',()=>{
- assert.equal(chapterOrder('Chapter 3 : Across the Bridge').format,'chapter-only');
- assert.equal(chapterOrder('2-3').format,'book-chapter');
+test('chapter title text cannot override book membership or order',()=>{
+ const changed=assigned.map(x=>({...x,title:'Chapter 999'}));
+ assert.deepEqual(Array.from(chaptersForBook(changed,mappings,'book-1'),x=>x.chapter_id),['c','b','a']);
 });
