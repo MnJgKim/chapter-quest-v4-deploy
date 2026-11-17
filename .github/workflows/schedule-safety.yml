@@ -25,7 +25,7 @@ jobs:
           cd app/server-review
           npm install --no-package-lock --ignore-scripts
           npm run test:weekly
-          node --test weekly-atomic-db.test.mjs auto-release-policy-db.test.mjs book-identity-db.test.mjs sql-integrity.test.mjs
+          node --test weekly-atomic-db.test.mjs auto-release-policy-db.test.mjs book-identity-db.test.mjs seowoo-weekday-remap-db.test.mjs sql-integrity.test.mjs
           cd ..
           node --check public/js/parent-app.js
           node --test weekly-schedule.test.mjs parent-chapter-order.test.mjs
