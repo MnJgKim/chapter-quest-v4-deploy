@@ -126,3 +126,15 @@ test('book management distinguishes committed mutation from failed follow-up ref
  assert.ok(bookHandler.includes("await parentRpc('cq_v4_parent_link_book_chapter',{p_book_id:book,p_chapter_id:chapter,p_chapter_number:number});mutationCommitted=true;"));
  assert.ok(bookHandler.includes("mutationCommitted?'서버 변경 요청은 완료됐지만 목록 재확인에 실패했습니다."));
 });
+
+test('review-only scheduling SQL retains production parent ownership column',()=>{
+ const weekly=readFileSync(new URL('./server-review/weekly-atomic-rpc.REVIEW.sql',import.meta.url),'utf8');
+ const auto=readFileSync(new URL('./server-review/auto-release-week-rpc.REVIEW.sql',import.meta.url),'utf8');
+ const cancel=readFileSync(new URL('./server-review/auto-release-cancel-rpc.REVIEW.sql',import.meta.url),'utf8');
+ const preflight=readFileSync(new URL('./server-review/opening-readiness-preflight.REVIEW.sql',import.meta.url),'utf8');
+ assert.ok(weekly.includes('(parent_user_id,student_user_id,chapter_id,lesson_date,timezone)'));
+ assert.ok(weekly.includes("values(v_parent,p_student_user_id,v_chapter,v_date,'Asia/Seoul')"));
+ assert.ok(auto.includes('where parent_user_id=v_parent and student_user_id=p_student_user_id'));
+ assert.ok(cancel.includes('where parent_user_id=v_parent and student_user_id=p_student_user_id'));
+ assert.ok(preflight.includes('s.parent_user_id=e.parent_user_id'));
+});
