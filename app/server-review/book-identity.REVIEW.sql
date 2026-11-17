@@ -8,12 +8,16 @@ create table if not exists public.cq_v4_books (
  created_at timestamptz not null default now(),
  unique(book_id,parent_user_id)
 );
+-- Parent consistency is enforced at the database level, not just in the UI.
+create unique index if not exists cq_v4_pdf_chapters_owner_key
+ on public.cq_v4_pdf_chapters(chapter_id,parent_user_id);
 create table if not exists public.cq_v4_book_chapters (
- chapter_id uuid primary key references public.cq_v4_pdf_chapters(chapter_id) on delete cascade,
+ chapter_id uuid primary key,
  book_id uuid not null,
  parent_user_id uuid not null,
  chapter_number integer not null check(chapter_number between 1 and 10000),
  foreign key(book_id,parent_user_id) references public.cq_v4_books(book_id,parent_user_id),
+ foreign key(chapter_id,parent_user_id) references public.cq_v4_pdf_chapters(chapter_id,parent_user_id) on delete cascade,
  unique(book_id,chapter_number)
 );
 -- Parent-scoped access only; do not grant direct access until policies,
