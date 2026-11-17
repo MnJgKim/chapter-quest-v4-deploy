@@ -1,0 +1,10 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {FIRST_WEEK,firstWeekReadiness} from './first-week-plan.mjs';
+const ids={'서우':{approved:true,enrolled:true,studentUserId:'a'},'서진':{approved:true,enrolled:true,studentUserId:'b'}};
+const ready=FIRST_WEEK.map(s=>({date:s.date,student:s.student,studentUserId:ids[s.student].studentUserId,pdfReady:true,pdfVerified:true,activityPublished:true,assigned:true,released:true}));
+test('six student-day slots across first week',()=>assert.deepEqual(FIRST_WEEK.map(x=>x.date),['2026-11-23','2026-11-24','2026-11-25','2026-11-25','2026-11-26','2026-11-27']));
+test('fully prepared data does not permit deployment',()=>{const r=firstWeekReadiness({identities:ids,scheduled:ready});assert.equal(r.allReadyForDeviceTest,true);assert.equal(r.deployable,false);assert.equal(r.writesPerformed,0)});
+test('missing Seojin Tuesday blocks',()=>assert.ok(firstWeekReadiness({identities:ids,scheduled:ready.filter(r=>!(r.student==='서진'&&r.date==='2026-11-24'))}).findings[1].blockers.includes('missing-slot')));
+test('missing Seowoo identity blocks',()=>assert.ok(firstWeekReadiness({identities:{'서진':ids['서진']},scheduled:ready}).findings[0].blockers.includes('approved-enrolled-identity-required')));
+test('mixed identity blocks',()=>assert.ok(firstWeekReadiness({identities:ids,scheduled:[{...ready[0],studentUserId:'b'},...ready.slice(1)]}).findings[0].blockers.includes('identity-mismatch')));
+test('missing published material blocks',()=>assert.ok(firstWeekReadiness({identities:ids,scheduled:[{...ready[0],activityPublished:false},...ready.slice(1)]}).findings[0].blockers.includes('material-not-ready')));
+test('duplicate student slot blocks',()=>assert.ok(firstWeekReadiness({identities:ids,scheduled:[...ready,ready[0]]}).findings[0].blockers.includes('duplicate-slot')));
