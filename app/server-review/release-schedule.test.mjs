@@ -35,5 +35,22 @@ await check('no new assignments means no next-week duplicates',async()=>assert.e
 for(const [name,sql] of [ ['unreleased', 'UPDATE cq_v4_lesson_schedule SET released_at=NULL'],['unassigned','DELETE FROM cq_v4_pdf_assignments'],['unpublished','UPDATE cq_v4_activities SET published_at=NULL'],['unverified PDF','UPDATE cq_v4_pdf_chapters SET pdf_ready=false'],['unenrolled','DELETE FROM cq_v4_pdf_enrollments']]){
  await db.exec('BEGIN');await db.exec(sql);await check(name+' chapter denied',async()=>assert.equal(await released(),false));await db.exec('ROLLBACK');
 }
+// Security regressions: a different enrolled student cannot read another student's released lesson.
+const stranger='33333333-3333-4333-8333-333333333333';
+await user(stranger);
+await check('other student cannot see released chapter',async()=>{
+ assert.equal(await released(),false);
+ assert.equal((await db.query('SELECT * FROM cq_v4_my_released_chapters()')).rows.length,0);
+ assert.equal((await db.query('SELECT * FROM cq_v4_my_chapter_activities($1)',[chapter])).rows.length,0);
+});
+await check('non-parent cannot schedule or release lesson',async()=>{
+ await assert.rejects(db.query('SELECT cq_v4_parent_schedule_lesson($1,$2,current_date)',[child,chapter]),/Parent authorization required/);
+ await assert.rejects(db.query('SELECT cq_v4_parent_set_lesson_release($1,$2,true)',[child,chapter]),/Parent authorization required/);
+});
+await user(parent);
+await check('parent cannot schedule an unenrolled student',async()=>{
+ await assert.rejects(db.query('SELECT cq_v4_parent_schedule_lesson($1,$2,current_date)',[stranger,chapter]),/Approved PDF and enrolled student required/);
+});
+await user(child);
 await check('submission fixture unchanged',async()=>assert.deepEqual((await db.query('SELECT * FROM synthetic_submissions')).rows,[{id:1,answers:'preserved'}]));
 console.log(JSON.stringify({passed,scope:'isolated PGlite; production functions; no hosted writes'}));await db.close();
