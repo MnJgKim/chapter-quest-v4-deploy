@@ -49,7 +49,7 @@ try {
   assert.equal((await db.query('select lesson_date::text as date from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter1])).rows[0].date,'2026-11-23');
  });
  await test('student/date unique index blocks other chapter on occupied day',async()=>{
-  await assert.rejects(db.query('insert into public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date) values ($1,$2,$3,$4)',[parent,child,chapter2,'2026-11-23']),e=>e.code==='23505');
+  await assert.rejects(db.query('insert into public.cq_v4_lesson_schedule(student_user_id,chapter_id,lesson_date) values ($1,$2,$3)',[child,chapter2,'2026-11-23']),e=>e.code==='23505');
  });
  await test('multi-item failure rolls back earlier inserts',async()=>{
   await db.query('delete from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2]);
@@ -84,8 +84,8 @@ try {
  await test('legacy manual-style insert cannot occupy an existing student date',async()=>{
   const extra='88888888-8888-4888-8888-888888888888';
   await assert.rejects(db.query(
-   'insert into public.cq_v4_lesson_schedule(student_user_id,chapter_id,lesson_date) values($2,$3,$4)',
-   [parent,child,extra,'2026-11-23']
+   'insert into public.cq_v4_lesson_schedule(student_user_id,chapter_id,lesson_date) values($1,$2,$3)',
+   [child,extra,'2026-11-23']
   ),e=>e.code==='23505');
   assert.equal((await db.query('select count(*)::int as n from public.cq_v4_lesson_schedule')).rows[0].n,2);
  });
