@@ -18,6 +18,10 @@ begin
  if not exists(select 1 from public.cq_v4_pdf_chapters
   where chapter_id=p_chapter_id and parent_user_id=v_parent)
  then raise exception 'Owned chapter required' using errcode='42501';end if;
+ -- Submitted lessons are immutable; do not revoke a student's completed work.
+ if exists(select 1 from public.cq_v4_student_submissions
+   where child_user_id=p_student_user_id and chapter_uuid=p_chapter_id)
+ then raise exception 'Submitted lesson cannot be cancelled' using errcode='42501';end if;
  insert into public.cq_v4_auto_release_cancellations
   (parent_user_id,student_user_id,chapter_id)
  values(v_parent,p_student_user_id,p_chapter_id)
