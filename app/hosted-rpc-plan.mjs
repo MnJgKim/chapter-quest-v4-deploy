@@ -1,9 +1,20 @@
 // Build an explicit parent-reviewed RPC plan from an offline schedule proposal.
 // NO network, credentials, database writes, or automatic publication.
-export function buildParentRpcPlan({proposed, studentUserIds, parentApproved = false}) {
+export function buildParentRpcPlan({proposed, studentUserIds, parentApproved = false, existing = null}) {
   if (!Array.isArray(proposed) || !studentUserIds || typeof studentUserIds !== 'object') throw new TypeError('Invalid proposal');
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
   if (studentUserIds['서우'] && studentUserIds['서진'] && studentUserIds['서우'] === studentUserIds['서진']) throw new Error('Distinct students must not share an account');
+  // An explicit complete snapshot is required; never assume an absent snapshot means empty tables.
+  if (!Array.isArray(existing)) throw new Error('Existing assignment snapshot required');
+  const occupied = new Map();
+  const dates = new Map();
+  for (const row of existing) {
+    if (!row || !['서우','서진'].includes(row.student) || typeof row.chapterId !== 'string' || typeof row.lessonDate !== 'string') throw new TypeError('Invalid existing snapshot row');
+    const key = row.student+'::'+row.chapterId;
+    if (occupied.has(key) || dates.has(row.student+'::'+row.lessonDate)) throw new Error('Conflicting existing snapshot');
+    occupied.set(key,row.lessonDate);
+    dates.set(row.student+'::'+row.lessonDate,row.chapterId);
+  }
   const seen = new Set();
   const chapters = new Set();
   const allowedDays = {'서우':[1,3,4],'서진':[2,3,5]};
@@ -16,6 +27,8 @@ export function buildParentRpcPlan({proposed, studentUserIds, parentApproved = f
     const weekday = new Date(row.lessonDate+'T00:00:00Z').getUTCDay();
     if (!allowedDays[row.student].includes(weekday)) throw new Error('Student weekday not permitted');
     const chapterKey = row.student+'::'+row.chapterId;
+    if (occupied.has(chapterKey)) throw new Error('Existing chapter must not be rescheduled through upsert RPC');
+    if (dates.has(row.student+'::'+row.lessonDate)) throw new Error('Existing lesson date occupied');
     if (chapters.has(chapterKey)) throw new Error('Duplicate student chapter');
     chapters.add(chapterKey);
     const key = row.student+'::'+row.lessonDate;
