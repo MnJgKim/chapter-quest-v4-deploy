@@ -18,3 +18,6 @@ test('malformed date rejects with TypeError',()=>assert.throws(()=>plan([{studen
 test('missing existing snapshot fails closed',()=>assert.throws(()=>buildParentRpcPlan({proposed:[],studentUserIds:{}}),/snapshot required/));
 test('existing chapter cannot be silently moved by upsert',()=>assert.throws(()=>buildParentRpcPlan({proposed:[{student:'서우',lessonDate:'2026-11-25',chapterId:chapter}],studentUserIds:{'서우':child},existing:[{student:'서우',lessonDate:'2026-11-23',chapterId:chapter}]}),/must not be rescheduled/));
 test('occupied existing date blocks new chapter',()=>assert.throws(()=>buildParentRpcPlan({proposed:[{student:'서우',lessonDate:'2026-11-23',chapterId:chapter2}],studentUserIds:{'서우':child},existing:[{student:'서우',lessonDate:'2026-11-23',chapterId:chapter}]}),/date occupied/));
+
+test('malformed existing snapshot UUID is rejected',()=>assert.throws(()=>buildParentRpcPlan({proposed:[],studentUserIds:{},existing:[{student:'서우',chapterId:'not-a-uuid',lessonDate:'2026-11-23'}]}),/Invalid existing snapshot row/));
+test('invalid existing snapshot calendar date is rejected',()=>assert.throws(()=>buildParentRpcPlan({proposed:[],studentUserIds:{},existing:[{student:'서우',chapterId:chapter,lessonDate:'2026-11-31'}]}),/Invalid existing snapshot row/));
