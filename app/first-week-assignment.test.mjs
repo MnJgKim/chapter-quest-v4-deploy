@@ -12,3 +12,5 @@ test('unknown existing chapter refuses unsafe proposal',()=>assert.throws(()=>pl
 
 test('blocked plan never emits partial assignment proposals',()=>{const r=plan({...args,approved:false});assert.deepEqual(r.proposals,[])});
 test('insufficient catalog never emits partial assignment proposals',()=>{const r=plan({...args,chapters:catalog.slice(0,1)});assert.deepEqual(r.proposals,[])});
+
+test('off-day existing future schedule blocks partial approval',()=>{const r=plan({...args,student:'서우',existing:[{chapterId:'chapter-1',lessonDate:'2026-11-24'}]});assert.ok(r.blockers.includes('existing-off-day-schedule-requires-review'));assert.deepEqual(r.proposals,[])});
