@@ -122,10 +122,11 @@
     batchAutoForm={student,book,start,count:String(count)};
     if(!bookCatalogReady||bookCatalogOwner!==cloudIdentity()||!bookCatalog.some(x=>x.book_id===book))throw Error('책 목록을 조회하고 예약할 책을 선택하세요.');
     // Refresh authoritative server state before preview; stale caches must not approve a batch.
-    const [freshReleases,freshMappings]=await Promise.all([parentRpc('cq_v4_parent_list_lesson_releases'),parentRpc('cq_v4_parent_list_book_chapters')]);
-    if(!Array.isArray(freshReleases)||!validBookCatalogResponse(bookCatalog,freshMappings))throw Error('최신 예약·책 연결 상태를 확인할 수 없습니다.');
+    await refreshPdfParentLists({requireReleases:true});
+    const freshMappings=await parentRpc('cq_v4_parent_list_book_chapters');
+    if(!validBookCatalogResponse(bookCatalog,freshMappings))throw Error('최신 책 연결 상태를 확인할 수 없습니다.');
     if(bookCatalogOwner!==cloudIdentity())throw Error('부모 계정이 변경되었습니다. 다시 조회하세요.');
-    lessonReleases=freshReleases;bookMappings=freshMappings;
+    bookMappings=freshMappings;
     const dates=nextAutoDates(start,policy.weekdays,count);
     const assigned=pdfServerAssignments.filter(a=>a.student_user_id===student&&!lessonReleases.some(v=>v.student_user_id===student&&v.chapter_id===a.chapter_uuid)).map(a=>({chapter_id:a.chapter_uuid,title:pdfServerChapters.find(c=>c.uuid===a.chapter_uuid)?.title||a.chapter_uuid,ready:pdfServerChapters.find(c=>c.uuid===a.chapter_uuid)?.ready}));
     if(assigned.length<count)throw Error('미예약 챕터가 부족합니다.');
