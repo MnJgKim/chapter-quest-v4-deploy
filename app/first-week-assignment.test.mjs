@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {planFirstWeekAssignments as plan} from './first-week-assignment.mjs';
+const catalog=Array.from({length:10},(_,i)=>({chapterId:'chapter-'+(i+1),pdfReady:true,pdfVerified:true,activityPublished:true}));
+const args={student:'서진',studentUserId:'seojin-uuid',approved:true,enrolled:true,chapters:catalog};
+test('Seojin Tuesday Wednesday Friday slots',()=>{const r=plan(args);assert.deepEqual(r.slots,['2026-11-24','2026-11-25','2026-11-27']);assert.equal(r.proposals.length,3);assert.equal(r.readyForParentReview,true);assert.equal(r.executable,false)});
+test('Seowoo Monday Wednesday Thursday slots',()=>assert.deepEqual(plan({...args,student:'서우'}).slots,['2026-11-23','2026-11-25','2026-11-26']));
+test('preserves existing future lesson and does not reuse its chapter',()=>{const r=plan({...args,student:'서우',existing:[{chapterId:'chapter-1',lessonDate:'2026-11-23'}]});assert.equal(r.proposals.length,2);assert.equal(r.proposals[0].chapterId,'chapter-2');assert.equal(r.proposals[0].lessonDate,'2026-11-25');assert.equal(r.existingUnchanged,true)});
+test('no spare published chapter means blocked not overwrite',()=>{const r=plan({...args,student:'서우',existing:catalog.map((c,i)=>({chapterId:c.chapterId,lessonDate:`2026-12-${String(i+1).padStart(2,'0')}`}))});assert.ok(r.blockers.includes('insufficient-unassigned-published-chapters'));assert.equal(r.proposals.length,0)});
+test('unapproved student blocks review',()=>assert.equal(plan({...args,approved:false}).readyForParentReview,false));
+test('unpublished material cannot be assigned',()=>{const r=plan({...args,chapters:catalog.map(c=>({...c,activityPublished:false}))});assert.ok(r.blockers.includes('insufficient-unassigned-published-chapters'))});
+test('duplicate existing assignments block review',()=>{const r=plan({...args,existing:[{chapterId:'chapter-1',lessonDate:'2026-11-24'},{chapterId:'chapter-2',lessonDate:'2026-11-24'}]});assert.ok(r.blockers.includes('existing-assignment-conflict'))});
+test('unknown existing chapter refuses unsafe proposal',()=>assert.throws(()=>plan({...args,existing:[{chapterId:'unknown',lessonDate:'2026-11-24'}]}),/incomplete catalog/));
