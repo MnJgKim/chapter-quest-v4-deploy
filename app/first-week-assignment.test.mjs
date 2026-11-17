@@ -9,3 +9,6 @@ test('unapproved student blocks review',()=>assert.equal(plan({...args,approved:
 test('unpublished material cannot be assigned',()=>{const r=plan({...args,chapters:catalog.map(c=>({...c,activityPublished:false}))});assert.ok(r.blockers.includes('insufficient-unassigned-published-chapters'))});
 test('duplicate existing assignments block review',()=>{const r=plan({...args,existing:[{chapterId:'chapter-1',lessonDate:'2026-11-24'},{chapterId:'chapter-2',lessonDate:'2026-11-24'}]});assert.ok(r.blockers.includes('existing-assignment-conflict'))});
 test('unknown existing chapter refuses unsafe proposal',()=>assert.throws(()=>plan({...args,existing:[{chapterId:'unknown',lessonDate:'2026-11-24'}]}),/incomplete catalog/));
+
+test('blocked plan never emits partial assignment proposals',()=>{const r=plan({...args,approved:false});assert.deepEqual(r.proposals,[])});
+test('insufficient catalog never emits partial assignment proposals',()=>{const r=plan({...args,chapters:catalog.slice(0,1)});assert.deepEqual(r.proposals,[])});
