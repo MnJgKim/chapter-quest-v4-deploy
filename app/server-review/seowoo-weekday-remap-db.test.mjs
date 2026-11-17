@@ -14,6 +14,10 @@ const setup=async()=>{
  await db.exec(`create table cq_v4_lesson_schedule(parent_user_id uuid,student_user_id uuid,chapter_id uuid,lesson_date date,released_at timestamptz,primary key(student_user_id,chapter_id));
  create unique index cq_student_date_unique on cq_v4_lesson_schedule(student_user_id,lesson_date);
  create table cq_v4_student_submissions(child_user_id uuid,chapter_uuid uuid);
+ create table cq_students(id uuid primary key,name text);
+ create table cq_student_devices(student_id uuid,auth_user_id uuid,revoked_at timestamptz);
+ insert into cq_students values ('33333333-3333-4333-8333-333333333333','이서우');
+ insert into cq_student_devices values ('33333333-3333-4333-8333-333333333333','22222222-2222-4222-8222-222222222222',null);
  `);
  for(let i=0;i<10;i++)await db.query('insert into cq_v4_lesson_schedule values ($1,$2,$3,$4,now())',[parent,student,uuid(i+1),dates[i]]);
  return db;
@@ -66,6 +70,17 @@ test('unverified student identity cannot change schedules',async()=>{
  const db=await setup();
  try{
   await assert.rejects(db.exec(source.replace(/\nrollback;\s*$/,'\ncommit;\n')),/verified student identity required/);
+  await db.exec('rollback;');
+  const rows=(await db.query('select lesson_date::text d from cq_v4_lesson_schedule order by chapter_id')).rows;
+  assert.deepEqual(rows.map(x=>x.d),dates);
+ }finally{await db.close();}
+});
+
+test('revoked student device blocks remap without changing dates',async()=>{
+ const db=await setup();
+ try{
+  await db.query('update cq_student_devices set revoked_at=now() where auth_user_id=$1',[student]);
+  await assert.rejects(db.exec(migration()),/not verified as actively paired/);
   await db.exec('rollback;');
   const rows=(await db.query('select lesson_date::text d from cq_v4_lesson_schedule order by chapter_id')).rows;
   assert.deepEqual(rows.map(x=>x.d),dates);
