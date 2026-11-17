@@ -59,8 +59,8 @@ begin
      and act.approval_hash ~ '^[0-9a-f]{64}$'
   ) then raise exception 'Unapproved or unassigned chapter' using errcode='42501'; end if;
   insert into public.cq_v4_lesson_schedule
-    (parent_user_id,student_user_id,chapter_id,lesson_date,timezone)
-  values(v_parent,p_student_user_id,v_chapter,v_date,'Asia/Seoul');
+    (student_user_id,chapter_id,lesson_date,timezone)
+  values(p_student_user_id,v_chapter,v_date,'Asia/Seoul');
   v_count := v_count+1;
  end loop;
  return v_count;
