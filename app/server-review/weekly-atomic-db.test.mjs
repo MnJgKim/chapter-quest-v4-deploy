@@ -58,11 +58,12 @@ try {
   assert.equal(rows.length,1);assert.equal(rows[0].chapter_id,chapter1);
   await run([item(chapter2,'2026-11-25')]);
  });
+ await db.query('delete from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2]);
  await test('unpublished chapter is rejected without changing schedule',async()=>{
   await db.query('update public.cq_v4_activities set published_at=null where chapter_uuid=$1',[chapter2]);
   await assert.rejects(run([item(chapter2,'2026-11-27')]),e=>e.code==='42501');
   await db.query('update public.cq_v4_activities set published_at=now() where chapter_uuid=$1',[chapter2]);
-  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_lesson_schedule')).rows[0].n,2);
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_lesson_schedule')).rows[0].n,1);
  });
  await test('approval hash mismatch is rejected',async()=>{
   await db.query('update public.cq_v4_activities set approval_hash=$1 where chapter_uuid=$2',['b'.repeat(64),chapter2]);
@@ -79,6 +80,7 @@ try {
   await assert.rejects(run([item(chapter2,'2026-11-27')]),e=>e.code==='42501');
   await db.query('update public.cq_v4_pdf_chapters set pdf_verified_at=now() where chapter_id=$1',[chapter2]);
  });
+ await run([item(chapter2,'2026-11-25')]);
  await test('unauthorized user cannot schedule',async()=>{
   await assert.rejects(run([],child),e=>e.code==='42501');
  });
