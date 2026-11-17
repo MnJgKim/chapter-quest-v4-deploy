@@ -100,6 +100,7 @@
   }catch(err){bookCatalogReady=false;bookCatalog=[];bookMappings=[];batchAutoPreview=null;render();document.getElementById('cqBookStatus').textContent='책 관리: '+err.message;}
   finally{b.disabled=false;}
  });
+ const batchReadbackMatches=(student,items,rows)=>Array.isArray(rows)&&items.every(x=>rows.some(r=>r.student_user_id===student&&r.chapter_id===x.chapter_id&&String(r.lesson_date||'').slice(0,10)===x.lesson_date));
  const validBookCatalogResponse=(books,mappings)=>Array.isArray(books)&&Array.isArray(mappings)&&books.every(b=>/^[0-9a-f-]{36}$/i.test(String(b.book_id||''))&&typeof b.title==='string')&&mappings.every(m=>/^[0-9a-f-]{36}$/i.test(String(m.book_id||''))&&/^[0-9a-f-]{36}$/i.test(String(m.chapter_id||''))&&Number.isInteger(m.chapter_number)&&m.chapter_number>=1&&m.chapter_number<=10000&&books.some(b=>b.book_id===m.book_id));
  const batchMappingChanged=(preview,mappings)=>preview.items.some(x=>!mappings.some(m=>m.book_id===preview.book&&m.chapter_id===x.chapter_id&&m.chapter_number===x.chapter_number));
  const batchDateConflicts=(student,items,releases)=>items.filter(x=>releases.some(r=>r.student_user_id===student&&String(r.lesson_date||'').slice(0,10)===x.lesson_date&&r.chapter_id!==x.chapter_id));
@@ -147,9 +148,18 @@
     const latestMappings=await parentRpc('cq_v4_parent_list_book_chapters');
     if(!Array.isArray(latestMappings)||latestMappings.some(m=>!/^[0-9a-f-]{36}$/i.test(String(m.book_id||''))||!/^[0-9a-f-]{36}$/i.test(String(m.chapter_id||''))||!Number.isInteger(m.chapter_number))||batchMappingChanged(p,latestMappings))throw Error('책·챕터 연결이 변경되었습니다. 다시 미리보기를 생성하세요.');
     if(p.owner!==cloudIdentity()||p.items.some(x=>!pdfServerAssignments.some(a=>a.student_user_id===p.student&&a.chapter_uuid===x.chapter_id)||!pdfServerChapters.some(c=>c.uuid===x.chapter_id&&c.ready)||lessonReleases.some(v=>v.student_user_id===p.student&&v.chapter_id===x.chapter_id)))throw Error('예약 전 서버 자료가 변경되었습니다. 다시 미리보기를 확인하세요.');
-    await parentRpc('cq_v4_parent_schedule_auto_week',{p_student_user_id:p.student,p_items:p.items.map(({chapter_id,lesson_date})=>({chapter_id,lesson_date}))});
-    batchAutoPreview=null;await refreshLessonReleases();
-    document.getElementById('cqBatchStatus').textContent='서버 예약 완료';
+    const savedCount=await parentRpc('cq_v4_parent_schedule_auto_week',{p_student_user_id:p.student,p_items:p.items.map(({chapter_id,lesson_date})=>({chapter_id,lesson_date}))});
+    batchAutoPreview=null;
+    let verified=false;
+    try{
+     const rows=await parentRpc('cq_v4_parent_list_lesson_releases');
+     if(!Array.isArray(rows))throw Error('공개 일정 조회 실패');
+     lessonReleases=rows;
+     verified=Number(savedCount)===p.items.length&&batchReadbackMatches(p.student,p.items,rows);
+    }catch(readbackError){console.warn('Batch schedule readback unavailable:',readbackError.message);}
+    render();
+    const status=document.getElementById('cqBatchStatus');
+    if(status)status.textContent=verified?'서버 예약 및 저장 결과 확인 완료':'예약 요청이 서버에 전달됐지만 저장 결과를 확인하지 못했습니다. 목록을 새로 조회하고 중복 예약하지 마세요.';
    }
   }catch(err){batchAutoPreview=null;render();document.getElementById('cqBatchStatus').textContent='예약 실패: '+err.message;}finally{b.disabled=false;}
  });
