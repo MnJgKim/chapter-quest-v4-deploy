@@ -5,6 +5,8 @@ on:
       - 'app/tools/hosted-readiness-audit.mjs'
       - 'app/worker.mjs'
       - 'app/worker-ai-readiness.test.mjs'
+      - 'app/audio-hosted-compatibility.test.mjs'
+      - 'app/public/js/audio-vault.js'
       - 'app/public/js/student-app.js'
       - 'app/server-review/hosted-core-contract-readonly.REVIEW.sql'
       - 'app/server-review/hosted-storage-security-readonly.REVIEW.sql'
@@ -28,3 +30,5 @@ jobs:
         run: node app/tools/hosted-readiness-audit.mjs
       - name: Targeted AI disabled-mode tests (no model calls)
         run: node --test app/worker-ai-readiness.test.mjs
+      - name: Offline audio and hosted Storage compatibility (no device or upload)
+        run: node --test app/audio-hosted-compatibility.test.mjs
