@@ -23,6 +23,6 @@ jobs:
           cd app/server-review
           npm install --no-package-lock --ignore-scripts
           npm run test:weekly
-          node --test weekly-atomic-db.test.mjs
+          node --test weekly-atomic-db.test.mjs auto-release-policy-db.test.mjs
           cd ..
           node --test weekly-schedule.test.mjs
