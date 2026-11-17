@@ -16,3 +16,7 @@ create table if not exists public.cq_v4_auto_release_cancellations (
 -- No client grants are included. A separate authenticated SECURITY DEFINER
 -- RPC must verify parent ownership and update policy/cancellations.
 -- Never grant direct INSERT/UPDATE/DELETE on these tables to authenticated.
+
+-- Default public-schema grants vary; deny all direct client table access.
+revoke all on table public.cq_v4_auto_release_cancellations from public,anon,authenticated;
+alter table public.cq_v4_auto_release_cancellations enable row level security;
