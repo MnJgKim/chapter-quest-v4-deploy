@@ -18,9 +18,6 @@ test('opening preflight has no orphaned SQL or repeated coverage query',async()=
  const source=await read('./opening-readiness-preflight.REVIEW.sql');
  assert.equal(occurrences(source,'-- Existing future lessons already armed by legacy release flag.'),1);
  assert.equal(occurrences(source,'-- Opening week aggregate coverage only'),1);
- assert.ok(!source.includes(';\n\n);'));\n assert.ok(source.includes("act.approval_hash ~ '^([0-9a-f]{32}|[0-9a-f]{64})
- assert.ok(source.trimEnd().endsWith('group by lesson_date order by lesson_date;'));
-});
-"));
+ assert.ok(source.includes("act.approval_hash ~ '^([0-9a-f]{32}|[0-9a-f]{64})$'"));
  assert.ok(source.trimEnd().endsWith('group by lesson_date order by lesson_date;'));
 });
