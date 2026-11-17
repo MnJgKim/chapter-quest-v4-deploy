@@ -26,3 +26,10 @@ test('student recording path and authenticated signed URL path target the same p
  assert.ok(student.includes('navigator.mediaDevices.getUserMedia({audio:true})'));
  assert.ok(student.includes('new MediaRecorder('));
 });
+
+test('signed audio verification is bound to exact student and chapter object with token',()=>{
+ assert.match(student,/signedUrl\.pathname!==['"]\/storage\/v1\/object\/sign\/cq-v4-speaking\/['"]\+uid\+['"]\/['"]\+uuid\+['"]\.['"]\+ext/);
+ assert.match(student,/signedUrl\.searchParams\.has\(['"]token['"]\)/);
+ assert.match(student,/signedUrl\.origin!==new URL\(project\.url\)\.origin/);
+ assert.match(student,/crypto\.subtle\.digest\(['"]SHA-256['"],bytes\)/);
+});
