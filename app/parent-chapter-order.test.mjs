@@ -102,3 +102,17 @@ test('batch readback rejects schedules that are not pre-armed for automatic rele
  assert.equal(batchReadbackMatches('s1',items,[{student_user_id:'s1',chapter_id:'a',lesson_date:'2026-11-23',released_at:'invalid'}]),false);
  assert.equal(batchReadbackMatches('s1',items,[{student_user_id:'s1',chapter_id:'a',lesson_date:'2026-11-23',released_at:'2026-11-17T01:00:00Z'}]),true);
 });
+
+test('batch booking rejects an existing same chapter on the same date',()=>{
+ const items=[{chapter_id:'a',lesson_date:'2026-11-23'}];
+ const releases=[{student_user_id:'student-1',chapter_id:'a',lesson_date:'2026-11-23'}];
+ assert.equal(batchDateConflicts('student-1',items,releases).length,1);
+});
+test('batch preview reloads current chapter readiness, assignments and schedules',()=>{
+ const previewStart=source.indexOf("if(b.dataset.batchAuto==='preview')");
+ const previewEnd=source.indexOf("}else if(b.dataset.batchAuto==='confirm')",previewStart);
+ const preview=source.slice(previewStart,previewEnd);
+ assert.ok(preview.includes('await refreshPdfParentLists({requireReleases:true})'));
+ assert.ok(preview.indexOf('await refreshPdfParentLists({requireReleases:true})')<preview.indexOf('const assigned='));
+ assert.ok(preview.includes("await parentRpc('cq_v4_parent_list_book_chapters')"));
+});
