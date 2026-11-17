@@ -1,0 +1,22 @@
+name: Chapter Quest schedule safety tests
+on:
+  pull_request:
+    paths:
+      - 'app/server-review/approved-weekly-*.mjs'
+      - 'app/weekly-schedule.test.mjs'
+      - 'app/public/js/local-app.js'
+      - '.github/workflows/schedule-safety.yml'
+  workflow_dispatch:
+jobs:
+  schedule-safety:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run isolated planner and adapter tests
+        run: node --test app/server-review/approved-weekly-planner.test.mjs app/server-review/approved-weekly-adapter.test.mjs app/weekly-schedule.test.mjs
