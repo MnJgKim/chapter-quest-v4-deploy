@@ -5,7 +5,7 @@
   "scripts": {
     "test": "node --test edge-parent.test.mjs && node db-isolated.test.mjs",
     "test:current-db": "node current-db.test.mjs && node migration-preservation.test.mjs && node release-schedule.test.mjs",
-    "test:weekly": "node --test approved-weekly-planner.test.mjs approved-weekly-adapter.test.mjs"
+    "test:weekly": "node --test approved-weekly-planner.test.mjs approved-weekly-adapter.test.mjs approval-evidence.test.mjs"
   },
   "devDependencies": {
     "@electric-sql/pglite": "0.5.16"
