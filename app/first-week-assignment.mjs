@@ -21,6 +21,7 @@ export function planFirstWeekAssignments({student,studentUserId,approved,enrolle
  for(let d=new Date(starts[student]+'T00:00:00Z');d.toISOString().slice(0,10)<='2026-11-27';d.setUTCDate(d.getUTCDate()+1)){
   if(days[student].includes(d.getUTCDay())) slots.push(d.toISOString().slice(0,10));
  }
+ if(existing.some(r=>r.lessonDate>=starts[student] && !days[student].includes(new Date(r.lessonDate+'T00:00:00Z').getUTCDay())))blockers.push('existing-off-day-schedule-requires-review');
  const available=chapters.filter(c=>!used.has(c.chapterId)&&c.pdfReady===true&&c.pdfVerified===true&&c.activityPublished===true);
  const proposals=[];
  for(const date of slots){
