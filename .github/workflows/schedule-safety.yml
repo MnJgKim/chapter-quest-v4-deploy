@@ -21,6 +21,8 @@ jobs:
       - name: Run all weekly schedule and authorization tests
         run: |
           cd app/server-review
+          npm install --no-package-lock --ignore-scripts
           npm run test:weekly
+          node --test weekly-atomic-db.test.mjs
           cd ..
           node --test weekly-schedule.test.mjs
