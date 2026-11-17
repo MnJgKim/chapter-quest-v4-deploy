@@ -67,17 +67,17 @@
   if(result.length!==count)throw Error('예약 날짜가 부족합니다.');
   return result;
  };
- let bookCatalog=[],bookCatalogReady=false,bookCatalogOwner=null;
- const bookCatalogPanel=()=>{if(bookCatalogOwner!==cloudIdentity()){bookCatalogReady=false;bookCatalog=[];bookCatalogOwner=null;}return !parentUnlocked||!session?'':`<section class="card"><h2>📚 책별 챕터 연결</h2><p>기존 PDF를 유지하고 책에 연결합니다. 서버 API가 미설치된 경우 등록할 수 없습니다.</p><button data-book-catalog="refresh">책 목록 조회</button>${bookCatalogReady?`<div class="row"><input id="cqBookTitle" maxlength="300" placeholder="새 책 제목"><button data-book-catalog="create">책 등록</button></div><div class="row"><select id="cqBookSelect"><option value="">책 선택</option>${bookCatalog.map(b=>`<option value="${escapeHtml(b.book_id)}">${escapeHtml(b.title)}</option>`).join('')}</select><select id="cqBookChapter"><option value="">PDF 챕터 선택</option>${pdfServerChapters.map(c=>`<option value="${escapeHtml(c.uuid)}">${escapeHtml(c.title)}</option>`).join('')}</select><input id="cqBookNumber" type="number" min="1" max="10000" placeholder="챕터 번호"><button data-book-catalog="link">챕터 연결</button></div>`:''}<p id="cqBookStatus" class="status"></p></section>`;}
+ let bookCatalog=[],bookMappings=[],bookCatalogReady=false,bookCatalogOwner=null;
+ const bookCatalogPanel=()=>{if(bookCatalogOwner!==cloudIdentity()){bookCatalogReady=false;bookCatalog=[];bookMappings=[];bookCatalogOwner=null;}return !parentUnlocked||!session?'':`<section class="card"><h2>📚 책별 챕터 연결</h2><p>기존 PDF를 유지하고 책에 연결합니다. 서버 API가 미설치된 경우 등록할 수 없습니다.</p><button data-book-catalog="refresh">책 목록 조회</button>${bookCatalogReady?`<div class="row"><input id="cqBookTitle" maxlength="300" placeholder="새 책 제목"><button data-book-catalog="create">책 등록</button></div><div class="row"><select id="cqBookSelect"><option value="">책 선택</option>${bookCatalog.map(b=>`<option value="${escapeHtml(b.book_id)}">${escapeHtml(b.title)}</option>`).join('')}</select><select id="cqBookChapter"><option value="">PDF 챕터 선택</option>${pdfServerChapters.filter(c=>!bookMappings.some(m=>m.chapter_id===c.uuid)).map(c=>`<option value="${escapeHtml(c.uuid)}">${escapeHtml(c.title)}</option>`).join('')}</select><input id="cqBookNumber" type="number" min="1" max="10000" placeholder="챕터 번호"><button data-book-catalog="link">챕터 연결</button></div>`:''}<p id="cqBookStatus" class="status"></p></section>`;}
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-book-catalog]');if(!b||b.disabled||mode!=='parent'||!parentUnlocked||!session)return;
   b.disabled=true;
   try{
    const action=b.dataset.bookCatalog;
    if(action==='refresh'){
-    const books=await parentRpc('cq_v4_parent_list_books');
-    if(!Array.isArray(books))throw Error('책 목록 응답 오류');
-    bookCatalog=books;bookCatalogOwner=cloudIdentity();bookCatalogReady=true;
+    const [books,mappings]=await Promise.all([parentRpc('cq_v4_parent_list_books'),parentRpc('cq_v4_parent_list_book_chapters')]);
+    if(!Array.isArray(books)||!Array.isArray(mappings))throw Error('책 목록 응답 오류');
+    bookMappings=mappings;bookCatalog=books;bookCatalogOwner=cloudIdentity();bookCatalogReady=true;
    }else{
     if(!bookCatalogReady||bookCatalogOwner!==cloudIdentity())throw Error('책 목록을 먼저 조회하세요.');
     if(action==='create'){
@@ -89,12 +89,12 @@
      const book=document.getElementById('cqBookSelect')?.value;
      const chapter=document.getElementById('cqBookChapter')?.value;
      const number=Number(document.getElementById('cqBookNumber')?.value);
-     if(!bookCatalog.some(x=>x.book_id===book)||!pdfServerChapters.some(x=>x.uuid===chapter)||!Number.isInteger(number)||number<1||number>10000)throw Error('책·챕터·번호를 확인하세요.');
+     if(!bookCatalog.some(x=>x.book_id===book)||!pdfServerChapters.some(x=>x.uuid===chapter)||bookMappings.some(x=>x.chapter_id===chapter)||bookMappings.some(x=>x.book_id===book&&x.chapter_number===number)||!Number.isInteger(number)||number<1||number>10000)throw Error('책·챕터·번호를 확인하세요.');
      if(!window.confirm('이 PDF 챕터를 선택한 책에 연결하시겠습니까?'))return;
      await parentRpc('cq_v4_parent_link_book_chapter',{p_book_id:book,p_chapter_id:chapter,p_chapter_number:number});
     }
-    const books=await parentRpc('cq_v4_parent_list_books');
-    if(!Array.isArray(books))throw Error('목록 갱신 오류');bookCatalog=books;
+    const [books,mappings]=await Promise.all([parentRpc('cq_v4_parent_list_books'),parentRpc('cq_v4_parent_list_book_chapters')]);
+    if(!Array.isArray(books)||!Array.isArray(mappings))throw Error('목록 갱신 오류');bookCatalog=books;bookMappings=mappings;
    }
    render();document.getElementById('cqBookStatus').textContent='서버 작업 완료';
   }catch(err){if(b.dataset.bookCatalog==='refresh'){bookCatalogReady=false;bookCatalog=[];}render();document.getElementById('cqBookStatus').textContent='책 관리: '+err.message;}
