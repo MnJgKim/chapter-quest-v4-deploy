@@ -1,9 +1,12 @@
 // Mocked runtime contract: exercises the actual PDF transport without network, credentials or uploads.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {createRequire} from 'node:module';
-const require=createRequire(import.meta.url);
-const {createPdfTransport}=require('../public/js/pdf-transport.js');
+import fs from 'node:fs';
+import vm from 'node:vm';
+// The browser script lives in an ESM package: evaluate its UMD export in an isolated context.
+const sandbox={module:{exports:{}},URL,Date,Uint8Array,fetch};
+vm.runInNewContext(fs.readFileSync(new URL('../public/js/pdf-transport.js',import.meta.url),'utf8'),sandbox);
+const {createPdfTransport}=sandbox.module.exports;
 const base='https://example.supabase.co';
 const chapter='11111111-1111-4111-8111-111111111111';
 const owner='22222222-2222-4222-8222-222222222222';
