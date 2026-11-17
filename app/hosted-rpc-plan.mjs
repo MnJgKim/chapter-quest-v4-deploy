@@ -3,6 +3,7 @@
 export function buildParentRpcPlan({proposed, studentUserIds, parentApproved = false}) {
   if (!Array.isArray(proposed) || !studentUserIds || typeof studentUserIds !== 'object') throw new TypeError('Invalid proposal');
   const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+  if (studentUserIds['서우'] && studentUserIds['서진'] && studentUserIds['서우'] === studentUserIds['서진']) throw new Error('Distinct students must not share an account');
   const seen = new Set();
   const chapters = new Set();
   const allowedDays = {'서우':[1,3,4],'서진':[2,3,5]};
@@ -10,6 +11,7 @@ export function buildParentRpcPlan({proposed, studentUserIds, parentApproved = f
     if (!row || !['서우','서진'].includes(row.student) ||
         !uuid.test(row.chapterId || '') || !uuid.test(studentUserIds[row.student] || '') ||
         !/^\d{4}-\d{2}-\d{2}$/.test(row.lessonDate || '') ||
+        !Number.isFinite(Date.parse(row.lessonDate+'T00:00:00Z')) ||
         new Date(row.lessonDate+'T00:00:00Z').toISOString().slice(0,10) !== row.lessonDate) throw new TypeError('Invalid hosted assignment');
     const weekday = new Date(row.lessonDate+'T00:00:00Z').getUTCDay();
     if (!allowedDays[row.student].includes(weekday)) throw new Error('Student weekday not permitted');
