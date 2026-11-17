@@ -14,7 +14,7 @@ try {
  insert into public.cq_v4_pdf_chapters values('${chapter}');`);
  await db.exec(await sql('./auto-release-policy.REVIEW.sql'));
  await db.exec(await sql('./auto-release-cancellations.REVIEW.sql'));
- await db.exec(`create schema auth;create role anon;create role authenticated;create table public.cq_admins(user_id uuid primary key);insert into public.cq_admins values('${parent}');create function auth.uid() returns uuid language sql stable as $select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$;create function public.cq_is_admin() returns boolean language sql stable as $select exists(select 1 from public.cq_admins where user_id=auth.uid())$;`);
+ await db.exec(`create schema auth;create role anon;create role authenticated;create table public.cq_admins(user_id uuid primary key);insert into public.cq_admins values('${parent}');create function auth.uid() returns uuid language sql stable as $fn$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$fn$;create function public.cq_is_admin() returns boolean language sql stable as $fn$select exists(select 1 from public.cq_admins where user_id=auth.uid())$fn$;`);
  await db.exec(await sql('./auto-release-policy-rpc.REVIEW.sql'));
  const setPolicy=async(user,enabled,days)=>{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user]);return db.query('select public.cq_v4_parent_set_auto_release_policy($1,$2,$3::smallint[])',[child,enabled,days]);};
  await test('policy defaults to disabled and persists selected weekdays',async()=>{
