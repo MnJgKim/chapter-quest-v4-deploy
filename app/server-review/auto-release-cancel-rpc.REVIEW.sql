@@ -26,11 +26,6 @@ begin
   (parent_user_id,student_user_id,chapter_id)
  values(v_parent,p_student_user_id,p_chapter_id)
  on conflict(student_user_id,chapter_id) do nothing;
- -- A submitted lesson is immutable: cancellation must not hide completed work.
- if exists(select 1 from public.cq_v4_student_submissions
-  where child_user_id=p_student_user_id and chapter_uuid=p_chapter_id) then
-  raise exception 'Submitted lesson cannot be cancelled' using errcode='42501';
- end if;
  -- Only release rows with explicit automatic origin may be revoked.
  -- Lock the arm record so concurrent cancellation and arming serialize.
  perform 1 from public.cq_v4_auto_release_arms
