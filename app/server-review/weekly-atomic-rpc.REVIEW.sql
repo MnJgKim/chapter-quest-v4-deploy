@@ -30,7 +30,7 @@ begin
   if jsonb_typeof(v_item)<>'object'
     or jsonb_typeof(v_item->'chapter_id')<>'string'
     or jsonb_typeof(v_item->'lesson_date')<>'string'
-    or (v_item->>'chapter_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
+    or (v_item->>'chapter_id') !~* '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'
     or (v_item->>'lesson_date') !~ '^\d{4}-\d{2}-\d{2}$'
   then raise exception 'Invalid batch item' using errcode='22023'; end if;
   v_chapter := (v_item->>'chapter_id')::uuid;
