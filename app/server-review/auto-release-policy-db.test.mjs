@@ -19,7 +19,7 @@ try {
  await db.exec(await sql('./auto-release-policy-rpc.REVIEW.sql'));
  await db.exec(await sql('./auto-release-policy-list-rpc.REVIEW.sql'));
  await db.exec(await sql('./auto-release-arms.REVIEW.sql'));
- await db.exec(`create table public.cq_v4_lesson_schedule(student_user_id uuid,chapter_id uuid,lesson_date date,released_at timestamptz,primary key(student_user_id,chapter_id));insert into public.cq_v4_lesson_schedule values('${child}','${chapter}','2026-11-25',now());`);
+ await db.exec(`create table public.cq_v4_lesson_schedule(parent_user_id uuid,student_user_id uuid,chapter_id uuid,lesson_date date,released_at timestamptz,primary key(student_user_id,chapter_id));insert into public.cq_v4_lesson_schedule values('${parent}','${child}','${chapter}','2026-11-25',now());`);
  await db.exec('create table public.cq_v4_student_submissions(chapter_uuid uuid,child_user_id uuid,primary key(chapter_uuid,child_user_id));');
  await db.exec(await sql('./auto-release-cancel-rpc.REVIEW.sql'));
  // Isolated stand-in for the production manual release RPC; real deployment must verify its signature.
@@ -27,7 +27,7 @@ try {
  begin
   if auth.uid() is null or not public.cq_is_admin() then raise exception 'Parent authorization required' using errcode='42501';end if;
   update public.cq_v4_lesson_schedule set released_at=case when p_release then now() else null end
-   where student_user_id=p_student_user_id and chapter_id=p_chapter_id;
+   where parent_user_id=auth.uid() and student_user_id=p_student_user_id and chapter_id=p_chapter_id;
   if not found then raise exception 'Owned schedule required' using errcode='42501';end if;
  end $fn$;`);
  await db.exec(await sql('./auto-release-manual-override-rpc.REVIEW.sql'));
