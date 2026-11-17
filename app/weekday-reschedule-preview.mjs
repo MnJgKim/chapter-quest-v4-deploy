@@ -18,6 +18,7 @@ export function previewWeekdayReschedule({student,existing,throughDate,asOfDate=
  for(let t=+from;t<=+through;t+=86400000){const d=new Date(t);if(days[student].includes(d.getUTCDay()))slots.push(iso(d));}
  if(slots.length<sorted.length)blockers.push('insufficient-weekday-slots');
  const changes=sorted.map((r,i)=>({chapterId:r.chapterId,fromDate:r.lessonDate,toDate:slots[i]??null,changed:r.lessonDate!==slots[i]}));
+ if(changes.some(c=>c.changed&&sorted.find(r=>r.chapterId===c.chapterId)?.released===true))blockers.push('released-lesson-date-change-requires-rollback-review');
  const requiresScheduleRewrite=changes.some(c=>c.changed);
  return {student,changes,blockers,requiresScheduleRewrite,readyForParentReview:blockers.length===0,
   writesPerformed:0,executable:false,requiresBackupAndFinalApproval:true};
