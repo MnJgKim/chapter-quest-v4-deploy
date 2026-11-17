@@ -95,6 +95,7 @@
     render();document.getElementById('cqBatchStatus').textContent='미리보기: 아직 저장되지 않았습니다.';
    }else if(b.dataset.batchAuto==='confirm'){
     const p=batchAutoPreview;if(!p||p.owner!==cloudIdentity())throw Error('미리보기를 다시 생성하세요.');
+    if(p.items.some(x=>x.lesson_date<seoulToday()))throw Error('예약 날짜가 지났습니다. 다시 미리보기를 확인하세요.');
     if(!window.confirm(p.items.length+'개 챕터를 자동 공개 예약하시겠습니까?'))return;
     await refreshPdfParentLists();
     if(p.owner!==cloudIdentity()||p.items.some(x=>!pdfServerAssignments.some(a=>a.student_user_id===p.student&&a.chapter_uuid===x.chapter_id)||!pdfServerChapters.some(c=>c.uuid===x.chapter_id&&c.ready)||lessonReleases.some(v=>v.student_user_id===p.student&&v.chapter_id===x.chapter_id)))throw Error('예약 전 서버 자료가 변경되었습니다. 다시 미리보기를 확인하세요.');
