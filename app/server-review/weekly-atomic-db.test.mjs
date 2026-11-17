@@ -69,6 +69,17 @@ try {
   await db.query('update public.cq_v4_activities set published_at=now() where chapter_uuid=$1',[chapter2]);
   assert.equal((await db.query('select count(*)::int as n from public.cq_v4_lesson_schedule')).rows[0].n,1);
  });
+ await test('legacy 32-char digest is accepted only with matching parent approval record',async()=>{
+  const legacy='c'.repeat(32);
+  await db.query('update public.cq_v4_activities set approval_hash=$1 where chapter_uuid=$2',[legacy,chapter2]);
+  await assert.rejects(run([item(chapter2,'2026-11-27')]),e=>e.code==='42501');
+  await db.query('update public.cq_v4_approval_requests set content_hash=$1 where id=$2',[legacy,approval2]);
+  const r=await run([item(chapter2,'2026-11-27')]);
+  assert.equal(r.rows[0].inserted,1);
+  await db.query('delete from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2]);
+  await db.query('update public.cq_v4_activities set approval_hash=$1 where chapter_uuid=$2',[hash,chapter2]);
+  await db.query('update public.cq_v4_approval_requests set content_hash=$1 where id=$2',[hash,approval2]);
+ });
  await test('approval hash mismatch is rejected',async()=>{
   await db.query('update public.cq_v4_activities set approval_hash=$1 where chapter_uuid=$2',['b'.repeat(64),chapter2]);
   await assert.rejects(run([item(chapter2,'2026-11-27')]),e=>e.code==='42501');
