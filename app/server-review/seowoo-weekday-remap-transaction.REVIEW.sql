@@ -18,6 +18,11 @@ begin
     from public.cq_v4_lesson_schedule
     where student_user_id=v_student and lesson_date>=date '2026-11-23';
   if v_count<>10 then raise exception 'STOP: expected 10 future lessons, found %',v_count; end if;
+  if exists(select 1 from public.cq_v4_lesson_schedule
+    where student_user_id=v_student and lesson_date>=date '2026-11-23'
+    group by lesson_date having count(*)>1) then
+    raise exception 'STOP: duplicate original lesson dates';
+  end if;
   if (select count(distinct parent_user_id) from public.cq_v4_lesson_schedule
       where student_user_id=v_student and lesson_date>=date '2026-11-23')<>1 then
     raise exception 'STOP: inconsistent parent ownership';
