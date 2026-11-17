@@ -55,6 +55,43 @@
  const publicationChildrenPanel=()=>`<section class="card"><h2>📤 서버 게시 대상 학생</h2><p class="muted">게시할 학생과 서버에서 검증된 PDF 챕터를 각각 선택하세요. 로컬 챕터와 서버 PDF는 자동으로 동일하다고 간주하지 않습니다.</p><label>서버 PDF 챕터<select id="cqPublishVerifiedPdf"><option value="">검증된 서버 PDF 챕터 선택 (필수)</option>${pdfServerChapters.filter(x=>x.ready).map(x=>`<option value="${escapeHtml(x.uuid)}" ${chapter()?.serverPdfUuid===x.uuid?'selected':''}>${escapeHtml(x.title)} · ${escapeHtml(x.uuid)}</option>`).join('')}</select></label>${pendingChildren.filter(c=>c.active).map(c=>`<label><input type="checkbox" data-publish-child="${escapeHtml(c.child_user_id)}"> ${escapeHtml(c.student_name||'연결된 학생')} <small>계정 확인번호 ${escapeHtml(c.child_user_id.slice(-8))}</small></label>`).join('')||'<p>활성 연결 학생 목록을 먼저 불러오세요.</p>'}</section>`;
  let pdfServerChapters=[],pdfServerStudents=[],pdfServerAssignments=[];
  let lessonReleases=[];
+ let batchAutoPreview=null;
+ const nextAutoDates=(start,weekdays,count)=>{
+  const result=[],parts=start.split('-').map(Number),day=new Date(Date.UTC(parts[0],parts[1]-1,parts[2]));
+  if(day.toISOString().slice(0,10)!==start)throw Error('유효하지 않은 날짜입니다.');
+  for(let i=0;i<120&&result.length<count;i++){
+   const d=new Date(day.getTime()+i*86400000);
+   if(weekdays.includes((d.getUTCDay()+6)%7+1))result.push(d.toISOString().slice(0,10));
+  }
+  if(result.length!==count)throw Error('예약 날짜가 부족합니다.');
+  return result;
+ };
+ const batchAutoPanel=()=>!parentUnlocked||!session?'':`<section class="card"><h2>📚 여러 챕터 자동 공개 예약</h2><p>승인된 챕터만 서버에서 최종 확인합니다. 미리보기 후 확정하세요.</p><select id="cqBatchStudent"><option value="">학생 선택</option>${autoPolicies.filter(p=>p.enabled).map(p=>`<option value="${escapeHtml(p.student_user_id)}">${escapeHtml(p.student_user_id.slice(-8))}</option>`).join('')}</select><input id="cqBatchStart" type="date"><input id="cqBatchCount" type="number" min="1" max="31" value="3"><button data-batch-auto="preview" ${autoPolicyReady?'':'disabled'}>예약 미리보기</button>${batchAutoPreview?`<p>${escapeHtml(batchAutoPreview.items.map(x=>x.lesson_date+' · '+x.title).join(' / '))}</p><button data-batch-auto="confirm">예약 확정</button>`:''}<p id="cqBatchStatus" class="status"></p></section>`;
+ document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-batch-auto]');if(!b||b.disabled||mode!=='parent'||!parentUnlocked||!session)return;
+  b.disabled=true;
+  try{
+   if(b.dataset.batchAuto==='preview'){
+    batchAutoPreview=null;
+    const student=document.getElementById('cqBatchStudent')?.value,start=document.getElementById('cqBatchStart')?.value,count=Number(document.getElementById('cqBatchCount')?.value),policy=autoPolicies.find(p=>p.student_user_id===student);
+    if(!autoPolicyReady||!policy?.enabled)throw Error('자동 공개가 활성화된 학생을 선택하세요.');
+    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(start||'')||!Number.isInteger(count)||count<1||count>31)throw Error('날짜와 챕터 수를 확인하세요.');
+    const dates=nextAutoDates(start,policy.weekdays,count);
+    const assigned=pdfServerAssignments.filter(a=>a.student_user_id===student&&!lessonReleases.some(v=>v.student_user_id===student&&v.chapter_id===a.chapter_uuid)).map(a=>({chapter_id:a.chapter_uuid,title:pdfServerChapters.find(c=>c.uuid===a.chapter_uuid)?.title||a.chapter_uuid,ready:pdfServerChapters.find(c=>c.uuid===a.chapter_uuid)?.ready}));
+    if(assigned.length<count)throw Error('미예약 챕터가 부족합니다.');
+    const chosen=assigned.slice(0,count);
+    if(chosen.some(x=>!x.ready))throw Error('PDF 미준비 챕터가 포함되어 있습니다.');
+    batchAutoPreview={student,owner:cloudIdentity(),items:chosen.map((x,i)=>({...x,lesson_date:dates[i]}))};
+    render();document.getElementById('cqBatchStatus').textContent='미리보기: 아직 저장되지 않았습니다.';
+   }else if(b.dataset.batchAuto==='confirm'){
+    const p=batchAutoPreview;if(!p||p.owner!==cloudIdentity())throw Error('미리보기를 다시 생성하세요.');
+    if(!window.confirm(p.items.length+'개 챕터를 자동 공개 예약하시겠습니까?'))return;
+    await parentRpc('cq_v4_parent_schedule_auto_week',{p_student_user_id:p.student,p_items:p.items.map(({chapter_id,lesson_date})=>({chapter_id,lesson_date}))});
+    batchAutoPreview=null;await refreshLessonReleases();
+    document.getElementById('cqBatchStatus').textContent='서버 예약 완료';
+   }
+  }catch(err){batchAutoPreview=null;render();document.getElementById('cqBatchStatus').textContent='예약 실패: '+err.message;}finally{b.disabled=false;}
+ });
  const lessonReleasePanel=()=>`<section class="card"><h2>🔓 부모 직접 챕터 공개</h2><p>공개 전에는 학생이 볼 수 없습니다. 월·수·목 외 날짜도 선택할 수 있습니다.</p><button data-lesson="refresh" ${session?'':'disabled'}>공개 상태 새로고침</button>${pdfServerAssignments.map(a=>{const c=pdfServerChapters.find(x=>x.uuid===a.chapter_uuid);const v=lessonReleases.find(x=>x.student_user_id===a.student_user_id&&x.chapter_id===a.chapter_uuid);return `<div class="book"><b>${escapeHtml(c?.title||a.chapter_uuid)}</b> · 학생 ${escapeHtml(a.student_user_id.slice(-8))} · ${v?.released_at?'공개':'비공개'}<div class="row"><input type="date" data-lesson-date="${escapeHtml(a.student_user_id+':'+a.chapter_uuid)}" value="${escapeHtml(v?.lesson_date||'2026-11-23')}"><button data-lesson="schedule" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" ${c?.ready?'':'disabled'}>일정 저장</button><button data-lesson="auto" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" ${c?.ready&&autoPolicyReady&&autoPolicies.some(p=>p.student_user_id===a.student_user_id&&p.enabled)&&!v?'':'disabled'}>선택일 자동 공개 예약</button><button data-lesson="toggle" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" data-open="${v?.released_at?'false':'true'}" ${v&&c?.ready?'':'disabled'}>${v?.released_at?'비공개 전환':'지금 공개'}</button></div></div>`}).join('')||'<p>서버 챕터와 학생 배정을 먼저 등록하세요.</p>'}<p id="lessonReleaseStatus" class="status"></p></section>`;
  const lessonStatus=t=>{const e=document.getElementById('lessonReleaseStatus');if(e)e.textContent=t};
  async function refreshLessonReleases(){const rows=await parentRpc('cq_v4_parent_list_lesson_releases');if(!Array.isArray(rows))throw Error('공개 목록 조회 실패');lessonReleases=rows;render();lessonStatus('서버 상태 확인 완료');}
@@ -371,7 +408,7 @@
   }
  });
  const originalRender=render;
- render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+autoPolicyPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel())}};
+ render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+autoPolicyPanel()+batchAutoPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel())}};
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-parent-invite]');if(!b)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project){inviteStatus('부모 Supabase 로그인이 필요합니다.');return;}
