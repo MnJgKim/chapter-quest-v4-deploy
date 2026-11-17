@@ -21,6 +21,15 @@ try {
  await db.exec(await sql('./auto-release-arms.REVIEW.sql'));
  await db.exec(`create table public.cq_v4_lesson_schedule(parent_user_id uuid,student_user_id uuid,chapter_id uuid,lesson_date date,released_at timestamptz,primary key(student_user_id,chapter_id));insert into public.cq_v4_lesson_schedule values('${parent}','${child}','${chapter}','2026-11-25',now());`);
  await db.exec(await sql('./auto-release-cancel-rpc.REVIEW.sql'));
+ -- Isolated stand-in for the production manual release RPC; real deployment must verify its signature.
+ await db.exec(`create function public.cq_v4_parent_set_lesson_release(p_student_user_id uuid,p_chapter_id uuid,p_release boolean) returns void language plpgsql security definer set search_path='' as $fn$
+ begin
+  if auth.uid() is null or not public.cq_is_admin() then raise exception 'Parent authorization required' using errcode='42501';end if;
+  update public.cq_v4_lesson_schedule set released_at=case when p_release then now() else null end
+   where parent_user_id=auth.uid() and student_user_id=p_student_user_id and chapter_id=p_chapter_id;
+  if not found then raise exception 'Owned schedule required' using errcode='42501';end if;
+ end $fn$;`);
+ await db.exec(await sql('./auto-release-manual-override-rpc.REVIEW.sql'));
  const setPolicy=async(user,enabled,days)=>{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user]);return db.query('select public.cq_v4_parent_set_auto_release_policy($1,$2,$3::smallint[])',[child,enabled,days]);};
  await test('auto-release tables deny direct client writes and have RLS enabled',async()=>{
   for(const name of ['cq_v4_auto_release_policies','cq_v4_auto_release_cancellations','cq_v4_auto_release_arms']){
@@ -106,5 +115,25 @@ try {
  });
  await test('duplicate cancellation cannot be silently overwritten',async()=>{
   await assert.rejects(db.query('insert into public.cq_v4_auto_release_cancellations(parent_user_id,student_user_id,chapter_id) values($1,$2,$3)',[parent,child,chapter]),e=>e.code==='23505');
+ });
+ await test('manual close supersedes an automatic arm and creates durable cancellation',async()=>{
+  await db.query('delete from public.cq_v4_auto_release_cancellations where chapter_id=$1',[chapter]);
+  await db.query('update public.cq_v4_auto_release_arms set revoked_at=null where chapter_id=$1',[chapter]);
+  await db.query('update public.cq_v4_lesson_schedule set released_at=now() where chapter_id=$1',[chapter]);
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[parent]);
+  await db.query('select public.cq_v4_parent_override_lesson_release($1,$2,false)',[child,chapter]);
+  assert.equal((await db.query('select released_at from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter])).rows[0].released_at,null);
+  assert.ok((await db.query('select revoked_at from public.cq_v4_auto_release_arms where chapter_id=$1',[chapter])).rows[0].revoked_at);
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_cancellations where chapter_id=$1',[chapter])).rows[0].n,1);
+ });
+ await test('manual reopening stays open after later automatic cancellation',async()=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[parent]);
+  await db.query('select public.cq_v4_parent_override_lesson_release($1,$2,true)',[child,chapter]);
+  await db.query('select public.cq_v4_parent_cancel_auto_release($1,$2)',[child,chapter]);
+  assert.ok((await db.query('select released_at from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter])).rows[0].released_at);
+ });
+ await test('student cannot manually override parent release',async()=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[child]);
+  await assert.rejects(db.query('select public.cq_v4_parent_override_lesson_release($1,$2,false)',[child,chapter]),e=>e.code==='42501');
  });
 } finally {await db.close();}
