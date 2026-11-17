@@ -17,5 +17,9 @@ create table if not exists public.cq_v4_auto_release_policies (
   and cardinality(weekdays) between 0 and 7
  )
 );
--- PostgreSQL CHECK constraints cannot contain subqueries. Deduplication is
--- instead enforced by a small immutable helper.
+-- Duplicate weekday values are rejected by the parent policy RPC.
+-- Direct client table writes are forbidden below.
+
+-- Default public-schema grants vary; deny all direct client table access.
+revoke all on table public.cq_v4_auto_release_policies from public,anon,authenticated;
+alter table public.cq_v4_auto_release_policies enable row level security;
