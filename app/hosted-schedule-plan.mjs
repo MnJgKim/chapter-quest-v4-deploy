@@ -15,6 +15,7 @@ export function proposeHostedLessons({ student, startDate, endDate, chapters, ex
   if (chapters.some(c => typeof c !== 'string' || !c.trim()) || new Set(chapters).size !== chapters.length) throw new TypeError('Invalid chapter identifiers');
   if (existing.some(e => !e || typeof e.chapterId !== 'string' || typeof e.lessonDate !== 'string')) throw new TypeError('Invalid existing assignments');
   for (const e of existing) dateUTC(e.lessonDate);
+  if (existing.some(e => !chapters.includes(e.chapterId))) throw new Error('Existing assignment chapter missing from supplied catalog; review required');
   if (new Set(existing.map(e => e.chapterId)).size !== existing.length ||
       new Set(existing.map(e => e.lessonDate)).size !== existing.length) {
     throw new Error('Conflicting existing assignments; preserve records and request review');
