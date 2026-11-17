@@ -1,5 +1,6 @@
 -- READ ONLY. Opening readiness preflight for 2026-11-23.
--- Do not infer student names from UUIDs; verify identities in authenticated parent UI.
+-- Verify student identity via active cq_students -> cq_student_devices mapping.
+-- This audit does not modify production data.
 -- Run before any proposed migration, and compare row counts after any approved change.
 select 'pdf_chapters' metric,count(*)::bigint value from public.cq_v4_pdf_chapters
 union all select 'pdf_assignments',count(*)::bigint from public.cq_v4_pdf_assignments
@@ -106,3 +107,16 @@ left join public.cq_v4_lesson_schedule s
  on s.parent_user_id=x.parent_user_id and s.student_user_id=x.student_user_id
  and s.lesson_date=x.lesson_date
 order by x.student_user_id,x.lesson_date;
+
+-- Read-only launch identity gate: one distinct active auth user per named student.
+-- Join scheduled cohorts through verified device pairing, not chapter counts.
+select st.name,count(distinct d.auth_user_id) as active_auth_accounts,
+ count(distinct e.student_user_id) as enrolled_auth_accounts,
+ count(distinct s.chapter_id) as scheduled_chapters,
+ min(s.lesson_date) as first_scheduled_date
+from public.cq_students st
+left join public.cq_student_devices d on d.student_id=st.id and d.revoked_at is null
+left join public.cq_v4_pdf_enrollments e on e.student_user_id=d.auth_user_id
+left join public.cq_v4_lesson_schedule s on s.student_user_id=e.student_user_id
+where st.name in ('이서우','이서진','이시우')
+group by st.id,st.name order by st.name;
