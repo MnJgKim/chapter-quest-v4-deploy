@@ -86,3 +86,14 @@ test('revoked student device blocks remap without changing dates',async()=>{
   assert.deepEqual(rows.map(x=>x.d),dates);
  }finally{await db.close();}
 });
+
+test('ambiguous active Seowoo account blocks remap',async()=>{
+ const db=await setup();
+ try{
+  await db.query('insert into cq_student_devices values ($1,$2,null)',['33333333-3333-4333-8333-333333333333','55555555-5555-4555-8555-555555555555']);
+  await assert.rejects(db.exec(migration()),/ambiguous active Seowoo account/);
+  await db.exec('rollback;');
+  const rows=(await db.query('select lesson_date::text d from cq_v4_lesson_schedule order by chapter_id')).rows;
+  assert.deepEqual(rows.map(x=>x.d),dates);
+ }finally{await db.close();}
+});
