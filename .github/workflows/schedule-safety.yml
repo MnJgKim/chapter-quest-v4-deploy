@@ -4,6 +4,7 @@ on:
     paths:
       - 'app/server-review/**'
       - 'app/weekly-schedule.test.mjs'
+      - 'app/parent-chapter-order.test.mjs'
       - 'app/public/js/local-app.js'
       - 'app/public/js/parent-app.js'
       - '.github/workflows/schedule-safety.yml'
@@ -27,4 +28,4 @@ jobs:
           node --test weekly-atomic-db.test.mjs auto-release-policy-db.test.mjs
           cd ..
           node --check public/js/parent-app.js
-          node --test weekly-schedule.test.mjs
+          node --test weekly-schedule.test.mjs parent-chapter-order.test.mjs
