@@ -63,3 +63,19 @@ test('batch preview accepts unchanged book and chapter number',()=>{
  const preview={book:'book-1',items:[{chapter_id:'a',chapter_number:2}]};
  assert.equal(batchMappingChanged(preview,[{book_id:'book-1',chapter_id:'a',chapter_number:2}]),false);
 });
+
+const catalogMatch=source.match(/const validBookCatalogResponse=\(books,mappings\)=>[^;]+;/);
+assert.ok(catalogMatch,'book catalog response validator must exist');
+const validBookCatalogResponse=vm.runInNewContext('('+catalogMatch[0].replace(/^const validBookCatalogResponse=/,'').replace(/;$/,'')+')');
+const bookId='11111111-1111-4111-8111-111111111111';
+const chapterId='22222222-2222-4222-8222-222222222222';
+test('book catalog accepts a valid owner-scoped mapping response',()=>{
+ assert.equal(validBookCatalogResponse([{book_id:bookId,title:'Book 2'}],[{book_id:bookId,chapter_id:chapterId,chapter_number:3}]),true);
+});
+test('book catalog rejects malformed or missing mapping arrays',()=>{
+ assert.equal(validBookCatalogResponse([{book_id:bookId,title:'Book 2'}],null),false);
+ assert.equal(validBookCatalogResponse([{book_id:bookId,title:'Book 2'}],[{book_id:bookId,chapter_id:chapterId,chapter_number:'3'}]),false);
+});
+test('book catalog rejects mapping references to unknown books',()=>{
+ assert.equal(validBookCatalogResponse([{book_id:bookId,title:'Book 2'}],[{book_id:chapterId,chapter_id:chapterId,chapter_number:3}]),false);
+});
