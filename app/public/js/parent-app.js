@@ -56,9 +56,10 @@
  let pdfServerChapters=[],pdfServerStudents=[],pdfServerAssignments=[];
  let lessonReleases=[];
  let batchAutoPreview=null;
+ const seoulToday=()=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
  const nextAutoDates=(start,weekdays,count)=>{
   const result=[],parts=start.split('-').map(Number),day=new Date(Date.UTC(parts[0],parts[1]-1,parts[2]));
-  if(day.toISOString().slice(0,10)!==start)throw Error('유효하지 않은 날짜입니다.');
+  if(day.toISOString().slice(0,10)!==start||start<seoulToday())throw Error('과거이거나 유효하지 않은 시작 날짜입니다.');
   for(let i=0;i<120&&result.length<count;i++){
    const d=new Date(day.getTime()+i*86400000);
    if(weekdays.includes((d.getUTCDay()+6)%7+1))result.push(d.toISOString().slice(0,10));
@@ -103,7 +104,7 @@
    }
   }catch(err){batchAutoPreview=null;render();document.getElementById('cqBatchStatus').textContent='예약 실패: '+err.message;}finally{b.disabled=false;}
  });
- const lessonReleasePanel=()=>`<section class="card"><h2>🔓 부모 직접 챕터 공개</h2><p>공개 전에는 학생이 볼 수 없습니다. 월·수·목 외 날짜도 선택할 수 있습니다.</p><button data-lesson="refresh" ${session?'':'disabled'}>공개 상태 새로고침</button>${pdfServerAssignments.map(a=>{const c=pdfServerChapters.find(x=>x.uuid===a.chapter_uuid);const v=lessonReleases.find(x=>x.student_user_id===a.student_user_id&&x.chapter_id===a.chapter_uuid);return `<div class="book"><b>${escapeHtml(c?.title||a.chapter_uuid)}</b> · 학생 ${escapeHtml(a.student_user_id.slice(-8))} · ${v?.released_at?'공개':'비공개'}<div class="row"><input type="date" data-lesson-date="${escapeHtml(a.student_user_id+':'+a.chapter_uuid)}" value="${escapeHtml(v?.lesson_date||'2026-11-23')}"><button data-lesson="schedule" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" ${c?.ready?'':'disabled'}>일정 저장</button><button data-lesson="auto" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" ${c?.ready&&autoPolicyReady&&autoPolicies.some(p=>p.student_user_id===a.student_user_id&&p.enabled)&&!v?'':'disabled'}>선택일 자동 공개 예약</button><button data-lesson="toggle" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" data-open="${v?.released_at?'false':'true'}" ${v&&c?.ready?'':'disabled'}>${v?.released_at?'비공개 전환':'지금 공개'}</button></div></div>`}).join('')||'<p>서버 챕터와 학생 배정을 먼저 등록하세요.</p>'}<p id="lessonReleaseStatus" class="status"></p></section>`;
+ const lessonReleasePanel=()=>`<section class="card"><h2>🔓 부모 직접 챕터 공개</h2><p>공개 전에는 학생이 볼 수 없습니다. 월·수·목 외 날짜도 선택할 수 있습니다.</p><button data-lesson="refresh" ${session?'':'disabled'}>공개 상태 새로고침</button>${pdfServerAssignments.map(a=>{const c=pdfServerChapters.find(x=>x.uuid===a.chapter_uuid);const v=lessonReleases.find(x=>x.student_user_id===a.student_user_id&&x.chapter_id===a.chapter_uuid);return `<div class="book"><b>${escapeHtml(c?.title||a.chapter_uuid)}</b> · 학생 ${escapeHtml(a.student_user_id.slice(-8))} · ${v?.released_at?'공개':'비공개'}<div class="row"><input type="date" data-lesson-date="${escapeHtml(a.student_user_id+':'+a.chapter_uuid)}" value="${escapeHtml(v?.lesson_date||seoulToday())}"><button data-lesson="schedule" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" ${c?.ready?'':'disabled'}>일정 저장</button><button data-lesson="auto" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" ${c?.ready&&autoPolicyReady&&autoPolicies.some(p=>p.student_user_id===a.student_user_id&&p.enabled)&&!v?'':'disabled'}>선택일 자동 공개 예약</button><button data-lesson="toggle" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" data-open="${v?.released_at?'false':'true'}" ${v&&c?.ready?'':'disabled'}>${v?.released_at?'비공개 전환':'지금 공개'}</button></div></div>`}).join('')||'<p>서버 챕터와 학생 배정을 먼저 등록하세요.</p>'}<p id="lessonReleaseStatus" class="status"></p></section>`;
  const lessonStatus=t=>{const e=document.getElementById('lessonReleaseStatus');if(e)e.textContent=t};
  async function refreshLessonReleases(){const rows=await parentRpc('cq_v4_parent_list_lesson_releases');if(!Array.isArray(rows))throw Error('공개 목록 조회 실패');lessonReleases=rows;render();lessonStatus('서버 상태 확인 완료');}
  document.addEventListener('click',async event=>{
@@ -125,7 +126,7 @@
     if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(date||''))throw Error('예약 날짜를 선택하세요.');
     const parts=date.split('-').map(Number);
     const day=new Date(Date.UTC(parts[0],parts[1]-1,parts[2]));
-    if(day.toISOString().slice(0,10)!==date)throw Error('유효하지 않은 날짜입니다.');
+    if(day.toISOString().slice(0,10)!==date||date<seoulToday())throw Error('과거이거나 유효하지 않은 날짜입니다.');
     const isoDay=(day.getUTCDay()+6)%7+1;
     if(!policy.weekdays.includes(isoDay))throw Error('학생의 자동 공개 요일이 아닙니다.');
     if(lessonReleases.some(x=>x.student_user_id===student&&x.chapter_id===chapter))throw Error('이미 배정된 챕터입니다.');
