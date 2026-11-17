@@ -33,6 +33,8 @@ test('submission guard rejects remap without changing existing dates',async()=>{
  try{
   await db.query('insert into cq_v4_student_submissions values ($1,$2)',[student,uuid(2)]);
   await assert.rejects(db.exec(migration()),/existing student submission/);
+  // A raised exception aborts the transaction; reset it before readback.
+  await db.exec('rollback;');
   const rows=(await db.query('select lesson_date::text d from cq_v4_lesson_schedule order by chapter_id')).rows;
   assert.deepEqual(rows.map(x=>x.d),dates);
  }finally{await db.close();}
