@@ -81,7 +81,7 @@
     if(assigned.length<count)throw Error('미예약 챕터가 부족합니다.');
     // Only unambiguous numeric chapter titles may be auto-ordered.
     const chapterOrder=title=>{
-     const match=String(title).match(/(?:^|\\s)(\\d+)\\s*[-–]\\s*(\\d+)(?:\\s|$)/);
+     const match=String(title).match(/(?:^|\s)(\d+)\s*[-–]\s*(\d+)(?:\s|$)/);
      if(!match)return null;
      return [Number(match[1]),Number(match[2])];
     };
