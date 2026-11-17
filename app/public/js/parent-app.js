@@ -82,13 +82,18 @@
     if(assigned.length<count)throw Error('미예약 챕터가 부족합니다.');
     // Only unambiguous numeric chapter titles may be auto-ordered.
     const chapterOrder=title=>{
-     const match=String(title).match(/(?:^|\s)(\d+)\s*[-–]\s*(\d+)(?:\s|$)/);
-     if(!match)return null;
-     return [Number(match[1]),Number(match[2])];
+     const name=String(title).trim();
+     const numbered=name.match(/(?:^|\\s)(\\d+)\\s*[-–]\\s*(\\d+)(?:\\s|$)/);
+     if(numbered)return {book:Number(numbered[1]),chapter:Number(numbered[2]),format:'book-chapter'};
+     const chapterOnly=name.match(/^Chapter\\s+(\\d+)(?:\\s*[:：.-]\\s*.*)?$/i);
+     if(chapterOnly)return {book:null,chapter:Number(chapterOnly[1]),format:'chapter-only'};
+     return null;
     };
-    if(assigned.some(x=>!chapterOrder(x.title)))throw Error('책-챕터 번호가 불명확합니다. 개별 예약을 사용하세요.');
-    assigned.sort((a,b)=>{const x=chapterOrder(a.title),y=chapterOrder(b.title);return x[0]-y[0]||x[1]-y[1];});
-    if(assigned.some((x,i)=>i&&chapterOrder(x.title).join('-')===chapterOrder(assigned[i-1].title).join('-')))throw Error('중복된 책-챕터 번호가 있습니다.');
+    if(assigned.some(x=>!chapterOrder(x.title)))throw Error('챕터 번호가 불명확합니다. 개별 예약을 사용하세요.');
+    const formats=new Set(assigned.map(x=>chapterOrder(x.title).format));
+    if(formats.size!==1)throw Error('책-챕터 번호와 Chapter 번호 형식이 섞여 있습니다. 개별 예약을 사용하세요.');
+    assigned.sort((a,b)=>{const x=chapterOrder(a.title),y=chapterOrder(b.title);return (x.book||0)-(y.book||0)||x.chapter-y.chapter;});
+    if(assigned.some((x,i)=>i&&chapterOrder(x.title).book===chapterOrder(assigned[i-1].title).book&&chapterOrder(x.title).chapter===chapterOrder(assigned[i-1].title).chapter))throw Error('중복된 챕터 번호가 있습니다. 여러 책이 섞였을 수 있습니다.');
     const chosen=assigned.slice(0,count);
     if(chosen.some(x=>!x.ready))throw Error('PDF 미준비 챕터가 포함되어 있습니다.');
     batchAutoPreview={student,owner:cloudIdentity(),items:chosen.map((x,i)=>({...x,lesson_date:dates[i]}))};
