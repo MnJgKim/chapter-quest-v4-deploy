@@ -1,0 +1,31 @@
+name: Chapter Quest schedule safety tests
+on:
+  pull_request:
+    paths:
+      - 'app/server-review/**'
+      - 'app/weekly-schedule.test.mjs'
+      - 'app/parent-chapter-order.test.mjs'
+      - 'app/public/js/local-app.js'
+      - 'app/public/js/parent-app.js'
+      - '.github/workflows/schedule-safety.yml'
+  workflow_dispatch:
+jobs:
+  schedule-safety:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run all weekly schedule and authorization tests
+        run: |
+          cd app/server-review
+          npm install --no-package-lock --ignore-scripts
+          npm run test:weekly
+          node --test weekly-atomic-db.test.mjs auto-release-policy-db.test.mjs book-identity-db.test.mjs seowoo-weekday-remap-db.test.mjs sql-integrity.test.mjs
+          cd ..
+          node --check public/js/parent-app.js
+          node --test weekly-schedule.test.mjs parent-chapter-order.test.mjs

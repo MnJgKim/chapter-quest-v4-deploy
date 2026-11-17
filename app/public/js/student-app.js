@@ -194,7 +194,9 @@
    if(!body.signedURL)return false;
    // A matching object path is insufficient: a different recording may exist there.
    const signedUrl=new URL(body.signedURL,project.url+'/storage/v1/');
-   if(signedUrl.origin!==new URL(project.url).origin)throw Error('녹음 확인 주소가 올바르지 않습니다.');
+   if(signedUrl.origin!==new URL(project.url).origin||
+      signedUrl.pathname!=='/storage/v1/object/sign/cq-v4-speaking/'+uid+'/'+uuid+'.'+ext||
+      !signedUrl.searchParams.has('token'))throw Error('녹음 확인 주소가 올바르지 않습니다.');
    const audioResponse=await fetch(signedUrl.href);
    if(!audioResponse.ok)return false;
    const bytes=await audioResponse.arrayBuffer();
