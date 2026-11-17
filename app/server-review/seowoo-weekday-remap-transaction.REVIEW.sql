@@ -11,6 +11,21 @@ declare
   v_count integer;
 begin
   if v_student is null then raise exception 'STOP: verified student identity required'; end if;
+  -- Identity gate: only the uniquely paired, active auth account of 이서우.
+  -- Never infer identity from chapter counts or dates alone.
+  if (select count(distinct d.auth_user_id)
+      from public.cq_students st
+      join public.cq_student_devices d on d.student_id=st.id
+      where st.name='이서우' and d.revoked_at is null
+        and d.auth_user_id=v_student)<>1 then
+    raise exception 'STOP: student is not verified as actively paired 이서우';
+  end if;
+  if (select count(distinct d.auth_user_id)
+      from public.cq_students st
+      join public.cq_student_devices d on d.student_id=st.id
+      where st.name='이서우' and d.revoked_at is null)<>1 then
+    raise exception 'STOP: ambiguous active Seowoo account';
+  end if;
   -- Lock target rows to prevent concurrent edits; no changes to other students.
   perform 1 from public.cq_v4_lesson_schedule
    where student_user_id=v_student for update;
