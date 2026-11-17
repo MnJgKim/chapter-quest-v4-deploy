@@ -19,5 +19,5 @@ test('opening preflight has no orphaned SQL or repeated coverage query',async()=
  assert.equal(occurrences(source,'-- Existing future lessons already armed by legacy release flag.'),1);
  assert.equal(occurrences(source,'-- Opening week aggregate coverage only'),1);
  assert.ok(source.includes("act.approval_hash ~ '^([0-9a-f]{32}|[0-9a-f]{64})$'"));
- assert.ok(source.trimEnd().endsWith('group by lesson_date order by lesson_date;'));
+ assert.ok(source.includes('group by lesson_date order by lesson_date;'));\n assert.ok(source.includes('Target weekday coverage (read only)'));\n assert.ok(source.trimEnd().endsWith('order by x.student_user_id,x.lesson_date;'));
 });
