@@ -22,9 +22,20 @@ begin
   (parent_user_id,student_user_id,chapter_id)
  values(v_parent,p_student_user_id,p_chapter_id)
  on conflict(student_user_id,chapter_id) do nothing;
- -- Do NOT modify released_at here: legacy manual releases and already
- -- submitted work are not distinguishable from future auto-armed rows.
- -- A separate origin-tracked release migration is required for safe revocation.
+ -- Only release rows with explicit automatic origin may be revoked.
+ -- Lock the arm record so concurrent cancellation and arming serialize.
+ perform 1 from public.cq_v4_auto_release_arms
+ where parent_user_id=v_parent and student_user_id=p_student_user_id
+   and chapter_id=p_chapter_id and revoked_at is null for update;
+ if found then
+  update public.cq_v4_auto_release_arms set revoked_at=now()
+   where parent_user_id=v_parent and student_user_id=p_student_user_id
+    and chapter_id=p_chapter_id and revoked_at is null;
+  update public.cq_v4_lesson_schedule set released_at=null
+   where parent_user_id=v_parent and student_user_id=p_student_user_id
+    and chapter_id=p_chapter_id;
+ end if;
+ -- Legacy manual releases have no arm record and are untouched.
 end $fn$;
 revoke all on function public.cq_v4_parent_cancel_auto_release(uuid,uuid) from public,anon;
 grant execute on function public.cq_v4_parent_cancel_auto_release(uuid,uuid) to authenticated;
