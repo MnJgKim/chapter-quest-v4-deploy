@@ -81,6 +81,21 @@ try {
   await db.query('update public.cq_v4_pdf_chapters set pdf_verified_at=now() where chapter_id=$1',[chapter2]);
  });
  await run([item(chapter2,'2026-11-25')]);
+ await test('legacy manual-style insert cannot occupy an existing student date',async()=>{
+  const extra='88888888-8888-4888-8888-888888888888';
+  await assert.rejects(db.query(
+   'insert into public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date) values($1,$2,$3,$4)',
+   [parent,child,extra,'2026-11-23']
+  ),e=>e.code==='23505');
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_lesson_schedule')).rows[0].n,2);
+ });
+ await test('legacy manual-style date update cannot overwrite another chapter date',async()=>{
+  await assert.rejects(db.query(
+   'update public.cq_v4_lesson_schedule set lesson_date=$1 where student_user_id=$2 and chapter_id=$3',
+   ['2026-11-23',child,chapter2]
+  ),e=>e.code==='23505');
+  assert.equal((await db.query('select lesson_date::text as date from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2])).rows[0].date,'2026-11-25');
+ });
  await test('unauthorized user cannot schedule',async()=>{
   await assert.rejects(run([],child),e=>e.code==='42501');
  });
