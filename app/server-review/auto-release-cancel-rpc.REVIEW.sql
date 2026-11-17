@@ -22,11 +22,9 @@ begin
   (parent_user_id,student_user_id,chapter_id)
  values(v_parent,p_student_user_id,p_chapter_id)
  on conflict(student_user_id,chapter_id) do nothing;
- -- Revoke access immediately, including for previously armed lessons.
- update public.cq_v4_lesson_schedule
- set released_at=null
- where parent_user_id=v_parent and student_user_id=p_student_user_id
-  and chapter_id=p_chapter_id;
+ -- Do NOT modify released_at here: legacy manual releases and already
+ -- submitted work are not distinguishable from future auto-armed rows.
+ -- A separate origin-tracked release migration is required for safe revocation.
 end $fn$;
 revoke all on function public.cq_v4_parent_cancel_auto_release(uuid,uuid) from public,anon;
 grant execute on function public.cq_v4_parent_cancel_auto_release(uuid,uuid) to authenticated;
