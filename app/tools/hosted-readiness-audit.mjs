@@ -8,6 +8,11 @@ const tables=JSON.parse(read('server-review/fixtures/table_metadata.json'));
 const worker=read('worker.mjs');
 const student=read('public/js/student-app.js');
 const wrangler=JSON.parse(read('../wrangler.jsonc'));
+const coreSql=read('server-review/hosted-core-contract-readonly.REVIEW.sql');
+const storageSql=read('server-review/hosted-storage-security-readonly.REVIEW.sql');
+const stripSql=s=>s.replace(/--[^\n]*/g,'').replace(/\/\*[\s\S]*?\*\//g,'');
+const readonlySql=s=>!(/\b(create|alter|drop|truncate|insert|update|delete|grant|revoke|execute|call|copy)\b/i.test(stripSql(s)));
+
 const names=new Set(tables.map(t=>t.name.startsWith('public.')?t.name.slice(7):t.name));
 const functions=new Set(schema.functions.map(f=>f.name));
 const buckets=new Map(schema.buckets.map(b=>[b.id,b]));
@@ -26,7 +31,9 @@ const checks={
  audio_capture_supported:student.includes('navigator.mediaDevices?.getUserMedia')&&student.includes('MediaRecorder'),
  audio_private_storage_path:student.includes('/storage/v1/object/sign/cq-v4-speaking/'),
  audio_recovery_supported:student.includes('readRecovery(')&&student.includes('downloadUnsavedVoice('),
- audio_mime_types_supported:student.includes("'audio/webm'")&&student.includes("'audio/mp4'")&&student.includes("'audio/ogg'")
+ audio_mime_types_supported:student.includes("'audio/webm'")&&student.includes("'audio/mp4'")&&student.includes("'audio/ogg'"),
+ core_contract_audit_readonly:readonlySql(coreSql),
+ storage_security_audit_readonly:readonlySql(storageSql)
 };
 // The fixture predates the live release RPC; a missing captured name is a stale-fixture warning, not evidence that hosted lacks it.
 const informational=new Set(['captured_release_gate']);
