@@ -7,6 +7,7 @@ on:
       - 'app/public/js/student-app.js'
       - 'app/server-review/hosted-core-contract-readonly.REVIEW.sql'
       - 'app/server-review/hosted-storage-security-readonly.REVIEW.sql'
+      - 'app/server-review/hosted-approval-readiness-readonly.REVIEW.sql'
       - 'wrangler.jsonc'
       - 'app/server-review/fixtures/live_schema.json'
       - 'app/server-review/fixtures/table_metadata.json'
