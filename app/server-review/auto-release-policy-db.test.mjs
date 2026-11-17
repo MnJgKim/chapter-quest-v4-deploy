@@ -9,9 +9,9 @@ const child='22222222-2222-4222-8222-222222222222';
 const chapter='44444444-4444-4444-8444-444444444444';
 try {
  await db.exec(`create table public.cq_v4_pdf_enrollments(parent_user_id uuid,student_user_id uuid,primary key(parent_user_id,student_user_id));
- create table public.cq_v4_pdf_chapters(chapter_id uuid primary key);
+ create table public.cq_v4_pdf_chapters(chapter_id uuid primary key,parent_user_id uuid not null);
  insert into public.cq_v4_pdf_enrollments values('${parent}','${child}');
- insert into public.cq_v4_pdf_chapters values('${chapter}');`);
+ insert into public.cq_v4_pdf_chapters values('${chapter}','${parent}');`);
  await db.exec(await sql('./auto-release-policy.REVIEW.sql'));
  await db.exec(await sql('./auto-release-cancellations.REVIEW.sql'));
  await db.exec(`create schema auth;create role anon;create role authenticated;create table public.cq_admins(user_id uuid primary key);insert into public.cq_admins values('${parent}');create function auth.uid() returns uuid language sql stable as $fn$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$fn$;create function public.cq_is_admin() returns boolean language sql stable as $fn$select exists(select 1 from public.cq_admins where user_id=auth.uid())$fn$;`);
