@@ -20,6 +20,7 @@ try {
  await db.exec(await sql('./auto-release-policy-list-rpc.REVIEW.sql'));
  await db.exec(await sql('./auto-release-arms.REVIEW.sql'));
  await db.exec(`create table public.cq_v4_lesson_schedule(parent_user_id uuid,student_user_id uuid,chapter_id uuid,lesson_date date,released_at timestamptz,primary key(student_user_id,chapter_id));insert into public.cq_v4_lesson_schedule values('${parent}','${child}','${chapter}','2026-11-25',now());`);
+ await db.exec('create table public.cq_v4_student_submissions(chapter_uuid uuid,child_user_id uuid,primary key(chapter_uuid,child_user_id));');
  await db.exec(await sql('./auto-release-cancel-rpc.REVIEW.sql'));
  // Isolated stand-in for the production manual release RPC; real deployment must verify its signature.
  await db.exec(`create function public.cq_v4_parent_set_lesson_release(p_student_user_id uuid,p_chapter_id uuid,p_release boolean) returns void language plpgsql security definer set search_path='' as $fn$
@@ -135,5 +136,12 @@ try {
  await test('student cannot manually override parent release',async()=>{
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[child]);
   await assert.rejects(db.query('select public.cq_v4_parent_override_lesson_release($1,$2,false)',[child,chapter]),e=>e.code==='42501');
+ });
+ await test('submitted lesson cannot be cancelled or hidden by manual override',async()=>{
+  await db.query('insert into public.cq_v4_student_submissions(chapter_uuid,child_user_id) values($1,$2)',[chapter,child]);
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[parent]);
+  await assert.rejects(db.query('select public.cq_v4_parent_cancel_auto_release($1,$2)',[child,chapter]),e=>e.code==='42501');
+  await assert.rejects(db.query('select public.cq_v4_parent_override_lesson_release($1,$2,false)',[child,chapter]),e=>e.code==='42501');
+  assert.ok((await db.query('select released_at from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter])).rows[0].released_at);
  });
 } finally {await db.close();}
