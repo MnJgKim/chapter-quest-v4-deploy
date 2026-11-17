@@ -32,3 +32,20 @@ union all select 'batch_schedule_rpc',to_regprocedure('public.cq_v4_parent_sched
 union all select 'book_list_rpc',to_regprocedure('public.cq_v4_parent_list_books()') is not null
 union all select 'book_mapping_rpc',to_regprocedure('public.cq_v4_parent_list_book_chapters()') is not null
 union all select 'policy_list_rpc',to_regprocedure('public.cq_v4_parent_list_auto_release_policies()') is not null;
+
+-- Launch blockers, read-only: a zero value for every metric is required.
+select 'chapter_pdf_unverified' metric,count(*)::bigint value
+ from public.cq_v4_pdf_chapters where not pdf_ready or pdf_verified_at is null
+union all select 'unpublished_activities',count(*)::bigint
+ from public.cq_v4_activities where published_at is null
+union all select 'schedule_without_assignment',count(*)::bigint
+ from public.cq_v4_lesson_schedule s where not exists
+ (select 1 from public.cq_v4_pdf_assignments a
+  where a.student_user_id=s.student_user_id and a.chapter_id=s.chapter_id)
+union all select 'schedule_without_published_activity',count(*)::bigint
+ from public.cq_v4_lesson_schedule s where not exists
+ (select 1 from public.cq_v4_activities a
+  where a.chapter_uuid=s.chapter_id and a.published_at is not null)
+union all select 'duplicate_student_dates',count(*)::bigint
+ from (select student_user_id,lesson_date from public.cq_v4_lesson_schedule
+       group by 1,2 having count(*)>1) x;
