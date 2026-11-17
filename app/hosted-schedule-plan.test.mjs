@@ -1,0 +1,13 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { proposeHostedLessons } from './hosted-schedule-plan.mjs';
+const run = (student, startDate, endDate, chapters, existing=[]) => proposeHostedLessons({student,startDate,endDate,chapters,existing});
+test('Seowoo starts Monday Nov 23, then Wednesday and Thursday',()=>assert.deepEqual(run('서우','2026-11-23','2026-11-27',['a','b','c','d']).proposed.map(x=>x.lessonDate),['2026-11-23','2026-11-25','2026-11-26']));
+test('Seojin starts Tuesday Nov 24, then Wednesday and Friday',()=>assert.deepEqual(run('서진','2026-11-24','2026-11-27',['a','b','c']).proposed.map(x=>x.lessonDate),['2026-11-24','2026-11-25','2026-11-27']));
+test('existing allocations prevent duplicate chapter and date',()=>assert.deepEqual(run('서우','2026-11-23','2026-11-26',['a','b','c'],[{chapterId:'a',lessonDate:'2026-11-23'}]).proposed.map(x=>[x.chapterId,x.lessonDate]),[['b','2026-11-25'],['c','2026-11-26']]));
+test('existing off-day allocations remain untouched',()=>assert.deepEqual(run('서진','2026-11-24','2026-11-27',['a','b'],[{chapterId:'a',lessonDate:'2026-11-26'}]).proposed.map(x=>x.lessonDate),['2026-11-24']));
+test('never proposes a hosted write or automatic release',()=>{const r=run('서우','2026-11-23','2026-11-23',['a']);assert.equal(r.writesPerformed,0);assert.equal(r.readyForAutomaticHostedRelease,false);assert.equal(r.requiresParentApproval,true)});
+test('invalid date rejected',()=>assert.throws(()=>run('서우','2026-11-31','2026-12-03',['a']),/Invalid calendar date/));
+test('unknown student rejected',()=>assert.throws(()=>run('시우','2026-11-23','2026-11-24',['a']),/Unknown student/));
+test('duplicate chapter IDs rejected',()=>assert.throws(()=>run('서우','2026-11-23','2026-11-24',['a','a']),/Invalid chapter/));
+test('excessive planning horizon rejected',()=>assert.throws(()=>run('서우','2026-11-23','2028-11-23',['a']),/range/));
