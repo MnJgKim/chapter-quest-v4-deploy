@@ -42,6 +42,13 @@ try {
   assert.equal(books.rows[0].title,'Another Book');
   assert.equal(Number(books.rows[0].chapter_count),0);
  });
+ await test('mapping list is parent-scoped and rejects non-admins',async()=>{
+  await acting(p2);
+  await assert.rejects(db.query('select * from public.cq_v4_parent_list_book_chapters()'),e=>e.code==='42501');
+  await acting(p1);
+  const result=await db.query('select * from public.cq_v4_parent_list_book_chapters()');
+  assert.equal(result.rows.length,0);
+ });
  await test('existing chapters and schedules remain unchanged',async()=>{
   const a=await db.query('select count(*)::int as n from public.cq_v4_pdf_chapters');
   const b=await db.query('select lesson_date::text as d from public.cq_v4_lesson_schedule');
