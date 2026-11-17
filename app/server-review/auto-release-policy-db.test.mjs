@@ -16,6 +16,8 @@ try {
  await db.exec(await sql('./auto-release-cancellations.REVIEW.sql'));
  await db.exec(`create schema auth;create role anon;create role authenticated;create table public.cq_admins(user_id uuid primary key);insert into public.cq_admins values('${parent}');create function auth.uid() returns uuid language sql stable as $fn$select nullif(current_setting('request.jwt.claim.sub',true),'')::uuid$fn$;create function public.cq_is_admin() returns boolean language sql stable as $fn$select exists(select 1 from public.cq_admins where user_id=auth.uid())$fn$;`);
  await db.exec(await sql('./auto-release-policy-rpc.REVIEW.sql'));
+ await db.exec(`create table public.cq_v4_lesson_schedule(parent_user_id uuid,student_user_id uuid,chapter_id uuid,lesson_date date,released_at timestamptz,primary key(student_user_id,chapter_id));insert into public.cq_v4_lesson_schedule values('${parent}','${child}','${chapter}','2026-11-25',now());`);
+ await db.exec(await sql('./auto-release-cancel-rpc.REVIEW.sql'));
  const setPolicy=async(user,enabled,days)=>{await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user]);return db.query('select public.cq_v4_parent_set_auto_release_policy($1,$2,$3::smallint[])',[child,enabled,days]);};
  await test('policy defaults to disabled and persists selected weekdays',async()=>{
   await db.query('insert into public.cq_v4_auto_release_policies(parent_user_id,student_user_id,weekdays) values($1,$2,$3::smallint[])',[parent,child,[1,3,4]]);
@@ -51,6 +53,22 @@ try {
  await test('parent RPC can disable without deleting cancellation',async()=>{
   await setPolicy(parent,false,[1,3,4]);
   assert.equal((await db.query('select enabled from public.cq_v4_auto_release_policies')).rows[0].enabled,false);
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_cancellations')).rows[0].n,1);
+ });
+ await test('parent cancellation preserves an existing manual release',async()=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[parent]);
+  await db.query('select public.cq_v4_parent_cancel_auto_release($1,$2)',[child,chapter]);
+  const row=(await db.query('select released_at from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter])).rows[0];
+  assert.ok(row.released_at);
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_cancellations')).rows[0].n,1);
+ });
+ await test('student cannot cancel parent automatic release',async()=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[child]);
+  await assert.rejects(db.query('select public.cq_v4_parent_cancel_auto_release($1,$2)',[child,chapter]),e=>e.code==='42501');
+ });
+ await test('repeat parent cancellation is idempotent',async()=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[parent]);
+  await db.query('select public.cq_v4_parent_cancel_auto_release($1,$2)',[child,chapter]);
   assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_cancellations')).rows[0].n,1);
  });
  await test('duplicate cancellation cannot be silently overwritten',async()=>{
