@@ -138,6 +138,7 @@ try {
   await db.query('insert into public.cq_v4_student_submissions values($1,$2)',[chapter,child]);
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[parent]);
   await assert.rejects(db.query('select public.cq_v4_parent_cancel_auto_release($1,$2)',[child,chapter]),e=>e.code==='42501');
+  await assert.rejects(db.query('select public.cq_v4_parent_override_lesson_release($1,$2,false)',[child,chapter]),e=>e.code==='42501');
   assert.ok((await db.query('select released_at from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter])).rows[0].released_at);
   await db.query('delete from public.cq_v4_student_submissions where chapter_uuid=$1',[chapter]);
  });
