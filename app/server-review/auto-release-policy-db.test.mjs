@@ -21,7 +21,6 @@ try {
  await db.exec(await sql('./auto-release-arms.REVIEW.sql'));
  await db.exec(`create table public.cq_v4_lesson_schedule(parent_user_id uuid,student_user_id uuid,chapter_id uuid,lesson_date date,released_at timestamptz,primary key(student_user_id,chapter_id));insert into public.cq_v4_lesson_schedule values('${parent}','${child}','${chapter}','2026-11-25',now());`);
  await db.exec('create table public.cq_v4_student_submissions(chapter_uuid uuid,child_user_id uuid,primary key(chapter_uuid,child_user_id));');
- await db.exec('create table public.cq_v4_student_submissions(chapter_uuid uuid,child_user_id uuid,primary key(chapter_uuid,child_user_id));');
  await db.exec(await sql('./auto-release-cancel-rpc.REVIEW.sql'));
  // Isolated stand-in for the production manual release RPC; real deployment must verify its signature.
  await db.exec(`create function public.cq_v4_parent_set_lesson_release(p_student_user_id uuid,p_chapter_id uuid,p_release boolean) returns void language plpgsql security definer set search_path='' as $fn$
