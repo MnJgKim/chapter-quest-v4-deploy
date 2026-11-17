@@ -39,3 +39,15 @@ test('submission guard rejects remap without changing existing dates',async()=>{
   assert.deepEqual(rows.map(x=>x.d),dates);
  }finally{await db.close();}
 });
+
+test('duplicate original lesson date is rejected before any mutation',async()=>{
+ const db=await setup();
+ try{
+  await db.exec('drop index cq_student_date_unique');
+  await db.query('update cq_v4_lesson_schedule set lesson_date=$1 where student_user_id=$2 and chapter_id=$3',[dates[0],student,uuid(2)]);
+  await assert.rejects(db.exec(migration()),/duplicate original lesson dates/);
+  await db.exec('rollback;');
+  const rows=(await db.query('select lesson_date::text d from cq_v4_lesson_schedule order by chapter_id')).rows;
+  assert.deepEqual(rows.map(x=>x.d),[dates[0],dates[0],...dates.slice(2)]);
+ }finally{await db.close();}
+});
