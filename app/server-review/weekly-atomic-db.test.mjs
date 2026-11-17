@@ -120,6 +120,15 @@ try {
   assert.ok(row.released_at);
   assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_arms')).rows[0].n,1);
  });
+ await test('cancelled chapter cannot be auto-rearmed after schedule removal',async()=>{
+  await db.query('insert into public.cq_v4_auto_release_cancellations(parent_user_id,student_user_id,chapter_id) values($1,$2,$3)',[parent,child,chapter2]);
+  await db.query('delete from public.cq_v4_auto_release_arms where chapter_id=$1',[chapter2]);
+  await db.query('delete from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2]);
+  await assert.rejects(auto([item(chapter2,'2026-11-27')]),e=>e.code==='42501');
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_arms')).rows[0].n,0);
+  await db.query('delete from public.cq_v4_auto_release_cancellations where chapter_id=$1',[chapter2]);
+  await auto([item(chapter2,'2026-11-27')]);
+ });
  await test('auto scheduling cannot reassign an already scheduled chapter',async()=>{
   await assert.rejects(auto([item(chapter2,'2026-11-30')]),e=>e.code==='23505');
  });
