@@ -19,3 +19,7 @@ create table if not exists public.cq_v4_auto_release_arms (
 -- transaction as the approved weekly scheduling RPC and must verify
 -- the opt-in policy, cancellation tombstone, chapter approval and weekday.
 -- Existing legacy released_at values MUST NOT be inferred as auto-armed.
+
+-- Default public-schema grants vary; deny all direct client table access.
+revoke all on table public.cq_v4_auto_release_arms from public,anon,authenticated;
+alter table public.cq_v4_auto_release_arms enable row level security;
