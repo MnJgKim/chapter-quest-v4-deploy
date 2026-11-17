@@ -83,9 +83,9 @@
     // Only unambiguous numeric chapter titles may be auto-ordered.
     const chapterOrder=title=>{
      const name=String(title).trim();
-     const numbered=name.match(/(?:^|\\s)(\\d+)\\s*[-–]\\s*(\\d+)(?:\\s|$)/);
+     const numbered=name.match(/(?:^|\s)(\d+)\s*[-–]\s*(\d+)(?:\s|$)/);
      if(numbered)return {book:Number(numbered[1]),chapter:Number(numbered[2]),format:'book-chapter'};
-     const chapterOnly=name.match(/^Chapter\\s+(\\d+)(?:\\s*[:：.-]\\s*.*)?$/i);
+     const chapterOnly=name.match(/^Chapter\s+(\d+)(?:\s*[:：.-]\s*.*)?$/i);
      if(chapterOnly)return {book:null,chapter:Number(chapterOnly[1]),format:'chapter-only'};
      return null;
     };
