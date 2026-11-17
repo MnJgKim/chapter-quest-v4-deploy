@@ -324,8 +324,8 @@
    finally{publicationBusy=false;if(button.isConnected)button.disabled=false;}
  });
  // Review-only UI: the production RPCs are not installed yet.
- let autoPolicies=[],autoPolicyReady=false,autoPolicyMessage='서버 연동 전: 자동 공개 설정을 변경할 수 없습니다.';
- const autoPolicyPanel=()=>!parentUnlocked||!session?'':`<section class="card"><h2>📅 학생별 자동 공개 요일</h2><p class="muted">승인·PDF 검증된 챕터만 해당 날짜에 공개합니다. 기존 수동 공개는 유지됩니다.</p><button data-auto-policy="refresh">서버 설정 조회</button>${autoPolicies.map(p=>`<div class="book"><b>학생 · ${escapeHtml(p.student_user_id.slice(-8))}</b><label><input type="checkbox" data-auto-enabled="${escapeHtml(p.student_user_id)}" ${p.enabled?'checked':''} ${autoPolicyReady?'':'disabled'}> 자동 공개 사용</label><div class="row">${['월','화','수','목','금','토','일'].map((day,i)=>`<label><input type="checkbox" data-auto-day="${escapeHtml(p.student_user_id)}" value="${i+1}" ${p.weekdays.includes(i+1)?'checked':''} ${autoPolicyReady?'':'disabled'}>${day}</label>`).join('')}</div><button data-auto-policy="save" data-student="${escapeHtml(p.student_user_id)}" ${autoPolicyReady?'':'disabled'}>이 학생 설정 저장</button></div>`).join('')}<p id="cqAutoPolicyStatus" class="status">${escapeHtml(autoPolicyMessage)}</p></section>`;
+ let autoPolicies=[],autoPolicyReady=false,autoPolicyOwner=null,autoPolicyMessage='서버 연동 전: 자동 공개 설정을 변경할 수 없습니다.';
+ const autoPolicyPanel=()=>{if(autoPolicyOwner!==cloudIdentity()){autoPolicies=[];autoPolicyReady=false;autoPolicyOwner=null;}return !parentUnlocked||!session?'':`<section class="card"><h2>📅 학생별 자동 공개 요일</h2><p class="muted">승인·PDF 검증된 챕터만 해당 날짜에 공개합니다. 기존 수동 공개는 유지됩니다.</p><button data-auto-policy="refresh">서버 설정 조회</button>${autoPolicies.map(p=>`<div class="book"><b>학생 · ${escapeHtml(p.student_user_id.slice(-8))}</b><label><input type="checkbox" data-auto-enabled="${escapeHtml(p.student_user_id)}" ${p.enabled?'checked':''} ${autoPolicyReady?'':'disabled'}> 자동 공개 사용</label><div class="row">${['월','화','수','목','금','토','일'].map((day,i)=>`<label><input type="checkbox" data-auto-day="${escapeHtml(p.student_user_id)}" value="${i+1}" ${p.weekdays.includes(i+1)?'checked':''} ${autoPolicyReady?'':'disabled'}>${day}</label>`).join('')}</div><button data-auto-policy="save" data-student="${escapeHtml(p.student_user_id)}" ${autoPolicyReady?'':'disabled'}>이 학생 설정 저장</button></div>`).join('')}<p id="cqAutoPolicyStatus" class="status">${escapeHtml(autoPolicyMessage)}</p></section>`;
  document.addEventListener('click',async e=>{
   const button=e.target.closest('[data-auto-policy]');if(!button)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project)return;
@@ -337,7 +337,7 @@
     if(!Array.isArray(rows))throw Error('자동 공개 설정 응답이 올바르지 않습니다.');
     if(cloudIdentity()!==owner)return;
     autoPolicies=rows.map(p=>({student_user_id:p.student_user_id,enabled:p.enabled===true,weekdays:Array.isArray(p.weekdays)?p.weekdays:[]}));
-    autoPolicyReady=true;autoPolicyMessage='서버 설정을 조회했습니다. 변경 후 학생별 저장을 누르세요.';
+    autoPolicyReady=true;autoPolicyOwner=owner;autoPolicyMessage='서버 설정을 조회했습니다. 변경 후 학생별 저장을 누르세요.';
    }else if(button.dataset.autoPolicy==='save'){
     if(!autoPolicyReady)throw Error('서버 설정 조회가 먼저 필요합니다.');
     const id=button.dataset.student;
