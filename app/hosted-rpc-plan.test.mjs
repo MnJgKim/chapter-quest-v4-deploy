@@ -11,3 +11,6 @@ test('approval flag does not enable execution',()=>{const r=buildParentRpcPlan({
 
 test('wrong student weekday is rejected',()=>assert.throws(()=>plan([{student:'서우',lessonDate:'2026-11-24',chapterId:chapter}]),/weekday/));
 test('same chapter across two allowed dates is rejected',()=>assert.throws(()=>plan([{student:'서우',lessonDate:'2026-11-23',chapterId:chapter},{student:'서우',lessonDate:'2026-11-25',chapterId:chapter}]),/Duplicate student chapter/));
+
+test('shared UUID between students is rejected',()=>assert.throws(()=>buildParentRpcPlan({proposed:[],studentUserIds:{'서우':child,'서진':child}}),/share an account/));
+test('malformed date rejects with TypeError',()=>assert.throws(()=>plan([{student:'서우',lessonDate:'2026-99-99',chapterId:chapter}]),/Invalid hosted assignment/));
