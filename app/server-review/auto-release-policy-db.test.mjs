@@ -142,6 +142,19 @@ try {
   assert.ok((await db.query('select released_at from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter])).rows[0].released_at);
   await db.query('delete from public.cq_v4_student_submissions where chapter_uuid=$1',[chapter]);
  });
+ await test('failed submitted-lesson cancellation does not create a tombstone or revoke release',async()=>{
+  await db.query('delete from public.cq_v4_student_submissions where chapter_uuid=$1',[chapter]);
+  await db.query('delete from public.cq_v4_auto_release_cancellations where chapter_id=$1',[chapter]);
+  await db.query('update public.cq_v4_auto_release_arms set revoked_at=null where chapter_id=$1',[chapter]);
+  await db.query('update public.cq_v4_lesson_schedule set released_at=now() where chapter_id=$1',[chapter]);
+  await db.query('insert into public.cq_v4_student_submissions values($1,$2)',[chapter,child]);
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[parent]);
+  await assert.rejects(db.query('select public.cq_v4_parent_cancel_auto_release($1,$2)',[child,chapter]),e=>e.code==='42501');
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_cancellations where chapter_id=$1',[chapter])).rows[0].n,0);
+  assert.equal((await db.query('select revoked_at from public.cq_v4_auto_release_arms where chapter_id=$1',[chapter])).rows[0].revoked_at,null);
+  assert.ok((await db.query('select released_at from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter])).rows[0].released_at);
+  await db.query('delete from public.cq_v4_student_submissions where chapter_uuid=$1',[chapter]);
+ });
  await test('student cannot manually override parent release',async()=>{
   await db.query("select set_config('request.jwt.claim.sub',$1,false)",[child]);
   await assert.rejects(db.query('select public.cq_v4_parent_override_lesson_release($1,$2,false)',[child,chapter]),e=>e.code==='42501');
