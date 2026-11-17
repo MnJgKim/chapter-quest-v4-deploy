@@ -63,3 +63,18 @@ where not exists (
  where act.chapter_uuid=s.chapter_id and act.published_at is not null
   and act.approval_hash ~ '^[0-9a-f]{64}$'
 );
+
+-- Existing future lessons already armed by legacy release flag.
+-- The current cq_v4_is_released gate still prevents early student access.
+select 'future_scheduled_lessons' metric,count(*)::bigint value
+ from public.cq_v4_lesson_schedule
+ where lesson_date >= (now() at time zone 'Asia/Seoul')::date
+union all select 'future_scheduled_prearmed',count(*)::bigint
+ from public.cq_v4_lesson_schedule
+ where lesson_date >= (now() at time zone 'Asia/Seoul')::date
+   and released_at is not null
+union all select 'published_with_matching_approval_request',count(*)::bigint
+ from public.cq_v4_activities a
+ join public.cq_v4_approval_requests r
+  on r.id=a.approval_id and r.content_hash=a.approval_hash
+ where a.published_at is not null;
