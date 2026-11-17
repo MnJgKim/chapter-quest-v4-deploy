@@ -9,3 +9,6 @@ test('unpublished activity excluded',()=>assert.deepEqual(review({...args,chapte
 test('existing off day blocks plan',()=>{const r=review({...args,existing:[{chapterId:'ch-0',lessonDate:'2026-11-26'}]});assert.deepEqual(r.proposals,[]);assert.ok(r.blockers.includes('existing-date-outside-target-schedule'))});
 test('duplicate snapshot blocks plan',()=>assert.deepEqual(review({...args,existing:[{chapterId:'ch-0',lessonDate:'2026-11-24'},{chapterId:'ch-1',lessonDate:'2026-11-24'}]}).proposals,[]));
 test('snapshot must be explicit',()=>assert.throws(()=>review({...args,existing:undefined}),/Complete snapshot/));
+
+test('future lessons outside review horizon are not treated as off-day conflicts',()=>{const r=review({...args,existing:[{chapterId:'ch-9',lessonDate:'2026-12-20'}]});assert.equal(r.readyForParentReview,true);assert.equal(r.proposals.length,3)});
+test('released existing lesson off-day requires separate approval',()=>{const r=review({...args,existing:[{chapterId:'ch-0',lessonDate:'2026-11-26',released:true}]});assert.ok(r.blockers.includes('released-existing-lesson-requires-separate-approval'));assert.deepEqual(r.proposals,[])});
