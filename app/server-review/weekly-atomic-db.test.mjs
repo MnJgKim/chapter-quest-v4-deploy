@@ -96,6 +96,33 @@ try {
   ),e=>e.code==='23505');
   assert.equal((await db.query('select lesson_date::text as date from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2])).rows[0].date,'2026-11-25');
  });
+ await db.exec(await sql('./auto-release-policy.REVIEW.sql'));
+ await db.exec(await sql('./auto-release-cancellations.REVIEW.sql'));
+ await db.exec(await sql('./auto-release-arms.REVIEW.sql'));
+ await db.exec(await sql('./auto-release-week-rpc.REVIEW.sql'));
+ const auto=async(items,user=parent)=>{
+  await db.query("select set_config('request.jwt.claim.sub',$1,false)",[user]);
+  return db.query('select public.cq_v4_parent_schedule_auto_week($1,$2::jsonb) as inserted',[child,JSON.stringify(items)]);
+ };
+ await test('auto scheduling requires explicit parent opt-in',async()=>{
+  await db.query('delete from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2]);
+  await assert.rejects(auto([item(chapter2,'2026-11-27')]),e=>e.code==='42501');
+ });
+ await db.query('insert into public.cq_v4_auto_release_policies(parent_user_id,student_user_id,enabled,weekdays) values($1,$2,true,$3::smallint[])',[parent,child,[1,3,5]]);
+ await test('auto scheduling rejects off-day without writing a row',async()=>{
+  await assert.rejects(auto([item(chapter2,'2026-11-26')]),e=>e.code==='42501');
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_arms')).rows[0].n,0);
+ });
+ await test('auto scheduling arms only a valid future approved chapter',async()=>{
+  const r=await auto([item(chapter2,'2026-11-27')]);
+  assert.equal(r.rows[0].inserted,1);
+  const row=(await db.query('select released_at from public.cq_v4_lesson_schedule where chapter_id=$1',[chapter2])).rows[0];
+  assert.ok(row.released_at);
+  assert.equal((await db.query('select count(*)::int as n from public.cq_v4_auto_release_arms')).rows[0].n,1);
+ });
+ await test('auto scheduling cannot reassign an already scheduled chapter',async()=>{
+  await assert.rejects(auto([item(chapter2,'2026-11-30')]),e=>e.code==='23505');
+ });
  await test('unauthorized user cannot schedule',async()=>{
   await assert.rejects(run([],child),e=>e.code==='42501');
  });
