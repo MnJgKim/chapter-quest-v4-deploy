@@ -51,3 +51,23 @@ test('duplicate original lesson date is rejected before any mutation',async()=>{
   assert.deepEqual(rows.map(x=>x.d),[dates[0],dates[0],...dates.slice(2)]);
  }finally{await db.close();}
 });
+
+test('extra scheduled chapter blocks the remap',async()=>{
+ const db=await setup();
+ try{
+  await db.query('insert into cq_v4_lesson_schedule values ($1,$2,$3,$4,now())',[parent,student,uuid(11),'2026-11-25']);
+  await assert.rejects(db.exec(migration()),/expected 10 future lessons/);
+  await db.exec('rollback;');
+  const rows=(await db.query('select lesson_date::text d from cq_v4_lesson_schedule order by chapter_id')).rows;
+  assert.deepEqual(rows.map(x=>x.d),[...dates,'2026-11-25']);
+ }finally{await db.close();}
+});
+test('unverified student identity cannot change schedules',async()=>{
+ const db=await setup();
+ try{
+  await assert.rejects(db.exec(source.replace(/\nrollback;\s*$/,'\ncommit;\n')),/verified student identity required/);
+  await db.exec('rollback;');
+  const rows=(await db.query('select lesson_date::text d from cq_v4_lesson_schedule order by chapter_id')).rows;
+  assert.deepEqual(rows.map(x=>x.d),dates);
+ }finally{await db.close();}
+});
