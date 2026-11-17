@@ -23,7 +23,7 @@ try {
  create table public.cq_v4_pdf_assignments(chapter_id uuid,student_user_id uuid,primary key(chapter_id,student_user_id));
  create table public.cq_v4_activities(chapter_uuid uuid primary key,published_at timestamptz,approval_id uuid,approval_hash text);
  create table public.cq_v4_approval_requests(id uuid primary key,parent_user_id uuid,chapter_uuid uuid,content_hash text);
- create table public.cq_v4_lesson_schedule(parent_user_id uuid,student_user_id uuid,chapter_id uuid,lesson_date date,timezone text default 'Asia/Seoul',released_at timestamptz,primary key(student_user_id,chapter_id));
+ create table public.cq_v4_lesson_schedule(student_user_id uuid,chapter_id uuid,lesson_date date,timezone text default 'Asia/Seoul',released_at timestamptz,primary key(student_user_id,chapter_id));
  insert into public.cq_admins values ('${parent}');
  insert into public.cq_v4_pdf_enrollments values ('${parent}','${child}');
  insert into public.cq_v4_pdf_chapters values ('${chapter1}','${parent}',true,now()),('${chapter2}','${parent}',true,now());
@@ -84,7 +84,7 @@ try {
  await test('legacy manual-style insert cannot occupy an existing student date',async()=>{
   const extra='88888888-8888-4888-8888-888888888888';
   await assert.rejects(db.query(
-   'insert into public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date) values($1,$2,$3,$4)',
+   'insert into public.cq_v4_lesson_schedule(student_user_id,chapter_id,lesson_date) values($2,$3,$4)',
    [parent,child,extra,'2026-11-23']
   ),e=>e.code==='23505');
   assert.equal((await db.query('select count(*)::int as n from public.cq_v4_lesson_schedule')).rows[0].n,2);
