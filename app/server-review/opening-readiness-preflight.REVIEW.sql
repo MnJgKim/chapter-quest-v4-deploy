@@ -19,7 +19,7 @@ select e.student_user_id,count(distinct a.chapter_id)::bigint as assigned_chapte
 from public.cq_v4_pdf_enrollments e
 left join public.cq_v4_pdf_assignments a on a.student_user_id=e.student_user_id
 left join public.cq_v4_pdf_chapters c on c.chapter_id=a.chapter_id and c.parent_user_id=e.parent_user_id
-left join public.cq_v4_lesson_schedule s on s.student_user_id=e.student_user_id
+left join public.cq_v4_lesson_schedule s on s.student_user_id=e.student_user_id and s.parent_user_id=e.parent_user_id
 group by e.student_user_id order by e.student_user_id;
 
 -- The planner RPCs and book tables must be present before the UI can schedule.
