@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {reconcileStudentSchedule as check} from './schedule-reconciliation.mjs';
+const base={student:'서우',firstDate:'2026-11-23',chapters:['a','b'],existing:[{chapterId:'a',lessonDate:'2026-11-23',released:true},{chapterId:'b',lessonDate:'2026-11-26',released:true}]};
+test('published future rows cannot be automatically rescheduled',()=>{const r=check(base);assert.ok(r.conflicts.includes('published-future-assignment-preserve'));assert.deepEqual(r.proposedChanges,[]);assert.equal(r.writesPerformed,0)});
+test('first lesson missing is detected',()=>assert.ok(check({...base,existing:[]}).conflicts.includes('first-lesson-unassigned')));
+test('wrong weekday detected',()=>assert.ok(check({...base,existing:[{chapterId:'a',lessonDate:'2026-11-24',released:false}]}).conflicts.includes('off-day-existing-assignment')));
+test('duplicate existing chapter detected',()=>assert.ok(check({...base,existing:[{chapterId:'a',lessonDate:'2026-11-23'},{chapterId:'a',lessonDate:'2026-11-25'}]}).conflicts.includes('duplicate-existing-assignment')));
+test('incomplete catalog detected',()=>assert.ok(check({...base,chapters:['a']}).conflicts.includes('incomplete-chapter-catalog')));
+test('Seojin first date absent is detected',()=>assert.ok(check({student:'서진',firstDate:'2026-11-24',chapters:[],existing:[]}).conflicts.includes('first-lesson-unassigned')));
+test('invalid date rejected',()=>assert.throws(()=>check({...base,firstDate:'2026-11-31'}),/Invalid input/));
+test('unknown student rejected',()=>assert.throws(()=>check({...base,student:'시우'}),/Unknown student/));
