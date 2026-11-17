@@ -36,7 +36,8 @@ begin
    where parent_user_id=v_parent and student_user_id=p_student_user_id
     and chapter_id=p_chapter_id and revoked_at is null;
   update public.cq_v4_lesson_schedule set released_at=null
-   where student_user_id=p_student_user_id and chapter_id=p_chapter_id;
+   where parent_user_id=v_parent and student_user_id=p_student_user_id
+    and chapter_id=p_chapter_id;
  end if;
  -- Legacy manual releases have no arm record and are untouched.
 end $fn$;
