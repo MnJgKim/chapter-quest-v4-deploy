@@ -17,7 +17,7 @@ begin
   raise exception 'Parent authorization required' using errcode='42501';
  end if;
  if p_student_user_id is null or p_items is null or jsonb_typeof(p_items)<>'array'
-    or jsonb_array_length(p_items)>31 then
+    or jsonb_array_length(p_items)=0 or jsonb_array_length(p_items)>31 then
   raise exception 'Invalid schedule batch' using errcode='22023';
  end if;
  -- Serializes requests for this enrolled student, including concurrent batch calls.
