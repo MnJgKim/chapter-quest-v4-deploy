@@ -7,7 +7,7 @@ const schema=JSON.parse(read('server-review/fixtures/live_schema.json'));
 const tables=JSON.parse(read('server-review/fixtures/table_metadata.json'));
 const worker=read('worker.mjs');
 const wrangler=JSON.parse(read('../wrangler.jsonc'));
-const names=new Set(tables.map(t=>t.name.replace(/^public\\./,'')));
+const names=new Set(tables.map(t=>t.name.startsWith('public.')?t.name.slice(7):t.name));
 const functions=new Set(schema.functions.map(f=>f.name));
 const buckets=new Map(schema.buckets.map(b=>[b.id,b]));
 const checks={
