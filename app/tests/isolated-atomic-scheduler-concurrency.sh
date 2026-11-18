@@ -32,6 +32,13 @@ VALUES('$student',ARRAY[1,2,3,4,5,6,7],DATE '2020-01-01');
 SQL
 first=$(mktemp); second=$(mktemp)
 trap 'rm -f "$first" "$second"; cleanup' EXIT
+# Ensure all background sessions are reaped before deleting fixtures on failure.
+wait_for_children() {
+  for pid in "${pid_a:-}" "${pid_b:-}"; do
+    if [[ -n "$pid" ]]; then wait "$pid" 2>/dev/null || true; fi
+  done
+}
+trap 'wait_for_children; rm -f "$first" "$second"; cleanup' EXIT
 # Session A holds the student/day lock before scheduling. Session B must wait.
 psql -X -At -v ON_ERROR_STOP=1 >"$first" <<SQL &
 BEGIN;
