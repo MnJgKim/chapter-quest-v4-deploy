@@ -52,6 +52,36 @@ BEGIN
  IF NOT public.cq_v4_can_read_lesson('33333333-3333-4333-8333-333333333333','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
    RAISE EXCEPTION 'Historical read denied'; END IF;
 END $test$;
+-- After submission, new recording writes must be blocked while PDF history stays readable.
+DO $post_submit$
+BEGIN
+ BEGIN
+   INSERT INTO storage.objects(bucket_id,name) VALUES
+     ('cq-v4-speaking','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb/33333333-3333-4333-8333-333333333333.ogg');
+   RAISE EXCEPTION 'Recording upload allowed after immutable submission';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+ IF NOT public.cq_v4_can_read_lesson('33333333-3333-4333-8333-333333333333',
+     'bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
+   RAISE EXCEPTION 'Historical PDF reading denied after submission'; END IF;
+END $post_submit$;
+-- A different authenticated student cannot see the chapter list or submitted PDF.
+SELECT set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-cccc-cccccccccccc',true);
+DO $other_student$
+BEGIN
+ IF (SELECT count(*) FROM public.cq_v4_my_released_chapters()) <> 0 THEN
+   RAISE EXCEPTION 'Cross-student chapter listing exposed'; END IF;
+ IF public.cq_v4_can_read_lesson('33333333-3333-4333-8333-333333333333',
+     'cccccccc-cccc-4ccc-cccc-cccccccccccc') THEN
+   RAISE EXCEPTION 'Cross-student historical PDF reading exposed'; END IF;
+ BEGIN
+   PERFORM public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333',
+     '{"readComplete":true,"answers":["0"],"essay":"Other student","speaking":"Other","hasAudio":true}'::jsonb);
+   RAISE EXCEPTION 'Cross-student submission accepted';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+END $other_student$;
+SELECT set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',true);
 -- A second submission must be idempotent: no additional row or mutation.
 SELECT chapter_uuid FROM public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333',
  '{"readComplete":true,"answers":["1"],"essay":"Attempted overwrite","speaking":"Changed","hasAudio":true}'::jsonb);
