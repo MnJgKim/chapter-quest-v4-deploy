@@ -52,20 +52,20 @@ INSERT INTO public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_
 VALUES ('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',
  '22222222-2222-4222-8222-222222222222',(now() AT TIME ZONE 'Asia/Seoul')::date + 3);
 SET LOCAL ROLE authenticated;
-DO $
+DO $audit$
 BEGIN
  IF public.cq_v4_ensure_today_approved_lesson() IS NOT NULL THEN
   RAISE EXCEPTION 'Existing parent schedule overwritten';
  END IF;
-END $;
+END $audit$;
 SET LOCAL ROLE postgres;
-DO $
+DO $audit$
 BEGIN
  IF (SELECT lesson_date FROM public.cq_v4_lesson_schedule
      WHERE chapter_id='22222222-2222-4222-8222-222222222222')
     IS DISTINCT FROM (now() AT TIME ZONE 'Asia/Seoul')::date+3 THEN
   RAISE EXCEPTION 'Parent schedule changed';
  END IF;
-END $;
+END $audit$;
 ROLLBACK;
 \echo 'ATOMIC_WEEKDAY_SCHEDULER_ASSERTIONS_PASSED'
