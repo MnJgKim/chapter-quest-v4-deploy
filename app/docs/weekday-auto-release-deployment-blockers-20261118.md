@@ -29,3 +29,30 @@ A configured weekday must automatically expose the *next parent-approved, pre-as
 
 ## No-repeat rule
 Do not repeat passed CI, tablet login, PDF, audio or submission checks. Run only new scheduler and release-invariant tests, plus release-specific smoke checks after explicit deployment approval.
+
+## Candidate handoff
+
+Install the reviewed weekday policy and approved queue before
+`student-auto-release-existing-schedule.REVIEW-ONLY.sql`. The student transport
+already calls the scheduler, then the hosted released-list RPC. The scheduler
+sets the existing release flag on the first student request on or after Seoul
+midnight of an eligible date. It preserves explicit dates and falls back to
+the approved ordinal queue only when there is no reserved slot or unfinished
+earlier scheduled lesson. Off-pattern manual releases keep the existing date
+gate. A parent hide made after installation pauses automatic release.
+
+Before activation, verify the exact student and parent account IDs through the
+approved identity and enrollment records. The repository audit prefix is not a
+configuration value. As part of the authorized rollout, configure those verified
+student IDs in `cq_v4_student_weekday_policy` with ISO weekdays
+`ARRAY[1,3,4]` for 서우 and `ARRAY[2,3,5]` for 서진 and an agreed Seoul
+effective date. Leave 시우 without an enabled row until their policy is approved.
+Populate the queue only from explicit approval and pre-existing assignments.
+Keep 서진's queue and schedule empty until her PDF and assignment are approved.
+
+The captured hosted parent scheduler does not take the shared student/day and
+student/chapter locks. Reconcile and validate all hosted schedule writers and
+the submit RPC against that lock order before enabling this candidate. Existing
+null release flags do not reveal whether the parent previously hid a lesson.
+Review any such holds before enabling the policy. No production policy, queue,
+schedule, or deployment is changed by this branch.

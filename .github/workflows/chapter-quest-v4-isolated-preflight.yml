@@ -112,6 +112,13 @@ jobs:
         run: bash app/tests/isolated-parent-reread-concurrency.sh
       - name: Verify two concurrent atomic submissions preserve one frozen answer
         run: bash app/tests/isolated-atomic-submit-concurrency.sh
+      - name: Verify student automatic release with the hosted date gate
+        run: |
+          node --test app/tests/student-auto-release-static.test.mjs
+          psql -v ON_ERROR_STOP=1 -f app/sql/student-auto-release-existing-schedule.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-student-auto-release.sql
+          psql -v ON_ERROR_STOP=1 -f app/server-review/release-auth-candidate.sql
+          bash app/tests/isolated-student-auto-release-concurrency.sh
       - name: Publish isolated PostgreSQL verification summary
         if: success()
         run: |
