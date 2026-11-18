@@ -5,11 +5,14 @@ on:
     paths:
       - '.github/workflows/chapter-quest-v4-isolated-preflight.yml'
       - 'app/tests/**'
+      - 'app/public/index.html'
       - 'app/public/js/student-app.js'
       - 'app/public/js/parent-app.js'
       - 'app/public/js/student-api.js'
       - 'app/public/js/pdf-transport.js'
       - 'app/sql/**'
+      - 'review/student-release-entrypoint.test.mjs'
+      - 'review/sql-candidates/seojin-seven-lessons.ISOLATED-TEST.sql'
       - 'review/sql-candidates/cq_v4_my_lesson_schedule_release_guard.sql'
       - 'review/sql-candidates/cq_v4_parent_reread_notices.REVIEW-ONLY.sql'
       - 'review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql'
@@ -119,6 +122,11 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-student-auto-release.sql
           psql -v ON_ERROR_STOP=1 -f app/server-review/release-auth-candidate.sql
           bash app/tests/isolated-student-auto-release-concurrency.sh
+      - name: Verify first lesson midnight and the versioned student entry point
+        run: |
+          node --test review/student-release-entrypoint.test.mjs
+          createdb cq_v4_first_lesson_test
+          psql -d cq_v4_first_lesson_test -v ON_ERROR_STOP=1 -f review/sql-candidates/seojin-seven-lessons.ISOLATED-TEST.sql
       - name: Publish isolated PostgreSQL verification summary
         if: success()
         run: |
