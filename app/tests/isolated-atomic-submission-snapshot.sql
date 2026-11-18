@@ -55,8 +55,10 @@ INSERT INTO storage.objects(bucket_id,name) VALUES
  ('cq-v4-speaking','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb/33333333-3333-4333-8333-333333333333.webm');
 -- Deliberately fail capture AFTER submission INSERT; the exception subtransaction
 -- must roll back the submission and its snapshot, not leave an orphan.
+RESET ROLE;
 UPDATE public.cq_v4_activities SET approval_hash='deliberately-mismatched'
  WHERE chapter_uuid='33333333-3333-4333-8333-333333333333';
+SET LOCAL ROLE authenticated;
 DO $atomic_rollback$
 BEGIN
  BEGIN
@@ -68,8 +70,10 @@ BEGIN
  OR EXISTS(SELECT 1 FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id=auth.uid() AND chapter_uuid='33333333-3333-4333-8333-333333333333')
  THEN RAISE EXCEPTION 'Failed capture left partial submission or snapshot';END IF;
 END $atomic_rollback$;
+RESET ROLE;
 UPDATE public.cq_v4_activities SET approval_hash='frozen-approved'
  WHERE chapter_uuid='33333333-3333-4333-8333-333333333333';
+SET LOCAL ROLE authenticated;
 SELECT chapter_uuid FROM public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333',
  '{"readComplete":true,"answers":["0"],"essay":"Test","speaking":"Test","hasAudio":true}'::jsonb);
 DO $test$
