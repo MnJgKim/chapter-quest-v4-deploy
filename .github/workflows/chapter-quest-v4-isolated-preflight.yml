@@ -1,0 +1,48 @@
+name: Chapter Quest V4 isolated security preflight
+on:
+  push:
+    branches: [work/hosted-readonly-preflight-20261117]
+    paths:
+      - '.github/workflows/chapter-quest-v4-isolated-preflight.yml'
+      - 'app/tests/lesson-day-authorization-static.test.mjs'
+      - 'app/sql/**'
+      - 'app/supabase/functions/cq-v4-pdf-link/index.ts'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-and-postgres-availability:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: cq_v4_isolated
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: isolated-test-only
+      PGDATABASE: cq_v4_isolated
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run original repository Node tests
+        run: node --test app/tests/lesson-day-authorization-static.test.mjs
+      - name: Confirm isolated PostgreSQL 16 (no Supabase credentials)
+        run: |
+          psql -v ON_ERROR_STOP=1 -c 'SELECT current_database(), current_user, version();'
+          psql -v ON_ERROR_STOP=1 -c 'SELECT count(*) AS production_tables_expected_zero FROM pg_catalog.pg_tables WHERE schemaname = '\''public'\'';'
+      - name: Record remaining SQL integration prerequisites
+        run: |
+          echo 'SQL/RLS integration is NOT complete: Supabase auth/storage schemas and application tables must be bootstrapped in this isolated DB.'
+          echo 'Never point this workflow at production Supabase.'
