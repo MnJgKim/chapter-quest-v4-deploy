@@ -33,3 +33,29 @@ test('unrelated 404 errors do not bypass scheduler checks',async()=>{
  await assert.rejects(api.assignedChapters(),/404/);
  assert.deepEqual(calls,['cq_v4_ensure_today_approved_lesson']);
 });
+
+test('missing scheduler cannot expose a future or unauthorized chapter',async()=>{
+ const calls=[];
+ const fetchImpl=async(endpoint)=>{
+   const name=endpoint.split('/').at(-1);calls.push(name);
+   if(name==='cq_v4_ensure_today_approved_lesson')return {ok:false,status:404,json:async()=>({message:'Could not find the function public.cq_v4_ensure_today_approved_lesson in the schema cache'})};
+   if(name==='cq_v4_my_released_chapters')return {ok:true,json:async()=>[]};
+   throw Error('Unexpected RPC');
+ };
+ const api=globalThis.CQStudentAPI.createStudentAPI({url,anonKey:'test-public-key',getAccessToken:async()=> 'test-token',fetchImpl});
+ assert.deepEqual(await api.assignedChapters(),[]);
+ assert.deepEqual(calls,['cq_v4_ensure_today_approved_lesson','cq_v4_my_released_chapters']);
+});
+
+test('missing scheduler never bypasses a denied released-chapter list',async()=>{
+ const calls=[];
+ const fetchImpl=async(endpoint)=>{
+   const name=endpoint.split('/').at(-1);calls.push(name);
+   if(name==='cq_v4_ensure_today_approved_lesson')return {ok:false,status:404,json:async()=>({message:'Could not find the function public.cq_v4_ensure_today_approved_lesson in the schema cache'})};
+   if(name==='cq_v4_my_released_chapters')return {ok:false,status:403,json:async()=>({message:'permission denied'})};
+   throw Error('Unexpected RPC');
+ };
+ const api=globalThis.CQStudentAPI.createStudentAPI({url,anonKey:'test-public-key',getAccessToken:async()=> 'test-token',fetchImpl});
+ await assert.rejects(api.assignedChapters(),/403/);
+ assert.deepEqual(calls,['cq_v4_ensure_today_approved_lesson','cq_v4_my_released_chapters']);
+});
