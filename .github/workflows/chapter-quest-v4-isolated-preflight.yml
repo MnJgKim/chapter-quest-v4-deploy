@@ -41,7 +41,7 @@ jobs:
       - name: Confirm isolated PostgreSQL 16 (no Supabase credentials)
         run: |
           psql -v ON_ERROR_STOP=1 -c 'SELECT current_database(), current_user, version();'
-          psql -v ON_ERROR_STOP=1 -c 'SELECT count(*) AS production_tables_expected_zero FROM pg_catalog.pg_tables WHERE schemaname = '\''public'\'';'
+          psql -v ON_ERROR_STOP=1 -c "SELECT count(*) AS production_tables_expected_zero FROM pg_catalog.pg_tables WHERE schemaname = 'public';"
       - name: Record remaining SQL integration prerequisites
         run: |
           echo 'SQL/RLS integration is NOT complete: Supabase auth/storage schemas and application tables must be bootstrapped in this isolated DB.'
