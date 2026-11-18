@@ -457,7 +457,10 @@ function seoulLessonDate(){
     status('같은 계정의 유효 세션을 확인했습니다. 작성 중인 답안·녹음은 그대로이며 자동 갱신은 하지 않았습니다.');return;
    }
    if(b.dataset.child==='pdf-retry'){
-    const form=el('cqChildWork'),uuid=form?.dataset.uuid;
+    const form=el('cqChildWork'),detail=el('cqChildDetail');
+    // Submitted work has no editable form. Retry its original PDF using the
+    // currently displayed, server-authorized chapter rather than losing history.
+    const uuid=form?.dataset.uuid||detail?.dataset.viewChapter;
     if(!session||!uuid||!chapters.some(c=>c.chapter_uuid===uuid))throw Error('현재 배정 챕터를 확인하세요.');
     await loadServerPdf(uuid,session.uid,childGeneration);return;
    }
