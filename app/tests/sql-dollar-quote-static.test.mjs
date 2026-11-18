@@ -1,13 +1,10 @@
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 
-const files = [
-  'app/tests/isolated-postgres-makeup-audit.sql',
-  'app/tests/isolated-approved-weekday-release-gate.sql',
-  'app/tests/isolated-atomic-weekday-scheduler.sql',
-  'app/tests/isolated-approved-chapter-queue.sql',
-];
+const files = readdirSync('app/tests')
+  .filter(name => name.startsWith('isolated-') && name.endsWith('.sql'))
+  .map(name => `app/tests/${name}`);
 test('isolated SQL files have no malformed DO $ anonymous blocks', () => {
   for (const file of files) {
     const sql = readFileSync(file, 'utf8');
