@@ -37,7 +37,7 @@ INSERT INTO public.cq_v4_pdf_assignments VALUES
 INSERT INTO public.cq_v4_activities VALUES
  ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',now(),'[]');
 SET LOCAL ROLE authenticated;
-DO $
+DO $audit$
 BEGIN
  BEGIN
   PERFORM public.cq_v4_parent_schedule_lesson('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',
@@ -45,15 +45,15 @@ BEGIN
   RAISE EXCEPTION 'Second chapter scheduled on occupied day';
  EXCEPTION WHEN unique_violation THEN NULL;
  END;
-END $;
+END $audit$;
 SET LOCAL ROLE postgres;
-DO $
+DO $audit$
 BEGIN
  IF EXISTS (SELECT 1 FROM public.cq_v4_lesson_schedule
    WHERE chapter_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee') THEN
    RAISE EXCEPTION 'Conflicting chapter schedule was persisted';
  END IF;
-END $;
+END $audit$;
 INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','{}');
 SET LOCAL ROLE authenticated;
 DO $$
@@ -75,10 +75,10 @@ BEGIN
  END;
 END $$;
 SET LOCAL ROLE postgres;
-DO $
+DO $audit$
 BEGIN
  IF (SELECT count(*) FROM public.cq_v4_makeup_approvals)!=1 THEN RAISE EXCEPTION 'Audit count changed after rejected requests'; END IF;
  IF (SELECT lesson_date FROM public.cq_v4_lesson_schedule WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb')!=(now() AT TIME ZONE 'Asia/Seoul')::date THEN RAISE EXCEPTION 'Rejected request changed schedule'; END IF;
-END $;
+END $audit$;
 ROLLBACK;
 \echo 'MAKEUP_AUDIT_ASSERTIONS_PASSED'
