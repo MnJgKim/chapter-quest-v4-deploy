@@ -262,7 +262,10 @@ if(a==='remove-demo-draft'){
  const backup=JSON.stringify({format:'cq-v4-single-demo-draft',recordKey,record,createdAt:new Date().toISOString()});
  const blob=new Blob([backup],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
  link.href=url;link.download='cq-v4-seowoo-demo-draft-backup.json';document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),60000);
- delete state.records[recordKey];save();render();alert('기기 데모 작성 중 기록만 정리했습니다. 백업 파일을 보관하세요.');return;
+ const previousRecords=state.records;
+ state.records={...previousRecords};delete state.records[recordKey];
+ if(!save()){state.records=previousRecords;alert('저장에 실패하여 데모 기록을 유지했습니다.');return;}
+ render();alert('기기 데모 작성 중 기록만 정리했습니다. 백업 파일을 보관하세요.');return;
 }
 if(a==='home'){view='home';render()}
 if(a==='open'){
