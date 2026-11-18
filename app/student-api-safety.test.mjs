@@ -66,3 +66,24 @@ test('invalid chapter IDs block student submission and lookup before network',as
   }
   assert.equal(calls.length,0);
 });
+
+test('actual student UI API invokes atomic scheduler before authorized list',async()=>{
+  const calls=[];
+  const api=client({calls,responses:{cq_v4_ensure_today_approved_lesson:null,cq_v4_my_released_chapters:[]}});
+  assert.deepEqual(await api.assignedChapters(),[]);
+  assert.deepEqual(calls.map(x=>x.url.split('/').pop()),[
+    'cq_v4_ensure_today_approved_lesson','cq_v4_my_released_chapters'
+  ]);
+});
+
+test('actual student UI API does not read chapters when scheduling is denied',async()=>{
+  const calls=[];
+  const context=vm.createContext({URL,AbortController,DOMException,fetch:()=>{throw Error('Unexpected network')}});
+  vm.runInContext(source,context);
+  const api=context.CQStudentAPI.createStudentAPI({
+    url:'https://example.supabase.co',anonKey:'public-anon',getAccessToken:async()=> 'student-token',
+    fetchImpl:async url=>{calls.push(url.split('/').pop());return {ok:false,status:403,json:async()=>({message:'denied'})}}
+  });
+  await assert.rejects(api.assignedChapters(),/Student request failed/);
+  assert.deepEqual(calls,['cq_v4_ensure_today_approved_lesson']);
+});
