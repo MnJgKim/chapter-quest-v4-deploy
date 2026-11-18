@@ -50,6 +50,16 @@ BEGIN
  BEGIN PERFORM public.cq_v4_parent_ack_reread_notice((SELECT id FROM public.cq_v4_reread_notices LIMIT 1));RAISE EXCEPTION 'Student acknowledged parent notice';
  EXCEPTION WHEN insufficient_privilege THEN NULL;END;
  IF EXISTS(SELECT 1 FROM public.cq_v4_parent_reread_inbox()) THEN RAISE EXCEPTION 'Student read parent inbox';END IF;
+ PERFORM set_config('request.jwt.claim.sub','eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee',true);
+ IF EXISTS(SELECT 1 FROM public.cq_v4_parent_reread_inbox()) THEN RAISE EXCEPTION 'Other parent read inbox';END IF;
+ BEGIN PERFORM public.cq_v4_parent_ack_reread_notice((SELECT id FROM public.cq_v4_reread_notices LIMIT 1));
+ RAISE EXCEPTION 'Other parent acknowledged notice';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ PERFORM set_config('request.jwt.claim.sub','',true);
+ IF EXISTS(SELECT 1 FROM public.cq_v4_parent_reread_inbox()) THEN RAISE EXCEPTION 'Anonymous read inbox';END IF;
+ BEGIN PERFORM public.cq_v4_parent_ack_reread_notice((SELECT id FROM public.cq_v4_reread_notices LIMIT 1));
+ RAISE EXCEPTION 'Anonymous acknowledged notice';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
  PERFORM set_config('request.jwt.claim.sub',p::text,true);
  -- A 70% submission must never generate an additional notice.
  UPDATE public.cq_v4_student_submissions SET answers='{"answers":["0","0","0","0","0","0","0","1","1","1"]}'::jsonb WHERE chapter_uuid=c;
