@@ -27,7 +27,10 @@ test('weekly schedule accepts ISO Seoul lesson dates rather than literal backsla
 test('weekly lesson button requires server-approved list AND released schedule flag',()=>{
   assert.match(source,/const authorized=chapters\.some\(ch=>ch\.chapter_uuid===c\.chapter_uuid\)/);
   assert.match(source,/available:authorized,is_released:authorized&&c\.is_released===true/);
-  assert.match(source,/c\.lesson_date!==todaySeoul\|\|!c\.available\|\|!c\.is_released/);
+  assert.match(source,/c\.lesson_date>todaySeoul\|\|!c\.available\|\|!c\.is_released/);
+  assert.match(source,/c\.lesson_date===todaySeoul&&c\.available&&c\.is_released\?'학습 시작'/);
+  assert.match(source,/c\.lesson_date<todaySeoul&&c\.available&&c\.is_released\?'지난 수업 확인'/);
+  assert.match(source,/if\(!submitted&&c\.lesson_date!==seoulLessonDate\(\)\)throw Error/);
 });
 
 test('review-only weekly schedule release uses approved gate and immutable history, not manual release',async()=>{
@@ -52,9 +55,10 @@ test('audio recovery signed URL must target exact student chapter object and con
 });
 
 test('student login reports weekly schedule RPC failure instead of silently showing empty week',()=>{
-  assert.match(source,/let scheduleError=null;/);
-  assert.match(source,/fetchStudentLessonSchedule\(\)\.catch\(error=>\{lessonSchedule=\[\];scheduleError=error;\}\)/);
-  assert.match(source,/if\(scheduleError\)status\('로그인은 성공했지만 주간 일정 조회에 실패했습니다/);
+  assert.match(source,/async function refreshStudentScheduleNotice\(\)/);
+  assert.match(source,/try\{await fetchStudentLessonSchedule\(\);return null\}/);
+  assert.match(source,/catch\(error\)\{lessonSchedule=\[\];return '주간 일정 조회 실패: '\+error\.message/);
+  assert.match(source,/const scheduleNotice=await refreshStudentScheduleNotice\(\);draw\(\);status\(scheduleNotice\|\|/);
 });
 
 test('student schedule failure is surfaced on all lesson refresh paths',()=>{
