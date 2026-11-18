@@ -27,6 +27,28 @@ $$;
 REVOKE ALL ON FUNCTION public.cq_v4_can_start_lesson(uuid,uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.cq_v4_can_start_lesson(uuid,uuid) TO authenticated;
 
+-- Historical read is an explicit SECURITY DEFINER predicate because the
+-- submission table intentionally has RLS enabled and NO client SELECT policy.
+-- This function returns only a boolean, never another student's submission.
+CREATE OR REPLACE FUNCTION public.cq_v4_can_read_lesson(p_chapter uuid,p_student uuid)
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
+AS $
+ SELECT p_student=(SELECT auth.uid())
+   AND (
+     public.cq_v4_can_start_lesson(p_chapter,p_student)
+     OR EXISTS (
+       SELECT 1 FROM public.cq_v4_student_submissions done
+       JOIN public.cq_v4_pdf_chapters c ON c.chapter_id=done.chapter_uuid AND c.pdf_ready IS TRUE
+       JOIN public.cq_v4_pdf_assignments a ON a.chapter_id=c.chapter_id AND a.student_user_id=done.child_user_id
+       JOIN public.cq_v4_pdf_enrollments e ON e.parent_user_id=c.parent_user_id AND e.student_user_id=done.child_user_id
+       JOIN public.cq_v4_activities act ON act.chapter_uuid=c.chapter_id AND act.published_at IS NOT NULL
+       WHERE done.chapter_uuid=p_chapter AND done.child_user_id=p_student
+     )
+   );
+$;
+REVOKE ALL ON FUNCTION public.cq_v4_can_read_lesson(uuid,uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_can_read_lesson(uuid,uuid) TO authenticated;
+
 -- Recommended RPC refactor in the same atomic migration:
 -- In cq_v4_submit_answers, keep existing validation and idempotency semantics.
 -- Before processing a NEW submission, check:
