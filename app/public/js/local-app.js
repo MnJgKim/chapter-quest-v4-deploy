@@ -257,7 +257,7 @@ if(a==='remove-demo-draft'){
  const recordKey=btn.dataset.recordKey,record=state.records[recordKey];
  if(!record||record.submitted||!recordKey.startsWith('서우::')){alert('서우의 제출 전 기기 데모 기록만 정리할 수 있습니다.');return;}
  const parts=recordKey.split('::'),b=state.books.find(x=>x.id===parts[1]),c=b?.chapters.find(x=>x.id===parts[2]);
- if(!b||!c||b.title!=='Magic Tree House #2'||!/^Chapter 1(?:\\b|\\s|$)/i.test(c.title)){alert('선택한 기록은 정리 대상이 아닙니다.');return;}
+ if(!b||!c||b.title!=='Magic Tree House #2'||!/^Chapter 1(?:\b|\s|$)/i.test(c.title)){alert('선택한 기록은 정리 대상이 아닙니다.');return;}
  if(!confirm('서우의 '+b.title+' · '+c.title+' 기기 데모 작성 중 기록만 정리할까요? 서버 제출·배정·PDF는 변경되지 않습니다.'))return;
  const backup=JSON.stringify({format:'cq-v4-single-demo-draft',recordKey,record,createdAt:new Date().toISOString()});
  const blob=new Blob([backup],{type:'application/json'}),url=URL.createObjectURL(blob),link=document.createElement('a');
