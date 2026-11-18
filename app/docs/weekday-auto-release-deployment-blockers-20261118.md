@@ -51,9 +51,19 @@ configuration preserves them. Leave 시우 without an enabled row until their po
 Populate the queue only from explicit approval and pre-existing assignments.
 Keep 서진's queue and schedule empty until her PDF and assignment are approved.
 
-The captured hosted parent scheduler does not take the shared student/day and
-student/chapter locks. Reconcile and validate all hosted schedule writers and
-the submit RPC against that lock order before enabling this candidate. Existing
-null release flags do not reveal whether the parent previously hid a lesson.
-Review any such holds before enabling the policy. No production policy, queue,
-schedule, or deployment is changed by this branch.
+The reviewed candidate installs the automatic scheduler, parent schedule and
+release RPCs, and student submit RPC in one transaction. All four obtain the
+same student-scoped lock before reading mutable schedule or submission state.
+Rows already present at installation start with automatic release paused,
+preserving any old hide encoded as a null release flag. Existing release flags
+and lesson dates are preserved. An explicit parent release can clear a pause.
+
+The 2026-11-18 KST read-only audit found no installed weekday policy or approved
+queue. The ten lessons on the likely 서우 account in the existing audit run
+from November 23 through December 14, with no duplicate dates, off-pattern
+dates or null release flags. The account has one enrolled parent but no
+approved 서우 invitation or corroborating profile label. Verify the mapping
+with the enrolled parent before activation. November 23 is the proposed
+policy effective date, with the first eligible 서진 day on November 24.
+서진 and 시우 have approved enrolled accounts, with zero assigned, PDF-ready
+or scheduled chapters. No hosted data or deployment was changed.

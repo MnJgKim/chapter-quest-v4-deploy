@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const sql = fs.readFileSync(new URL('../sql/student-auto-release-existing-schedule.REVIEW-ONLY.sql', import.meta.url), 'utf8');
+const sql = fs.readFileSync(new URL('../sql/student-auto-release-existing-schedule.REVIEW-ONLY.sql', import.meta.url), 'utf8').split('-- Hosted RPC definitions')[0];
 
 test('student RPC exposes only the server clock and authenticated identity', () => {
   assert.match(sql, /v_student uuid := \(SELECT auth\.uid\(\)\)/);
