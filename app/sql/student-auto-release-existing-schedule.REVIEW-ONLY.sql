@@ -33,7 +33,7 @@ BEGIN
   ) THEN RETURN NULL; END IF;
 
   -- Refuse ambiguous dates; never pick a chapter arbitrarily.
-  SELECT count(*), min(s.chapter_id)
+  SELECT count(DISTINCT s.chapter_id), min(s.chapter_id::text)::uuid
     INTO v_count, v_chapter
   FROM public.cq_v4_lesson_schedule s
   JOIN public.cq_v4_pdf_assignments a
