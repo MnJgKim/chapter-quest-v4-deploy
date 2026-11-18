@@ -20,7 +20,7 @@ AS $$
      JOIN public.cq_v4_pdf_enrollments e ON e.parent_user_id=s.parent_user_id AND e.student_user_id=s.student_user_id
      JOIN public.cq_v4_activities act ON act.chapter_uuid=s.chapter_id AND act.published_at IS NOT NULL
      WHERE s.chapter_id=p_chapter AND s.student_user_id=p_student
-       AND s.released_at IS NOT NULL
+       -- The assigned Seoul lesson date, not a manual released_at flag, opens new work.
        AND s.lesson_date=(now() AT TIME ZONE 'Asia/Seoul')::date
    );
 $$;
