@@ -64,7 +64,7 @@ jobs:
       - name: Verify PDF signer authorization before service-role signing
         run: node --test app/tests/pdf-signer-approved-gate-static.test.mjs
       - name: Check parallel regression shell syntax before database execution
-        run: bash -n app/tests/isolated-atomic-scheduler-concurrency.sh
+        run: bash -n app/tests/isolated-atomic-scheduler-concurrency.sh app/tests/isolated-atomic-submit-concurrency.sh
       - name: Confirm isolated PostgreSQL 16 (no Supabase credentials)
         run: |
           psql -v ON_ERROR_STOP=1 -c 'SELECT current_database(), current_user, version();'
@@ -98,6 +98,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-approved-release-rpc-storage.sql
       - name: Verify atomic submission and immutable snapshot against isolated PostgreSQL
         run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-atomic-submission-snapshot.sql
+      - name: Verify two concurrent atomic submissions preserve one frozen answer
+        run: bash app/tests/isolated-atomic-submit-concurrency.sh
       - name: Verify weekly schedule release RPC against isolated PostgreSQL
         run: |
           psql -v ON_ERROR_STOP=1 -f review/sql-candidates/cq_v4_my_lesson_schedule_release_guard.sql
