@@ -80,6 +80,15 @@ jobs:
             echo 'Verified markers are emitted by their respective psql/bash test steps.'
             echo 'This is not verification of production Supabase, Cloudflare, or student devices.'
           } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish isolated PostgreSQL failure summary
+        if: failure()
+        run: |
+          {
+            echo '## Chapter Quest V4 isolated PostgreSQL 16'
+            echo 'Result: one or more prior steps failed. Do not treat assertion markers as passed.'
+            echo 'Open the first failed step in this workflow run to obtain the PostgreSQL error and exit code.'
+            echo 'No production Supabase or Cloudflare service was used by this workflow.'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Record remaining SQL integration prerequisites
         run: |
           echo 'Isolated bootstrap and SQL assertions ran; real Supabase Auth/Storage, JWT issuance, Edge signing and production concurrency remain unverified.'
