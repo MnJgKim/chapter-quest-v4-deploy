@@ -94,6 +94,7 @@
  <div class="grid"><label>부모 이메일<input class="wide" id="cloudEmail" type="email" autocomplete="email"></label><label>비밀번호<input class="wide" id="cloudPassword" type="password" autocomplete="current-password"></label></div>
  <div class="row"><button data-cloud="login">로그인</button><button data-cloud="logout">로그아웃</button><button data-cloud="push" ${session?'':'disabled'}>현재 기록 클라우드에 저장</button><button data-cloud="pull" ${session?'':'disabled'}>클라우드 기록 복원</button></div>
  <label><input type="checkbox" id="cloudAuto" ${auto?'checked':''} ${session?'':'disabled'}> 이 탭에서 변경 사항 자동 동기화</label><p class="note">클라우드 복원 시 기존 로컬 기록을 먼저 JSON으로 자동 백업합니다. 다른 기기의 기록과 자동 병합하지 않습니다.</p><p id="cloudStatus" class="status">${session?'로그인됨':'로그인 필요'}</p></section>`;
+ let rereadNotices=[]; let rereadOwner=null; let rereadAvailable=false; let rereadBusy=false;
  let submissions=[]; let feedbackBusy=false; let pendingChildren=[]; let issuedInvite="";
  const parentStatus=t=>{const e=document.getElementById('cqParentFeedbackStatus');if(e)e.textContent=t};
  const invitationPanel=()=>!parentUnlocked||!session?'':`<section class="card"><h2>🔗 학생 계정 초대·승인·연결 해제 (시험 기능)</h2><p class="muted">부모 Supabase 로그인 후 일회용 코드를 발급하세요. 코드는 15분 유효하며 학생이 요청한 뒤 부모가 승인해야 합니다. 연결 해제 후 다시 연결하려면 새 초대코드를 발급하고 학생이 다시 요청해야 합니다.</p><button data-parent-invite="issue">초대코드 발급</button><p id="cqInviteCode" style="overflow-wrap:anywhere">${issuedInvite?escapeHtml(issuedInvite):'발급된 코드 없음'}</p><button data-parent-invite="refresh">연결 요청 불러오기</button><div>${pendingChildren.map(c=>`<div class="book"><b>${escapeHtml(c.student_name)}</b> <small>계정 확인번호 ${escapeHtml(c.child_user_id.slice(-8))}</small> · ${c.active?'승인됨':'비활성 · 승인 대기'} ${c.active?`<button data-parent-invite="revoke" data-uid="${escapeHtml(c.child_user_id)}">연결 해제</button>`:`<button data-parent-invite="approve" data-uid="${escapeHtml(c.child_user_id)}">승인·재활성화</button>`}</div>`).join('')}</div><p id="cqInviteStatus" class="status"></p></section>`;
@@ -289,6 +290,8 @@
   const questionsHtml=questions.map((q,i)=>q?`<li><b>${escapeHtml(q.text||'문제')}</b><p>학생 답변: ${escapeHtml(display(q,answers[i]))}</p><details><summary>기준 답안</summary><p>${escapeHtml(display(q,context.answer_key?.[i]))}</p></details></li>`:'').join('');
   return `<div class="submitted-lesson">${rereadNotice}${questionsHtml?'<ol>'+questionsHtml+'</ol>':'<p class="muted">문제·기준 답안을 불러오지 못했습니다. 부모 기기의 학습 자료를 확인하세요.</p>'}<h4>영어 독후감</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.essay||'')}</p><h4>말하기 대본</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.speaking||'')}</p><p>단어 복습 체크: ${Array.isArray(row.answers?.wordsReviewed)?row.answers.wordsReviewed.length:0}개</p></div>`;
  }
+ const rereadPanel=()=>`<section class="card" id="cqParentReread"><h2>📖 재독서 알림함 (서버 검증)</h2><p class="muted">부모 계정 전용입니다. 서버 알림 RPC가 설치되지 않은 환경에서는 사용할 수 없습니다. 알림은 학생에게 자동 전송되지 않습니다.</p><button data-parent-reread="refresh" ${session&&parentUnlocked?'':'disabled'}>알림 조회</button><div>${rereadAvailable&&rereadOwner===cloudIdentity()?rereadNotices.map(n=>`<div class="book"><b>학생 ${escapeHtml(String(n.student_user_id||'').slice(-8))} · 챕터 ${escapeHtml(String(n.chapter_uuid||'').slice(-8))}</b><p>객관식 ${escapeHtml(n.correct_mc)}/${escapeHtml(n.total_mc)} · 제출 ${escapeHtml(n.submitted_at||'')}</p><p>${n.acknowledged_at?'확인 완료':'부모 확인 대기'}</p>${n.acknowledged_at?'':`<button data-parent-reread="ack" data-notice="${escapeHtml(n.notice_id)}">확인 완료로 표시</button>`}</div>`).join(''):'<p class="muted">서버 알림을 조회하지 않았거나 기능이 비활성화되었습니다.</p>'}</div><p id="cqRereadStatus" role="status" class="status"></p></section>`;
+ const rereadStatus=t=>{const el=document.getElementById('cqRereadStatus');if(el)el.textContent=t};
  const feedbackPanel=()=>`<section class="card" id="cqParentFeedback"><h2>학생 제출·피드백 관리 (서버)</h2><p class="muted">로그인한 부모 계정의 제출만 조회합니다. 기존 로컬 제출 기록과는 별개입니다.</p><button data-parent-feedback="list" ${session?'':'disabled'}>제출 기록 불러오기</button><div>${submissions.map((r,i)=>`<div class="book"><h3>${escapeHtml(r.student_name||r.child_user_id)} · ${escapeHtml(r.chapter_title||r.chapter_uuid)}</h3><p>제출: ${escapeHtml(r.submitted_at||'')}</p>${resultDetails(r)}<details><summary>제출 원본 보기</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(JSON.stringify(r.answers??{},null,2))}</pre></details><label>부모 피드백<textarea data-parent-feedback-text="${i}" rows="3">${escapeHtml(r.feedback||'')}</textarea></label><label><input type="checkbox" data-parent-feedback-release="${i}" ${r.feedback_released?'checked':''}> 학생에게 공개</label><button data-parent-feedback="save" data-index="${i}">피드백 저장</button><button data-parent-feedback="audio" data-index="${i}">녹음 재생</button><div data-audio-player="${i}"></div></div>`).join('')}</div><p id="cqParentFeedbackStatus" class="status"></p></section>`;
  async function parentRpc(name,args={}){
    if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('부모 관리자 로그인이 필요합니다.');
@@ -394,7 +397,7 @@
    finally{publicationBusy=false;if(button.isConnected)button.disabled=false;}
  });
  const originalRender=render;
- render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel());if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession)}};
+ render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel()+rereadPanel());if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession)}};
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-parent-invite]');if(!b)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project){inviteStatus('부모 Supabase 로그인이 필요합니다.');return;}
@@ -467,6 +470,36 @@
        submissions=await enrichSubmissions(Array.isArray(rows)?rows:[]);render();parentStatus('서버에서 피드백 저장 상태를 다시 확인했습니다.');
      }
    }catch(error){parentStatus('오류: '+error.message)}finally{feedbackBusy=false;button.disabled=false}
+ });
+ document.addEventListener('click',async e=>{
+  const b=e.target.closest('[data-parent-reread]');if(!b||b.disabled||rereadBusy)return;
+  if(mode!=='parent'||!parentUnlocked||!session||!project){rereadStatus('부모 인증이 필요합니다.');return;}
+  const owner=cloudIdentity();rereadBusy=true;b.disabled=true;
+  try{
+   if(b.dataset.parentReread==='refresh'){
+    const rows=await parentRpc('cq_v4_parent_reread_inbox');
+    if(cloudIdentity()!==owner)return;
+    if(!Array.isArray(rows))throw Error('알림 응답 형식이 올바르지 않습니다.');
+    rereadNotices=rows.filter(n=>n&&/^[0-9a-f-]{36}$/i.test(String(n.notice_id||''))&&Number.isInteger(n.correct_mc)&&Number.isInteger(n.total_mc)&&n.total_mc>0&&n.correct_mc>=0&&n.correct_mc<=n.total_mc);
+    if(rereadNotices.length!==rows.length)throw Error('알림 응답 데이터가 올바르지 않습니다.');
+    rereadOwner=owner;rereadAvailable=true;render();rereadStatus('서버 알림 '+rows.length+'건을 조회했습니다.');
+   }else if(b.dataset.parentReread==='ack'){
+    if(!rereadAvailable||rereadOwner!==owner)throw Error('알림을 다시 조회하세요.');
+    const id=b.dataset.notice;
+    if(!/^[0-9a-f-]{36}$/i.test(id||'')||!rereadNotices.some(n=>n.notice_id===id))throw Error('알림 식별자가 올바르지 않습니다.');
+    const acknowledged=await parentRpc('cq_v4_parent_ack_reread_notice',{p_notice:id});
+    if(cloudIdentity()!==owner)return;
+    if(acknowledged!==true)throw Error('알림 확인 권한이 없거나 알림이 없습니다.');
+    const rows=await parentRpc('cq_v4_parent_reread_inbox');
+    if(cloudIdentity()!==owner)return;
+    if(!Array.isArray(rows))throw Error('알림 갱신 실패');
+    rereadNotices=rows;rereadOwner=owner;render();rereadStatus('서버 확인 상태를 다시 조회했습니다.');
+   }
+  }catch(error){
+   if(cloudIdentity()!==owner)return;
+   rereadNotices=[];rereadOwner=null;rereadAvailable=false;render();
+   rereadStatus(/(404|PGRST202|does not exist|not found)/i.test(error.message)?'서버 알림 RPC가 설치되지 않아 알림함이 비활성화되었습니다.':'알림함 오류: '+error.message);
+  }finally{rereadBusy=false;b.disabled=false;}
  });
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-cloud]');if(!b||busy)return;
