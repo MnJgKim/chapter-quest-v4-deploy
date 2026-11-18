@@ -11,6 +11,7 @@ DECLARE
   v_student uuid := (SELECT auth.uid());
   v_today date := (now() AT TIME ZONE 'Asia/Seoul')::date;
   v_count integer;
+  v_weekdays integer[];
   v_chapter uuid;
 BEGIN
   IF v_student IS NULL THEN
@@ -21,6 +22,15 @@ BEGIN
   PERFORM pg_catalog.pg_advisory_xact_lock(
     pg_catalog.hashtextextended(v_student::text || ':' || v_today::text, 0)
   );
+
+  -- No implicit defaults: the parent-approved policy must already exist.
+  SELECT p.weekdays INTO v_weekdays
+  FROM public.cq_v4_student_weekday_policy p
+  WHERE p.student_user_id = v_student AND p.enabled IS TRUE
+    AND p.effective_from <= v_today;
+  IF v_weekdays IS NULL OR NOT (
+    EXTRACT(ISODOW FROM v_today)::integer = ANY(v_weekdays)
+  ) THEN RETURN NULL; END IF;
 
   -- Refuse ambiguous dates; never pick a chapter arbitrarily.
   SELECT count(*), min(s.chapter_id)
@@ -37,7 +47,11 @@ BEGIN
     ON act.chapter_uuid = s.chapter_id AND act.published_at IS NOT NULL
   WHERE s.student_user_id = v_student
     AND s.lesson_date = v_today
-    AND s.timezone = 'Asia/Seoul';
+    AND s.timezone = 'Asia/Seoul'
+    AND NOT EXISTS (
+      SELECT 1 FROM public.cq_v4_student_submissions sub
+      WHERE sub.child_user_id = v_student AND sub.chapter_uuid = s.chapter_id
+    );
 
   IF v_count = 0 THEN RETURN NULL; END IF;
   IF v_count <> 1 THEN
@@ -51,6 +65,10 @@ BEGIN
     AND s.lesson_date = v_today
     AND s.timezone = 'Asia/Seoul'
     AND s.released_at IS NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM public.cq_v4_student_submissions sub
+      WHERE sub.child_user_id = v_student AND sub.chapter_uuid = s.chapter_id
+    )
     AND EXISTS (
       SELECT 1 FROM public.cq_v4_pdf_assignments a
       JOIN public.cq_v4_pdf_enrollments e ON e.student_user_id = a.student_user_id
