@@ -70,4 +70,34 @@ if ! grep -Fxq 'NULL' "$second"; then
 fi
 count=$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM public.cq_v4_lesson_schedule WHERE chapter_id='$chapter'")
 if [[ "$count" != '1' ]]; then echo "Unexpected concurrent schedule count: $count" >&2; exit 1; fi
+# Parent scheduling wins the same day lock; student must not add a second slot.
+psql -X -v ON_ERROR_STOP=1 -q -c "DELETE FROM public.cq_v4_lesson_schedule WHERE chapter_id='$chapter'"
+psql -X -At -v ON_ERROR_STOP=1 >"$first" <<SQL &
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','$parent',true);
+SELECT pg_catalog.pg_advisory_xact_lock(
+  pg_catalog.hashtextextended('cq_v4_day:$student:' || (now() AT TIME ZONE 'Asia/Seoul')::date::text,0));
+SELECT pg_sleep(2);
+SELECT public.cq_v4_parent_schedule_lesson('$student','$chapter',(now() AT TIME ZONE 'Asia/Seoul')::date);
+COMMIT;
+SQL
+pid_a=$!
+sleep 0.4
+psql -X -At -v ON_ERROR_STOP=1 >"$second" <<SQL &
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','$student',true);
+SELECT COALESCE(public.cq_v4_ensure_today_approved_lesson()::text,'NULL');
+COMMIT;
+SQL
+pid_b=$!
+wait "$pid_a"
+wait "$pid_b"
+if ! grep -Fxq 'NULL' "$second"; then
+  echo 'Student created duplicate slot during parent scheduling' >&2; exit 1
+fi
+count=$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM public.cq_v4_lesson_schedule WHERE chapter_id='$chapter'")
+if [[ "$count" != '1' ]]; then echo "Parent/student race schedule count: $count" >&2; exit 1; fi
+echo 'PARENT_SCHEDULER_PARALLEL_ASSERTIONS_PASSED'
 echo 'ATOMIC_SCHEDULER_PARALLEL_ASSERTIONS_PASSED'
