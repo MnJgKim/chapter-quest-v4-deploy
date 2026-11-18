@@ -31,7 +31,17 @@ BEGIN
  IF NOT public.cq_v4_capture_grading_snapshot_internal(t,d) THEN RAISE EXCEPTION 'Second capture failed';END IF;
  UPDATE public.cq_v4_activities SET approval_hash='republished',questions='[]'::jsonb;
  UPDATE public.cq_v4_approval_requests SET answer_key='[]'::jsonb,content_hash='republished';
+ -- Legacy submission with no immutable snapshot must fail closed.
+ INSERT INTO public.cq_v4_pdf_chapters(chapter_id,parent_user_id,title) VALUES('cccccccc-cccc-4ccc-cccc-ccccccccccce',p,'Legacy');
+ INSERT INTO public.cq_v4_pdf_assignments(chapter_id,student_user_id) VALUES('cccccccc-cccc-4ccc-cccc-ccccccccccce',s);
+ INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES('cccccccc-cccc-4ccc-cccc-ccccccccccce',s,'{"answers":["0"]}'::jsonb);
  PERFORM set_config('request.jwt.claim.sub',p::text,true);
+ BEGIN
+  PERFORM public.cq_v4_parent_sync_reread_notice(s,'cccccccc-cccc-4ccc-cccc-ccccccccccce');
+  RAISE EXCEPTION 'Legacy submission graded without frozen snapshot';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ IF EXISTS(SELECT 1 FROM public.cq_v4_reread_notices WHERE chapter_uuid='cccccccc-cccc-4ccc-cccc-ccccccccccce')
+ THEN RAISE EXCEPTION 'Legacy notice created without snapshot';END IF;
  IF (SELECT correct_mc FROM public.cq_v4_parent_sync_reread_notice(s,c))<>6 THEN RAISE EXCEPTION 'Frozen six grade mismatch';END IF;
  IF (SELECT correct_mc FROM public.cq_v4_parent_sync_reread_notice(t,d))<>7 THEN RAISE EXCEPTION 'Frozen seven grade mismatch';END IF;
  IF (SELECT count(*) FROM public.cq_v4_reread_notices)<>1 THEN RAISE EXCEPTION 'Frozen notice threshold mismatch';END IF;
