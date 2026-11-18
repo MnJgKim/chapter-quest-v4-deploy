@@ -63,6 +63,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-weekday-approved-candidate.sql
           psql -v ON_ERROR_STOP=1 -f app/sql/approved-weekday-release-gate-v1.REVIEW-ONLY.sql
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-approved-weekday-release-gate.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/atomic-weekday-lesson-scheduler-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-atomic-weekday-scheduler.sql
       - name: Record remaining SQL integration prerequisites
         run: |
           echo 'Isolated bootstrap and SQL assertions ran; real Supabase Auth/Storage, JWT issuance, Edge signing and concurrency remain unverified.'
