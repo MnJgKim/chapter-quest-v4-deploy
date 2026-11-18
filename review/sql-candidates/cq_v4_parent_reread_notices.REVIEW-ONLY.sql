@@ -95,3 +95,20 @@ END;
 $fn$;
 REVOKE ALL ON FUNCTION public.cq_v4_parent_ack_reread_notice(uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.cq_v4_parent_ack_reread_notice(uuid) TO authenticated;
+
+-- Student receives only a Boolean suggestion after the owning parent releases feedback.
+-- No score, answer key, parent inbox ID, or other student's records are exposed.
+CREATE OR REPLACE FUNCTION public.cq_v4_my_released_reread_suggestion(p_chapter uuid)
+RETURNS boolean
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $fn$
+ SELECT EXISTS(
+  SELECT 1 FROM public.cq_v4_student_submissions s
+  JOIN public.cq_v4_reread_notices n ON n.chapter_uuid=s.chapter_uuid AND n.student_user_id=s.child_user_id
+  JOIN public.cq_v4_pdf_chapters c ON c.chapter_id=s.chapter_uuid AND c.parent_user_id=n.parent_user_id
+  JOIN public.cq_v4_pdf_enrollments e ON e.parent_user_id=c.parent_user_id AND e.student_user_id=s.child_user_id
+  WHERE s.child_user_id=auth.uid() AND s.chapter_uuid=p_chapter
+   AND s.feedback_released IS TRUE
+ );
+$fn$;
+REVOKE ALL ON FUNCTION public.cq_v4_my_released_reread_suggestion(uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_my_released_reread_suggestion(uuid) TO authenticated;
