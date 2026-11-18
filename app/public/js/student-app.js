@@ -36,7 +36,7 @@
    const owner=childContext(),api=childApi;
    const rows=await api.assignedChapters();
    assertChildContext(owner);if(childApi!==api)return;
-   chapters=rows;await fetchStudentLessonSchedule();draw();status(rows.length+'개 공개 챕터를 자동으로 불러왔습니다.');
+   chapters=rows;await fetchStudentLessonSchedule().catch(()=>{lessonSchedule=[];});draw();status(rows.length+'개 공개 챕터를 자동으로 불러왔습니다.');
   }catch(err){
    // Do not erase the original refresh token on network failure: the learner may be offline.
    if(err.message==='saved-session-expired'||err.message==='saved-session-mismatch')forgetDedicatedChild();
@@ -390,7 +390,7 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
   if(!data.access_token||!data.user?.id)throw Error('인증 정보를 확인할 수 없습니다. 다시 로그인하세요.');
   childGeneration++;childRefreshPromise=null;cancelChildUpload();session={project:Object.freeze({...project}),token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
   childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:childAccessToken});
-  chapters=[];saveDedicatedChild(session);draw();status('로그인 성공 · 계정 인증과 실제 학생 권한은 서버 정책으로 확인됩니다.');
+  chapters=[];lessonSchedule=[];saveDedicatedChild(session);draw();status('로그인 성공 · 계정 인증과 실제 학생 권한은 서버 정책으로 확인됩니다.');
  }
  async function login(){
   const project=window.CQProject.read(),generation=childGeneration;
@@ -403,6 +403,7 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
   const data=await response.json();if(!data.access_token||!data.user?.id)throw Error('인증 정보가 없습니다.');
   if(generation!==childGeneration||mode!=='student')throw Error('로그인 화면이 변경되어 이전 인증 결과를 적용하지 않았습니다.');
   startChildSession(data,project);
+  await fetchStudentLessonSchedule().catch(()=>{lessonSchedule=[];});draw();
  }
  window.CQStudentNavigation=Object.freeze({leave(){if(!confirmLessonDeparture())return false;invalidateVoiceForNavigation();cancelChildUpload();return true;}});
  document.addEventListener('click',event=>{
@@ -453,7 +454,7 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
      childGeneration++;childRefreshPromise=null;session={...result.session,project:Object.freeze({...project}),resumedExisting:true};
      childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:childAccessToken});chapters=[];draw();
      const owner=childContext(),api=childApi;
-     try{const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)return;chapters=rows;session.assignmentCount=rows.length;draw();}catch(err){if(session?.uid===owner.uid&&childGeneration===owner.generation)status('인증·부모 연결은 확인됐지만 배정 조회에 실패했습니다. 공개된 챕터 새로고침로 재시도하세요.');return;}
+     try{const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)return;chapters=rows;session.assignmentCount=rows.length;await fetchStudentLessonSchedule().catch(()=>{lessonSchedule=[];});draw();}catch(err){if(session?.uid===owner.uid&&childGeneration===owner.generation)status('인증·부모 연결은 확인됐지만 배정 조회에 실패했습니다. 공개된 챕터 새로고침로 재시도하세요.');return;}
      status('기존 익명 계정과 부모 연결을 읽기로 확인했습니다. 계정 확인번호를 부모와 대조한 뒤 내 배정 챕터를 불러오세요. 토큰 갱신·계정 변경은 하지 않았습니다.');
     }else{
      const messages={absent:'이 브라우저에서 지원되는 기존 세션 기록을 찾지 못했습니다. 계정이 삭제됐다는 뜻은 아닙니다.',expired:'기존 세션으로 인증되지 않거나 만료되었습니다. 자동 갱신하지 않았습니다.',unlinked:'이 계정의 기존 부모 연결을 확인하지 못했습니다. 임의로 연결하지 않았습니다.','not-anonymous':'저장된 세션을 기존 익명 학생으로 확인할 수 없습니다. 다른 계정으로 전환하지 않았습니다.',configuration:'프로젝트 공개 설정을 확인하세요.',unreadable:'기존 세션 기록을 안전하게 읽지 못했습니다. 원본은 보존했습니다.',invalid:'기존 세션 형식/유효 기간을 확인하지 못했습니다. 원본은 보존했습니다.',unavailable:'읽기 확인에 실패했습니다. 계정·세션 기록은 변경하지 않았습니다.'};
@@ -475,7 +476,7 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
     else status('가입 요청이 처리되었습니다. 이메일 인증이 필요한 경우 인증을 마친 뒤 학생 계정으로 로그인하세요.');
     return;
    }
-   if(b.dataset.child==='login'){await login();const owner=childContext(),api=childApi;const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)return;chapters=rows;draw();status(rows.length+'개 공개 챕터를 불러왔습니다.');}
+   if(b.dataset.child==='login'){await login();const owner=childContext(),api=childApi;const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)return;chapters=rows;await fetchStudentLessonSchedule().catch(()=>{lessonSchedule=[];});draw();status(rows.length+'개 공개 챕터를 불러왔습니다.');}
    // Capture invite inputs synchronously: token refresh can redraw the form.
    const claimInput=b.dataset.child==='claim'?{
      code:el('cqChildInvite')?.value.trim(),
@@ -570,7 +571,7 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
    if(b.dataset.child==='list'){
      const owner=childContext(),api=childApi;const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)throw Error('학생 계정이 변경되었습니다.');
      if(hasAtRiskDraft()){status('조회 중 답안 저장에 실패해 이동을 중단했습니다. 답안 저장 재시도를 누르세요.');return;}
-     invalidateVoiceForNavigation();clearServerPdf();chapters=rows;if(session.resumedExisting)session.assignmentCount=rows.length;await fetchStudentLessonSchedule();draw();status(chapters.length+'개 공개 챕터를 불러왔습니다.');
+     invalidateVoiceForNavigation();clearServerPdf();chapters=rows;if(session.resumedExisting)session.assignmentCount=rows.length;await fetchStudentLessonSchedule().catch(()=>{lessonSchedule=[];});draw();status(chapters.length+'개 공개 챕터를 불러왔습니다.');
    }
    if(b.dataset.child==='view'||b.dataset.child==='feedback'){
     const c=chapters.find(x=>x.chapter_uuid===b.dataset.uuid);
