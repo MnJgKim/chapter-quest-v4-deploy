@@ -95,6 +95,12 @@ BEGIN
   DELETE FROM public.cq_v4_lesson_schedule WHERE student_user_id=student;
   INSERT INTO public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date)
   SELECT parent,student,chapter_id,lesson_date FROM lesson_plan;
+  IF public.cq_v4_ensure_approved_lesson_at(first_day - interval '1 microsecond') IS NOT NULL
+     OR EXISTS (
+       SELECT 1 FROM public.cq_v4_lesson_schedule
+       WHERE student_user_id=student AND released_at IS NOT NULL
+     )
+  THEN RAISE EXCEPTION 'Chapter release before 2026-11-24 00:00 Seoul'; END IF;
   FOR lesson IN SELECT * FROM lesson_plan ORDER BY ordinal
   LOOP
     seoul_midnight := lesson.lesson_date::timestamp AT TIME ZONE 'Asia/Seoul';
@@ -102,6 +108,9 @@ BEGIN
     IF actual IS DISTINCT FROM lesson.chapter_id THEN
       RAISE EXCEPTION 'Reservation % did not release chapter %', lesson.lesson_date, lesson.ordinal;
     END IF;
+    IF lesson.ordinal=1 AND (SELECT count(*) FROM public.cq_v4_lesson_schedule
+      WHERE student_user_id=student AND released_at IS NOT NULL) <> 1
+    THEN RAISE EXCEPTION 'More than Chapter 1 released at the first Seoul midnight'; END IF;
   END LOOP;
   IF EXISTS (
     SELECT chapter_id,lesson_date FROM lesson_plan
