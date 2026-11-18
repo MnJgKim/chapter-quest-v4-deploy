@@ -95,6 +95,8 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-weekly-schedule-release.sql
       - name: Verify parent reread RPC compiles and rejects anonymous in isolated PostgreSQL
         run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-parent-reread-notices.sql
+      - name: Verify two concurrent parent notice RPC transactions in isolated PostgreSQL
+        run: bash app/tests/isolated-parent-reread-concurrency.sh
       - name: Publish isolated PostgreSQL verification summary
         if: success()
         run: |
