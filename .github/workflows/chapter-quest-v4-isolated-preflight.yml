@@ -98,8 +98,6 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-approved-release-rpc-storage.sql
       - name: Verify atomic submission and immutable snapshot against isolated PostgreSQL
         run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-atomic-submission-snapshot.sql
-      - name: Verify two concurrent atomic submissions preserve one frozen answer
-        run: bash app/tests/isolated-atomic-submit-concurrency.sh
       - name: Verify weekly schedule release RPC against isolated PostgreSQL
         run: |
           psql -v ON_ERROR_STOP=1 -f review/sql-candidates/cq_v4_my_lesson_schedule_release_guard.sql
@@ -112,6 +110,8 @@ jobs:
         run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-parent-reread-notices.sql
       - name: Verify two concurrent parent notice RPC transactions in isolated PostgreSQL
         run: bash app/tests/isolated-parent-reread-concurrency.sh
+      - name: Verify two concurrent atomic submissions preserve one frozen answer
+        run: bash app/tests/isolated-atomic-submit-concurrency.sh
       - name: Publish isolated PostgreSQL verification summary
         if: success()
         run: |
