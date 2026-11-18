@@ -53,7 +53,7 @@
   const rows=await response.json();
   assertChildContext(owner);
   if(!Array.isArray(rows))throw Error('예정 일정 형식이 올바르지 않습니다.');
-  lessonSchedule=rows.filter(row=>/^\\d{4}-\\d{2}-\\d{2}$/.test(row.lesson_date||'')&&typeof row.chapter_title==='string');
+  lessonSchedule=rows.filter(row=>/^\d{4}-\d{2}-\d{2}$/.test(row.lesson_date||'')&&typeof row.chapter_title==='string');
  }
  const sameProject=(a,b)=>!!a&&!!b&&a.url===b.url&&a.anonKey===b.anonKey;
  function studentProject(){
