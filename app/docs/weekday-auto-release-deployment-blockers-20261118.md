@@ -44,9 +44,10 @@ gate. A parent hide made after installation pauses automatic release.
 Before activation, verify the exact student and parent account IDs through the
 approved identity and enrollment records. The repository audit prefix is not a
 configuration value. As part of the authorized rollout, configure those verified
-student IDs in `cq_v4_student_weekday_policy` with ISO weekdays
+student IDs using `student-weekday-policy-initial-config.REVIEW-ONLY.sql` with ISO weekdays
 `ARRAY[1,3,4]` for 서우 and `ARRAY[2,3,5]` for 서진 and an agreed Seoul
-effective date. Leave 시우 without an enabled row until their policy is approved.
+effective date. Review any existing policy rows before activation because the initial
+configuration preserves them. Leave 시우 without an enabled row until their policy is approved.
 Populate the queue only from explicit approval and pre-existing assignments.
 Keep 서진's queue and schedule empty until her PDF and assignment are approved.
 

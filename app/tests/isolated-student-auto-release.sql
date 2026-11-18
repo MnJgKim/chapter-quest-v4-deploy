@@ -23,13 +23,25 @@ BEGIN
 END;
 $$;
 
-INSERT INTO public.cq_v4_student_weekday_policy VALUES
- ('10000000-0000-4000-8000-000000000001', ARRAY[1,3,4], '2026-11-23', true),
- ('10000000-0000-4000-8000-000000000002', ARRAY[2,3,5], '2026-11-23', true);
 INSERT INTO public.cq_v4_pdf_enrollments VALUES
  ('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','10000000-0000-4000-8000-000000000001'),
  ('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','10000000-0000-4000-8000-000000000002'),
  ('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','10000000-0000-4000-8000-000000000003');
+
+\set seowoo_student '10000000-0000-4000-8000-000000000001'
+\set seowoo_parent 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+\set seojin_student '10000000-0000-4000-8000-000000000002'
+\set seojin_parent 'aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
+\set weekday_effective_from '2026-11-23'
+\ir ../sql/student-weekday-policy-initial-config.REVIEW-ONLY.sql
+DO $$
+BEGIN
+  IF (SELECT weekdays FROM public.cq_v4_student_weekday_policy
+      WHERE student_user_id='10000000-0000-4000-8000-000000000001') IS DISTINCT FROM ARRAY[1,3,4]
+    OR (SELECT weekdays FROM public.cq_v4_student_weekday_policy
+        WHERE student_user_id='10000000-0000-4000-8000-000000000002') IS DISTINCT FROM ARRAY[2,3,5]
+  THEN RAISE EXCEPTION 'Incorrect initial weekday policy'; END IF;
+END $$;
 
 WITH chapters AS (
 INSERT INTO public.cq_v4_pdf_chapters(chapter_id,parent_user_id,pdf_ready,title)
