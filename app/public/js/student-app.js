@@ -596,7 +596,12 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
     let rereadSuggested=false;
     if(submitted?.feedback_released){
       try{rereadSuggested=await viewApi.releasedRereadSuggestion(c.chapter_uuid)}
-      catch(error){if(!/(404|PGRST202|does not exist|not found)/i.test(error.message))throw error;}
+      catch(error){
+        // Advisory is optional: transient RPC/network failures must never hide an immutable submission or released parent feedback.
+        // Server owns feedback visibility; do not derive a suggestion from untrusted local scores.
+        rereadSuggested=false;
+        console.warn('Optional reread suggestion unavailable:',String(error?.message||error).slice(0,160));
+      }
       assertChildContext(viewContext);if(childApi!==viewApi)return;
     }
     if(!submitted&&c.lesson_date!==seoulLessonDate())throw Error('해당 수업일에만 학습을 시작할 수 있습니다. 이월·재학습은 부모 승인 후 가능합니다.');
