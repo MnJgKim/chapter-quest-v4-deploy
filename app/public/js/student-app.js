@@ -197,9 +197,11 @@
  async function verifyExistingAudio(uid,uuid,ext,expectedSha256){
    if(!validAudioHash(expectedSha256))throw Error('기존 녹음 파일의 무결성 정보를 확인할 수 없습니다.');
    const project=studentProject();
-   if(!project?.url||!project?.anonKey||!session?.token||session.uid!==uid)throw Error('학생 인증이 필요합니다.');
+   if(!project?.url||!project?.anonKey||session?.uid!==uid)throw Error('학생 인증이 필요합니다.');
+   const token=await childAccessToken();
+   if(session?.uid!==uid)throw Error('학생 계정이 변경되었습니다.');
    const response=await fetch(project.url+'/storage/v1/object/sign/cq-v4-speaking/'+uid+'/'+uuid+'.'+ext,{
-     method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+session.token,'Content-Type':'application/json'},
+     method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+token,'Content-Type':'application/json'},
      body:JSON.stringify({expiresIn:30})
    });
    if(!response.ok)return false;
@@ -720,9 +722,11 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
        // Write durable intent BEFORE the network call. A lost success response
        // can then be recovered by verifying this exact object on next login.
        writeRecovery(context.uid,uuid,ext,'uploading',sha256);
+       const uploadToken=await childAccessToken();
+       assertChildContext(context);
        const uploadController=new AbortController();activeChildUpload=uploadController;
        const upload=await fetch(config.url+'/storage/v1/object/cq-v4-speaking/'+path,{
-         method:'POST',headers:{apikey:config.anonKey,Authorization:'Bearer '+session.token,
+         method:'POST',headers:{apikey:config.anonKey,Authorization:'Bearer '+uploadToken,
            'Content-Type':voiceBlob.type,'x-upsert':'false'},
          body:voiceBlob,signal:uploadController.signal
        });
