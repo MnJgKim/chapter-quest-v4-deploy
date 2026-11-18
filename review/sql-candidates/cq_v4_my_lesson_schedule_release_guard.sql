@@ -1,5 +1,5 @@
 -- REVIEW CANDIDATE ONLY. Do not run against production without approval.
--- Align student schedule's is_released with the authoritative server lesson gate.
+-- Align student schedule's is_released with the approved new-work gate and immutable historical submissions.\n-- Apply only after reviewed approved-weekday-release-gate and submission overlay; no production execution.
 -- Preserve existing return columns, order, enrollment checks and lesson records.
 CREATE OR REPLACE FUNCTION public.cq_v4_my_lesson_schedule()
 RETURNS TABLE(chapter_uuid uuid, chapter_title text, lesson_date date, is_released boolean)
@@ -7,7 +7,10 @@ LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path TO ''
 AS $function$
  SELECT s.chapter_id, c.title, s.lesson_date,
-        public.cq_v4_is_released(s.chapter_id, (select auth.uid()))
+        (public.cq_v4_can_start_approved_lesson(s.chapter_id, (select auth.uid()))
+         OR EXISTS (SELECT 1 FROM public.cq_v4_student_submissions done
+                    WHERE done.child_user_id=(select auth.uid())
+                      AND done.chapter_uuid=s.chapter_id))
  FROM public.cq_v4_lesson_schedule s
  JOIN public.cq_v4_pdf_chapters c
    ON c.chapter_id=s.chapter_id AND c.parent_user_id=s.parent_user_id
