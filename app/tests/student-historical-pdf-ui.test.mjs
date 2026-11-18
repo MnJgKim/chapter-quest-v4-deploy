@@ -37,3 +37,11 @@ test('review-only weekly schedule release uses approved gate and immutable histo
   assert.doesNotMatch(sql,/cq_v4_is_released\(/);
   assert.match(sql,/REVIEW CANDIDATE ONLY/);
 });
+
+test('speaking upload and recovery sign refresh child JWT instead of using stale session token',()=>{
+  assert.match(source,/const uploadToken=await childAccessToken\(\);\s*assertChildContext\(context\)/);
+  assert.match(source,/Authorization:'Bearer '\+uploadToken/);
+  assert.match(source,/async function verifyExistingAudio[\s\S]*?const token=await childAccessToken\(\)/);
+  assert.match(source,/Authorization:'Bearer '\+token,'Content-Type':'application\/json'/);
+  assert.doesNotMatch(source,/Authorization:'Bearer '\+session\.token/);
+});
