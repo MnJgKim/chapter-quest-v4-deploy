@@ -85,6 +85,8 @@ SELECT set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
 -- A second submission must be idempotent: no additional row or mutation.
 SELECT chapter_uuid FROM public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333',
  '{"readComplete":true,"answers":["1"],"essay":"Attempted overwrite","speaking":"Changed","hasAudio":true}'::jsonb);
+RESET ROLE;
+-- Inspect the stored immutable row as the isolated test owner, not as a student.
 DO $idempotency$
 BEGIN
  IF (SELECT count(*) FROM public.cq_v4_student_submissions
