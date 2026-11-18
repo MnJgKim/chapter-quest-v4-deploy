@@ -32,7 +32,7 @@ GRANT EXECUTE ON FUNCTION public.cq_v4_can_start_lesson(uuid,uuid) TO authentica
 -- This function returns only a boolean, never another student's submission.
 CREATE OR REPLACE FUNCTION public.cq_v4_can_read_lesson(p_chapter uuid,p_student uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
-AS $
+AS $$
  SELECT p_student=(SELECT auth.uid())
    AND (
      public.cq_v4_can_start_lesson(p_chapter,p_student)
@@ -45,7 +45,7 @@ AS $
        WHERE done.chapter_uuid=p_chapter AND done.child_user_id=p_student
      )
    );
-$;
+$$;
 REVOKE ALL ON FUNCTION public.cq_v4_can_read_lesson(uuid,uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.cq_v4_can_read_lesson(uuid,uuid) TO authenticated;
 
