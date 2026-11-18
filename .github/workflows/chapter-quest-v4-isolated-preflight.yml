@@ -12,6 +12,7 @@ on:
       - 'app/sql/**'
       - 'review/sql-candidates/cq_v4_my_lesson_schedule_release_guard.sql'
       - 'review/sql-candidates/cq_v4_parent_reread_notices.REVIEW-ONLY.sql'
+      - 'review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql'
       - 'app/supabase/functions/cq-v4-pdf-link/index.ts'
   workflow_dispatch:
 permissions:
@@ -97,6 +98,8 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -f review/sql-candidates/cq_v4_my_lesson_schedule_release_guard.sql
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-weekly-schedule-release.sql
+      - name: Verify immutable submission-time grading snapshot candidate in isolated PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-immutable-grading-snapshot.sql
       - name: Verify parent reread RPC compiles and rejects anonymous in isolated PostgreSQL
         run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-parent-reread-notices.sql
       - name: Verify two concurrent parent notice RPC transactions in isolated PostgreSQL
