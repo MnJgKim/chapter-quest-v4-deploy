@@ -88,6 +88,27 @@ BEGIN
     WHERE student_user_id=student AND released_at IS NOT NULL
   ) OR (SELECT count(*) FROM public.cq_v4_lesson_schedule WHERE student_user_id=student) <> 7
   THEN RAISE EXCEPTION 'Released schedules differ from the seven requested dates'; END IF;
+
+  -- For the requested fixed calendar, verify explicit reservations separately.
+  -- Use fixture rows only and leave the existing queue intact.
+  DELETE FROM public.cq_v4_student_submissions WHERE child_user_id=student;
+  DELETE FROM public.cq_v4_lesson_schedule WHERE student_user_id=student;
+  INSERT INTO public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date)
+  SELECT parent,student,chapter_id,lesson_date FROM lesson_plan;
+  FOR lesson IN SELECT * FROM lesson_plan ORDER BY ordinal
+  LOOP
+    seoul_midnight := lesson.lesson_date::timestamp AT TIME ZONE 'Asia/Seoul';
+    actual := public.cq_v4_ensure_approved_lesson_at(seoul_midnight);
+    IF actual IS DISTINCT FROM lesson.chapter_id THEN
+      RAISE EXCEPTION 'Reservation % did not release chapter %', lesson.lesson_date, lesson.ordinal;
+    END IF;
+  END LOOP;
+  IF EXISTS (
+    SELECT chapter_id,lesson_date FROM lesson_plan
+    EXCEPT
+    SELECT chapter_id,lesson_date FROM public.cq_v4_lesson_schedule
+    WHERE student_user_id=student AND released_at IS NOT NULL
+  ) THEN RAISE EXCEPTION 'An explicit schedule was changed'; END IF;
 END $$;
 ROLLBACK;
 \echo SEOJIN_SEVEN_LESSONS_ASSERTIONS_PASSED
