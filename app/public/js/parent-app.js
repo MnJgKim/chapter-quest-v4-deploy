@@ -494,7 +494,9 @@
     const rows=await parentRpc('cq_v4_parent_reread_inbox');
     if(cloudIdentity()!==owner)return;
     if(!Array.isArray(rows))throw Error('알림 갱신 실패');
-    rereadNotices=rows;rereadOwner=owner;render();rereadStatus('서버 확인 상태를 다시 조회했습니다.');
+    const valid=rows.every(n=>n&&/^[0-9a-f-]{36}$/i.test(String(n.notice_id||''))&&Number.isInteger(n.correct_mc)&&Number.isInteger(n.total_mc)&&n.total_mc>0&&n.correct_mc>=0&&n.correct_mc<=n.total_mc);
+    if(!valid)throw Error('알림 갱신 데이터가 올바르지 않습니다.');
+    rereadNotices=rows;rereadOwner=owner;rereadAvailable=true;render();rereadStatus('서버 확인 상태를 다시 조회했습니다.');
    }
   }catch(error){
    if(cloudIdentity()!==owner)return;
