@@ -44,6 +44,21 @@ BEGIN
  PERFORM pg_catalog.pg_advisory_xact_lock(
    pg_catalog.hashtextextended(v_student::text || ':' || v_chapter::text,0)
  );
+ -- Recheck after taking the same chapter lock as parent scheduling and submit.
+ -- Do not use a stale candidate if a parent changed the chapter schedule.
+ IF EXISTS (
+   SELECT 1 FROM public.cq_v4_lesson_schedule s
+   WHERE s.student_user_id=v_student
+     AND (s.chapter_id=v_chapter OR s.lesson_date=v_today)
+ ) OR EXISTS (
+   SELECT 1 FROM public.cq_v4_student_submissions done
+   WHERE done.child_user_id=v_student
+     AND (done.chapter_uuid=v_chapter
+          OR (done.submitted_at AT TIME ZONE 'Asia/Seoul')::date=v_today)
+ ) THEN RETURN NULL; END IF;
+ IF public.cq_v4_weekday_approved_candidate(v_student,v_today) IS DISTINCT FROM v_chapter THEN
+   RETURN NULL;
+ END IF;
  INSERT INTO public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date)
  VALUES(v_parent,v_student,v_chapter,v_today)
  ON CONFLICT(student_user_id,chapter_id) DO NOTHING;
