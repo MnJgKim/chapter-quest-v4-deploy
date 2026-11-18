@@ -71,6 +71,15 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-atomic-weekday-scheduler.sql
       - name: Verify concurrent student/day scheduler transactions in isolated PostgreSQL
         run: bash app/tests/isolated-atomic-scheduler-concurrency.sh
+      - name: Publish isolated PostgreSQL verification summary
+        if: success()
+        run: |
+          {
+            echo '## Chapter Quest V4 isolated PostgreSQL 16'
+            echo 'Result: all preceding isolated SQL and parallel regression steps exited successfully.'
+            echo 'Verified markers are emitted by their respective psql/bash test steps.'
+            echo 'This is not verification of production Supabase, Cloudflare, or student devices.'
+          } >> "$GITHUB_STEP_SUMMARY"
       - name: Record remaining SQL integration prerequisites
         run: |
           echo 'Isolated bootstrap and SQL assertions ran; real Supabase Auth/Storage, JWT issuance, Edge signing and production concurrency remain unverified.'
