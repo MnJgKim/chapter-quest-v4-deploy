@@ -28,7 +28,14 @@
       // The server-side RPC is authoritative; the UI must not compute access locally.
       // The database owns Seoul weekday, approved order and one-chapter/day scheduling.
       // A null scheduler response can mean an existing schedule: always query the gated list.
-      await rpc('cq_v4_ensure_today_approved_lesson');
+      // Existing production deployments may not yet have the optional automatic
+      // scheduler RPC. Only its verified PostgREST "function not found" response
+      // permits fallback; the server-gated released-chapters RPC remains mandatory.
+      try {
+        await rpc('cq_v4_ensure_today_approved_lesson');
+      } catch (error) {
+        if (!/Student request failed \(404\):/.test(error.message) || !/Could not find the function public\\.cq_v4_ensure_today_approved_lesson/.test(error.message)) throw error;
+      }
       const rows=await rpc('cq_v4_my_released_chapters');
       if(!Array.isArray(rows))throw Error('배정 챕터 목록 형식을 확인해 주세요.');
       return rows.map(row=>{
