@@ -61,10 +61,10 @@ BEGIN
  ELSE
    INSERT INTO public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date)
    VALUES(v_parent,p_student_user_id,p_chapter_id,p_lesson_date)
-   ON CONFLICT(student_user_id,chapter_id) DO UPDATE
-     SET lesson_date=excluded.lesson_date
-     WHERE public.cq_v4_lesson_schedule.parent_user_id=v_parent;
-   IF NOT FOUND THEN RAISE EXCEPTION 'Schedule update not authorized' USING ERRCODE='42501'; END IF;
+   ON CONFLICT(student_user_id,chapter_id) DO NOTHING;
+   -- Concurrent insertion must retry through the locked existing-row path.
+   -- An UPSERT UPDATE here could bypass the makeup audit and completion check.
+   IF NOT FOUND THEN RAISE EXCEPTION 'Concurrent schedule change: retry with current schedule' USING ERRCODE='40001'; END IF;
  END IF;
 END;
 $$;
