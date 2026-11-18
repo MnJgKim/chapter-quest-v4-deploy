@@ -21,6 +21,53 @@
    }});
  };
 
+ const parentSessionKey='cq-v4-parent-session-v1';
+ let parentRestoreAttempted=false;
+ const forgetParentSession=()=>{try{localStorage.removeItem(parentSessionKey)}catch(_){}};
+ const saveParentSession=()=>{
+   if(!session?.refreshToken||!project?.url)return;
+   try{localStorage.setItem(parentSessionKey,JSON.stringify({url:project.url,uid:session.uid,refreshToken:session.refreshToken}))}catch(_){}
+ };
+ async function verifyParentAccess(token,expectedUid){
+   const headers={apikey:project.anonKey,Authorization:'Bearer '+token};
+   const [userResult,roleResult]=await Promise.all([
+     fetch(project.url+'/auth/v1/user',{headers,cache:'no-store'}),
+     fetch(project.url+'/rest/v1/rpc/cq_is_admin',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body:'{}',cache:'no-store'})
+   ]);
+   if(!userResult.ok||!roleResult.ok)return false;
+   const user=await userResult.json(),role=await roleResult.json();
+   return user?.id===expectedUid&&role===true;
+ }
+ async function restoreParentSession(){
+   if(parentRestoreAttempted||session||mode!=='parent'||!parentUnlocked)return;
+   const current=readProject();
+   if(!current?.url||!current.anonKey)return;
+   let saved;try{saved=JSON.parse(localStorage.getItem(parentSessionKey)||'null')}catch(_){forgetParentSession();return}
+   if(!saved?.refreshToken||!saved.uid||saved.url!==current.url)return;
+   parentRestoreAttempted=true;
+   const generation=sessionGeneration,origin=current.url;
+   try{
+     const response=await fetch(origin+'/auth/v1/token?grant_type=refresh_token',{method:'POST',headers:{apikey:current.anonKey,'Content-Type':'application/json'},body:JSON.stringify({refresh_token:saved.refreshToken}),cache:'no-store'});
+     if(!response.ok)throw Error('expired');
+     const data=await response.json();
+     if(data.user?.id!==saved.uid||!data.access_token||!data.refresh_token)throw Error('identity');
+     if(!await verifyParentAccess(data.access_token,saved.uid))throw Error('role');
+     if(generation!==sessionGeneration||session||mode!=='parent'||!parentUnlocked||readProject()?.url!==origin)return;
+     project=current;sessionGeneration++;
+     session={token:data.access_token,uid:saved.uid,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};
+     saveParentSession();
+     baseline=undefined;auto=false;aligned=false;
+     CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});
+     CQCloud.setBeforeRequest(refreshIfNeeded);
+     const restored=session;
+     const snapshot=await parentStore().loadParentSnapshot();
+     if(session!==restored)return;
+     baseline=snapshot?.updated_at??null;render();status('부모 이메일 로그인 세션이 복원됐습니다.');
+   }catch(e){
+     if(['expired','identity','role'].includes(e.message))forgetParentSession();
+     if(!session&&mode==='parent')status('자동 로그인에 실패했습니다. 부모 이메일로 다시 로그인하세요.');
+   }
+ }
  const auth=async(path,body)=>{
    const response=await fetch(project.url+'/auth/v1/'+path,{method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},body:JSON.stringify(body)});
    const data=await response.json();if(!response.ok)throw Error(data.msg||data.error_description||data.message||'인증 오류');return data;
@@ -37,7 +84,7 @@
      if(!result.access_token||!result.refresh_token)throw Error('로그인 갱신에 실패했습니다.');
      session.token=result.access_token;session.refreshToken=result.refresh_token;
      session.expiresAt=Date.now()+(result.expires_in||3600)*1000;
-     CQCloud.updateToken(session.token);
+     CQCloud.updateToken(session.token);saveParentSession();
    })();
    try{await refreshPromise}finally{refreshPromise=null}
  }
@@ -329,7 +376,7 @@
    finally{publicationBusy=false;if(button.isConnected)button.disabled=false;}
  });
  const originalRender=render;
- render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel())}};
+ render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel());if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession)}};
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-parent-invite]');if(!b)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project){inviteStatus('부모 Supabase 로그인이 필요합니다.');return;}
@@ -416,7 +463,7 @@
     if(!project)throw Error('먼저 프로젝트 설정을 저장하세요.');
     const email=document.getElementById('cloudEmail').value.trim(),password=document.getElementById('cloudPassword').value;
     if(!email||!password)throw Error('이메일과 비밀번호를 입력하세요.');
-    auto=false;dirty=false;clearTimeout(syncTimer);sessionGeneration++;session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();
+    forgetParentSession();auto=false;dirty=false;clearTimeout(syncTimer);sessionGeneration++;session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();
     const loginGeneration=sessionGeneration;const data=await auth('token?grant_type=password',{email,password});
     if(loginGeneration!==sessionGeneration)throw Error('프로젝트 설정이 변경되어 로그인을 취소했습니다.');
     if(!data.access_token||!data.user?.id)throw Error('로그인 정보를 확인하지 못했습니다.');
@@ -424,9 +471,9 @@
     const isParent=roleResponse.ok?await roleResponse.json():false;
     if(loginGeneration!==sessionGeneration)throw Error('로그인 상태가 변경되었습니다.');
     if(isParent!==true)throw Error('부모 관리자로 등록된 계정이 아닙니다. 학생 화면에서 학생 계정으로 로그인하세요.');
-    sessionGeneration++;session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};baseline=undefined;auto=false;aligned=false;CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);
+    sessionGeneration++;session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};baseline=undefined;auto=false;aligned=false;CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);saveParentSession();
     const loginSession=session;const existing=await parentStore().loadParentSnapshot();if(session!==loginSession)throw Error('로그인 상태가 변경되었습니다.');baseline=existing?.updated_at??null;render();status(existing?'로그인 성공 · 클라우드 기록이 있습니다. 복원 또는 수동 저장 후 자동 동기화를 켜세요.':'로그인 성공 · 클라우드 기록이 없습니다. 자동 동기화를 켤 수 있습니다.');
-   }else if(action==='logout'){sessionGeneration++;session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
+   }else if(action==='logout'){forgetParentSession();parentRestoreAttempted=true;sessionGeneration++;session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
    else if(action==='push'){
     if(!session)throw Error('로그인이 필요합니다.');
     if(!confirm('현재 이 기기의 기록을 클라우드에 저장할까요? 다른 기기의 변경 사항이 감지되면 덮어쓰지 않습니다.'))return;
