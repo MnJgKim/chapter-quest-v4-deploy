@@ -31,9 +31,9 @@ BEGIN
  UPDATE public.cq_v4_approval_requests SET answer_key='[]'::jsonb,content_hash='republished';
  SELECT count(*) INTO v FROM public.cq_v4_immutable_grading_snapshots WHERE jsonb_array_length(questions)=10 AND jsonb_array_length(answer_key)=10;
  IF v<>2 THEN RAISE EXCEPTION 'Republish modified frozen snapshot';END IF;
- IF (SELECT count(*) FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id=s AND submitted_answers->'5'='"0"'::jsonb AND submitted_answers->'6'='"1"'::jsonb)<>1
+ IF (SELECT count(*) FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id=s AND submitted_answers->5='"0"'::jsonb AND submitted_answers->6='"1"'::jsonb)<>1
  THEN RAISE EXCEPTION '6/10 frozen answers changed';END IF;
- IF (SELECT count(*) FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id=t AND submitted_answers->'6'='"0"'::jsonb AND submitted_answers->'7'='"1"'::jsonb)<>1
+ IF (SELECT count(*) FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id=t AND submitted_answers->6='"0"'::jsonb AND submitted_answers->7='"1"'::jsonb)<>1
  THEN RAISE EXCEPTION '7/10 frozen answers changed';END IF;
  BEGIN UPDATE public.cq_v4_immutable_grading_snapshots SET content_hash='bad';RAISE EXCEPTION 'Mutation allowed';
  EXCEPTION WHEN insufficient_privilege THEN NULL;END;
