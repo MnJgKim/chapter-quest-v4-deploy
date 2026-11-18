@@ -39,6 +39,20 @@ BEGIN
     AND c.chapter_id=p_chapter_id AND c.pdf_ready IS TRUE
  ) THEN RAISE EXCEPTION 'Approved PDF and enrolled student required' USING ERRCODE='42501';
  END IF;
+ -- Match the automatic scheduler's student/day lock ordering.
+ -- Prevent a parent scheduling a second chapter into the same Seoul day.
+ PERFORM pg_catalog.pg_advisory_xact_lock(
+   pg_catalog.hashtextextended('cq_v4_day:' || p_student_user_id::text || ':' || p_lesson_date::text,0)
+ );
+ IF EXISTS (
+   SELECT 1 FROM public.cq_v4_lesson_schedule existing
+   WHERE existing.student_user_id=p_student_user_id
+     AND existing.lesson_date=p_lesson_date
+     AND existing.chapter_id<>p_chapter_id
+ ) THEN
+   RAISE EXCEPTION 'Only one chapter may be scheduled per student per day'
+     USING ERRCODE='23505';
+ END IF;
  -- Serialize with the submission RPC for this student/chapter pair before checking completion.
  -- Both paths must acquire this same transaction advisory lock before any state reads.
  PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_student_user_id::text || ':' || p_chapter_id::text, 0));
