@@ -95,6 +95,7 @@
  <div class="row"><button data-cloud="login">로그인</button><button data-cloud="logout">로그아웃</button><button data-cloud="push" ${session?'':'disabled'}>현재 기록 클라우드에 저장</button><button data-cloud="pull" ${session?'':'disabled'}>클라우드 기록 복원</button></div>
  <label><input type="checkbox" id="cloudAuto" ${auto?'checked':''} ${session?'':'disabled'}> 이 탭에서 변경 사항 자동 동기화</label><p class="note">클라우드 복원 시 기존 로컬 기록을 먼저 JSON으로 자동 백업합니다. 다른 기기의 기록과 자동 병합하지 않습니다.</p><p id="cloudStatus" class="status">${session?'로그인됨':'로그인 필요'}</p></section>`;
  let rereadNotices=[]; let rereadOwner=null; let rereadAvailable=false; let rereadBusy=false;
+ const clearRereadInbox=()=>{rereadNotices=[];rereadOwner=null;rereadAvailable=false;};
  let submissions=[]; let feedbackBusy=false; let pendingChildren=[]; let issuedInvite="";
  const parentStatus=t=>{const e=document.getElementById('cqParentFeedbackStatus');if(e)e.textContent=t};
  const invitationPanel=()=>!parentUnlocked||!session?'':`<section class="card"><h2>🔗 학생 계정 초대·승인·연결 해제 (시험 기능)</h2><p class="muted">부모 Supabase 로그인 후 일회용 코드를 발급하세요. 코드는 15분 유효하며 학생이 요청한 뒤 부모가 승인해야 합니다. 연결 해제 후 다시 연결하려면 새 초대코드를 발급하고 학생이 다시 요청해야 합니다.</p><button data-parent-invite="issue">초대코드 발급</button><p id="cqInviteCode" style="overflow-wrap:anywhere">${issuedInvite?escapeHtml(issuedInvite):'발급된 코드 없음'}</p><button data-parent-invite="refresh">연결 요청 불러오기</button><div>${pendingChildren.map(c=>`<div class="book"><b>${escapeHtml(c.student_name)}</b> <small>계정 확인번호 ${escapeHtml(c.child_user_id.slice(-8))}</small> · ${c.active?'승인됨':'비활성 · 승인 대기'} ${c.active?`<button data-parent-invite="revoke" data-uid="${escapeHtml(c.child_user_id)}">연결 해제</button>`:`<button data-parent-invite="approve" data-uid="${escapeHtml(c.child_user_id)}">승인·재활성화</button>`}</div>`).join('')}</div><p id="cqInviteStatus" class="status"></p></section>`;
@@ -509,12 +510,12 @@
     const url=document.getElementById('cloudUrl').value.trim().replace(/\/$/,'');
     const anonKey=document.getElementById('cloudKey').value.trim();
     if(!(globalThis.CQOrigin?.allows(url)??/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url))||!anonKey)throw Error('Supabase URL과 공개 키를 확인하세요.');
-    forgetParentSession();parentRestoreAttempted=true;sessionGeneration++;project={url,anonKey};auto=false;dirty=false;clearTimeout(syncTimer);baseline=undefined;aligned=false;localStorage.setItem('cq_v4_cloud_project',JSON.stringify(project));session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();render();status('프로젝트 설정 저장 완료');
+    forgetParentSession();parentRestoreAttempted=true;sessionGeneration++;project={url,anonKey};auto=false;dirty=false;clearTimeout(syncTimer);baseline=undefined;aligned=false;localStorage.setItem('cq_v4_cloud_project',JSON.stringify(project));session=null;clearRereadInbox();issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();render();status('프로젝트 설정 저장 완료');
    }else if(action==='login'){
     if(!project)throw Error('먼저 프로젝트 설정을 저장하세요.');
     const email=document.getElementById('cloudEmail').value.trim(),password=document.getElementById('cloudPassword').value;
     if(!email||!password)throw Error('이메일과 비밀번호를 입력하세요.');
-    forgetParentSession();auto=false;dirty=false;clearTimeout(syncTimer);sessionGeneration++;session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();
+    forgetParentSession();auto=false;dirty=false;clearTimeout(syncTimer);sessionGeneration++;session=null;clearRereadInbox();issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();
     const loginGeneration=sessionGeneration;const data=await auth('token?grant_type=password',{email,password});
     if(loginGeneration!==sessionGeneration)throw Error('프로젝트 설정이 변경되어 로그인을 취소했습니다.');
     if(!data.access_token||!data.user?.id)throw Error('로그인 정보를 확인하지 못했습니다.');
@@ -524,7 +525,7 @@
     if(isParent!==true)throw Error('부모 관리자로 등록된 계정이 아닙니다. 학생 화면에서 학생 계정으로 로그인하세요.');
     sessionGeneration++;session={token:data.access_token,uid:data.user.id,refreshToken:data.refresh_token,expiresAt:Date.now()+(data.expires_in||3600)*1000};baseline=undefined;auto=false;aligned=false;CQCloud.configure({url:project.url,anonKey:project.anonKey,token:session.token,uid:session.uid});CQCloud.setBeforeRequest(refreshIfNeeded);saveParentSession();
     const loginSession=session;const existing=await parentStore().loadParentSnapshot();if(session!==loginSession)throw Error('로그인 상태가 변경되었습니다.');baseline=existing?.updated_at??null;render();status(existing?'로그인 성공 · 클라우드 기록이 있습니다. 복원 또는 수동 저장 후 자동 동기화를 켜세요.':'로그인 성공 · 클라우드 기록이 없습니다. 자동 동기화를 켤 수 있습니다.');
-   }else if(action==='logout'){forgetParentSession();parentRestoreAttempted=true;sessionGeneration++;session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
+   }else if(action==='logout'){forgetParentSession();parentRestoreAttempted=true;sessionGeneration++;session=null;clearRereadInbox();issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];auto=false;dirty=false;baseline=undefined;aligned=false;clearTimeout(syncTimer);CQCloud.reset();render();status('로그아웃 완료');}
    else if(action==='push'){
     if(!session)throw Error('로그인이 필요합니다.');
     if(!confirm('현재 이 기기의 기록을 클라우드에 저장할까요? 다른 기기의 변경 사항이 감지되면 덮어쓰지 않습니다.'))return;
