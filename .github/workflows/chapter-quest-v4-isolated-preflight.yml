@@ -42,6 +42,8 @@ jobs:
         run: node --test app/tests/makeup-submission-lock.test.mjs
       - name: Reject malformed SQL dollar quotes before PostgreSQL
         run: node --test app/tests/sql-dollar-quote-static.test.mjs
+      - name: Verify student authorized lesson gateway and PDF signer client
+        run: node --test app/tests/student-approved-lessons.test.mjs
       - name: Verify PDF signer authorization before service-role signing
         run: node --test app/tests/pdf-signer-approved-gate-static.test.mjs
       - name: Check parallel regression shell syntax before database execution
