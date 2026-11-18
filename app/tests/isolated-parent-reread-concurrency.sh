@@ -5,6 +5,7 @@ if [[ "$PGDATABASE" != "cq_v4_isolated" || "$PGUSER" != "postgres" ]]; then
  echo "Refusing non-isolated database" >&2; exit 2
 fi
 psql -X -v ON_ERROR_STOP=1 <<'SQL'
+ALTER TABLE public.cq_v4_student_submissions ADD COLUMN IF NOT EXISTS feedback_released boolean NOT NULL DEFAULT false;
 ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_id uuid;
 ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_hash text;
 CREATE TABLE IF NOT EXISTS public.cq_v4_approval_requests(id uuid PRIMARY KEY,parent_user_id uuid,chapter_uuid uuid,answer_key jsonb,content_hash text);
