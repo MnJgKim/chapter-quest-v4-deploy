@@ -416,9 +416,9 @@ function seoulLessonDate(){
   const data=await response.json();if(!data.access_token||!data.user?.id)throw Error('인증 정보가 없습니다.');
   if(generation!==childGeneration||mode!=='student')throw Error('로그인 화면이 변경되어 이전 인증 결과를 적용하지 않았습니다.');
   startChildSession(data,project);
-  let scheduleError=null;
-  await fetchStudentLessonSchedule().catch(error=>{lessonSchedule=[];scheduleError=error;});draw();
-  if(scheduleError)status('로그인은 성공했지만 주간 일정 조회에 실패했습니다. 새로고침 또는 다시 로그인 후 확인하세요. ('+scheduleError.message+')');
+  // The login click handler loads the authorized list and then the schedule once.
+  // Avoid redundant requests and inconsistent partial redraws on slow tablets.
+  draw();
  }
  window.CQStudentNavigation=Object.freeze({leave(){if(!confirmLessonDeparture())return false;invalidateVoiceForNavigation();cancelChildUpload();return true;}});
  document.addEventListener('click',event=>{
