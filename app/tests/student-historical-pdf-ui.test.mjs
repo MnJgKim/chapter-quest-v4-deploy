@@ -50,3 +50,9 @@ test('audio recovery signed URL must target exact student chapter object and con
   assert.match(source,/const expectedPath='\/storage\/v1\/object\/sign\/cq-v4-speaking\/'\+uid\+'\/'\+uuid\+'\.'\+ext/);
   assert.match(source,/signedUrl\.pathname!==expectedPath\|\|!signedUrl\.searchParams\.has\('token'\)/);
 });
+
+test('student login reports weekly schedule RPC failure instead of silently showing empty week',()=>{
+  assert.match(source,/let scheduleError=null;/);
+  assert.match(source,/fetchStudentLessonSchedule\(\)\.catch\(error=>\{lessonSchedule=\[\];scheduleError=error;\}\)/);
+  assert.match(source,/if\(scheduleError\)status\('로그인은 성공했지만 주간 일정 조회에 실패했습니다/);
+});
