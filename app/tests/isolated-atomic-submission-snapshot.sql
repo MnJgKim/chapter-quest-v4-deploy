@@ -66,11 +66,15 @@ BEGIN
    '{"readComplete":true,"answers":["0"],"essay":"Rollback","speaking":"Rollback","hasAudio":true}'::jsonb);
   RAISE EXCEPTION 'Hash mismatch incorrectly accepted';
  EXCEPTION WHEN insufficient_privilege THEN NULL;END;
- IF EXISTS(SELECT 1 FROM public.cq_v4_student_submissions WHERE child_user_id=auth.uid() AND chapter_uuid='33333333-3333-4333-8333-333333333333')
- OR EXISTS(SELECT 1 FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id=auth.uid() AND chapter_uuid='33333333-3333-4333-8333-333333333333')
- THEN RAISE EXCEPTION 'Failed capture left partial submission or snapshot';END IF;
+
 END $atomic_rollback$;
 RESET ROLE;
+DO $verify_atomic_rollback$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.cq_v4_student_submissions WHERE child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb' AND chapter_uuid='33333333-3333-4333-8333-333333333333')
+ OR EXISTS(SELECT 1 FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb' AND chapter_uuid='33333333-3333-4333-8333-333333333333')
+ THEN RAISE EXCEPTION 'Failed capture left partial submission or snapshot';END IF;
+END $verify_atomic_rollback$;
 UPDATE public.cq_v4_activities SET approval_hash='frozen-approved'
  WHERE chapter_uuid='33333333-3333-4333-8333-333333333333';
 SET LOCAL ROLE authenticated;
