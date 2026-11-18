@@ -26,3 +26,15 @@ test('parent alert is advisory only and not student feedback or notification del
  assert.match(source,/학생에게 자동 전송되지 않습니다/);
  assert.match(source,/const rereadNotice=advisory\?\.needsReread/);
 });
+
+test('mixed subjective and objective work scores only MC answers',()=>{
+ const row={lessonContext:{questions:[{kind:'mc',options:['A','B']},{kind:'short'},{kind:'mc',options:['A','B']}],answer_key:[1,'sample',0]},answers:{answers:['1','a thoughtful essay','1']}};
+ const score=objectiveReadingAdvisory(row);
+ assert.equal(score.total,2);assert.equal(score.correct,1);assert.equal(score.needsReread,true);
+});
+test('zero MC, missing key and malformed answers do not invent scores',()=>{
+ const row={lessonContext:{questions:[{kind:'short'}],answer_key:['sample']},answers:{answers:['essay']}};
+ assert.equal(objectiveReadingAdvisory(row),null);
+ assert.equal(objectiveReadingAdvisory({lessonContext:{questions:[{kind:'mc',options:['A','B']}]},answers:{answers:['0']}}),null);
+ assert.equal(objectiveReadingAdvisory({lessonContext:{questions:[{kind:'mc',options:['A','B']}],answer_key:[0]},answers:{answers:['1.0']}}),null);
+});
