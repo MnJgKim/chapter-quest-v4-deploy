@@ -1,5 +1,5 @@
 // DEVELOPMENT SOURCE SNAPSHOT: retrieved read-only from deployed cq-v4-pdf-link v2.
-// Requires cq_v4_can_start_lesson() in reviewed DB migration BEFORE deployment.
+// Requires cq_v4_can_read_lesson() and cq_v4_can_start_lesson() in reviewed DB migration BEFORE deployment.
 // Historical signed URLs expire after 120 seconds; old links cannot be revoked early.
 // Do not deploy until the history SELECT policy and RPC have been verified.
 // Supabase Edge Function: cq-v4-pdf-link
@@ -38,25 +38,14 @@ Deno.serve(async req=>{
   const {data:enrollment,error:enrollmentError}=await userClient.from('cq_v4_pdf_enrollments').select('student_user_id').eq('parent_user_id',chapterRow.parent_user_id).eq('student_user_id',userId).maybeSingle();
   if(enrollmentError)return json({error:'ACCESS_CHECK_FAILED'},503);
   if(!enrollment)return json({error:'FORBIDDEN'},403);
-  // Enforce the same server-side lesson release gate as the student chapter list.
-  // This check runs with the authenticated student's JWT; never trust a caller-supplied UID.
-  const {data:released,error:releaseError}=await userClient.rpc('cq_v4_is_released',{
+  // One server-authoritative RLS-safe permission check: same-day new work
+  // OR an immutable submission owned by this student. No direct submission
+  // table SELECT: the table has RLS enabled and no client SELECT policy.
+  const {data:canRead,error:readError}=await userClient.rpc('cq_v4_can_read_lesson',{
     p_chapter:chapter,p_student:userId
   });
-  if(releaseError)return json({error:'LESSON_RELEASE_CHECK_FAILED'},503);
-  if(released!==true)return json({error:'LESSON_NOT_RELEASED'},403);
-  // Server-side permission for NEW work is distinct from immutable historical reading.
-  // Never trust client clock, claimed user id, or a client-provided completion flag.
-  const {data:canStart,error:startError}=await userClient.rpc('cq_v4_can_start_lesson',{
-    p_chapter:chapter,p_student:userId
-  });
-  if(startError)return json({error:'LESSON_DAY_CHECK_FAILED'},503);
-  if(canStart!==true){
-    const {data:done,error:doneError}=await userClient.from('cq_v4_student_submissions')
-      .select('chapter_uuid').eq('chapter_uuid',chapter).eq('child_user_id',userId).maybeSingle();
-    if(doneError)return json({error:'HISTORY_CHECK_FAILED'},503);
-    if(!done)return json({error:'LESSON_DAY_CLOSED'},403);
-  }
+  if(readError)return json({error:'LESSON_ACCESS_CHECK_FAILED'},503);
+  if(canRead!==true)return json({error:'LESSON_DAY_CLOSED'},403);
   const admin=createClient(url,service,{auth:{persistSession:false}});
   const {data:link,error:signError}=await admin.storage.from('cq-v4-originals').createSignedUrl(chapterRow.storage_path,120);
   if(signError||!link?.signedUrl)return json({error:'PDF_NOT_AVAILABLE'},404);
