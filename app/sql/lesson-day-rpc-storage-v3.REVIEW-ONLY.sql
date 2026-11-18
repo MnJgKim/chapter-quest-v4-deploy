@@ -117,7 +117,7 @@ AS RESTRICTIVE FOR INSERT TO authenticated
 WITH CHECK (
   bucket_id <> 'cq-v4-speaking'
   OR (
-    name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f-]{36}[.](webm|mp4|ogg)$')
+    name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.](webm|mp4|ogg)$')
     AND public.cq_v4_can_start_lesson((CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.](webm|mp4|ogg)$' THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid()))
   )
 );
@@ -130,7 +130,7 @@ USING (
 WITH CHECK (
   bucket_id <> 'cq-v4-speaking'
   OR (
-    name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f-]{36}[.](webm|mp4|ogg)$')
+    name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.](webm|mp4|ogg)$')
     AND public.cq_v4_can_start_lesson((CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}[.](webm|mp4|ogg)$' THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid()))
   )
 );
