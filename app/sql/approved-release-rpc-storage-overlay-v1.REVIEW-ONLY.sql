@@ -116,7 +116,7 @@ $function$
 -- Preserve historical reads for this student's already-submitted, still-assigned chapter.
 CREATE OR REPLACE FUNCTION public.cq_v4_can_read_lesson(p_chapter uuid,p_student uuid)
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
-AS $
+AS $read$
  SELECT p_student=(SELECT auth.uid())
    AND (
      public.cq_v4_can_start_approved_lesson(p_chapter,p_student)
@@ -129,7 +129,7 @@ AS $
        WHERE done.chapter_uuid=p_chapter AND done.child_user_id=p_student
      )
    );
-$;
+$read$;
 REVOKE ALL ON FUNCTION public.cq_v4_can_read_lesson(uuid,uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.cq_v4_can_read_lesson(uuid,uuid) TO authenticated;
 
