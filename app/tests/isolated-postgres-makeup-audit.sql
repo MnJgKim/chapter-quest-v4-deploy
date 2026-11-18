@@ -3,6 +3,7 @@
 BEGIN;
 INSERT INTO public.cq_v4_pdf_chapters VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true,'Chapter 1');
 INSERT INTO public.cq_v4_pdf_enrollments VALUES('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb');
+INSERT INTO public.cq_v4_pdf_assignments VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb');
 INSERT INTO public.cq_v4_activities VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd',now(),'[]');
 INSERT INTO public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date,released_at)
 VALUES('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','dddddddd-dddd-4ddd-dddd-dddddddddddd',(now() AT TIME ZONE 'Asia/Seoul')::date-1,now());
