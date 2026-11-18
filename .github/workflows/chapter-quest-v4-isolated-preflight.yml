@@ -49,6 +49,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/sql/lesson-day-rpc-storage-v3.REVIEW-ONLY.sql
           psql -v ON_ERROR_STOP=1 -f app/sql/makeup-approval-v1.REVIEW-ONLY.sql
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-security.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-authenticated.sql
       - name: Record remaining SQL integration prerequisites
         run: |
           echo 'SQL/RLS integration is NOT complete: Supabase auth/storage schemas and application tables must be bootstrapped in this isolated DB.'
