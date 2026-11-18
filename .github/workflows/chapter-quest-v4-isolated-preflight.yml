@@ -42,6 +42,8 @@ jobs:
         run: node --test app/tests/makeup-submission-lock.test.mjs
       - name: Reject malformed SQL dollar quotes before PostgreSQL
         run: node --test app/tests/sql-dollar-quote-static.test.mjs
+      - name: Check parallel regression shell syntax before database execution
+        run: bash -n app/tests/isolated-atomic-scheduler-concurrency.sh
       - name: Confirm isolated PostgreSQL 16 (no Supabase credentials)
         run: |
           psql -v ON_ERROR_STOP=1 -c 'SELECT current_database(), current_user, version();'
