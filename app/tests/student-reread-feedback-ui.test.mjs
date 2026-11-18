@@ -20,3 +20,9 @@ test('missing review-only RPC preserves submitted feedback view',()=>{
  assert.match(app,/assertChildContext\(viewContext\);if\(childApi!==viewApi\)return/);
  assert.match(app,/\$\{feedback\}\$\{rereadNotice\}/);
 });
+
+test('token refresh must preserve the same authenticated student identity',()=>{
+ assert.match(app,/data\.user\?\.id\|\|data\.user\.id!==owner\.uid/);
+ assert.match(app,/if\(session!==owner\|\|generation!==childGeneration\)throw Error\('학생 계정이 변경되었습니다/);
+ assert.match(app,/owner\.token=data\.access_token/);
+});
