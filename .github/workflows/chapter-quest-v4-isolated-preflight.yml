@@ -122,11 +122,6 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-student-auto-release.sql
           psql -v ON_ERROR_STOP=1 -f app/server-review/release-auth-candidate.sql
           bash app/tests/isolated-student-auto-release-concurrency.sh
-      - name: Verify first lesson midnight and the versioned student entry point
-        run: |
-          node --test review/student-release-entrypoint.test.mjs
-          createdb cq_v4_first_lesson_test
-          psql -d cq_v4_first_lesson_test -v ON_ERROR_STOP=1 -f review/sql-candidates/seojin-seven-lessons.ISOLATED-TEST.sql
       - name: Publish isolated PostgreSQL verification summary
         if: success()
         run: |
@@ -149,3 +144,32 @@ jobs:
         run: |
           echo 'Isolated bootstrap and SQL assertions ran; real Supabase Auth/Storage, JWT issuance, Edge signing and production concurrency remain unverified.'
           echo 'Never point this workflow at production Supabase.'
+  first-lesson-release:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: cq_v4_first_lesson_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: isolated-test-only
+      PGDATABASE: cq_v4_first_lesson_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify the versioned student entry point
+        run: node --test review/student-release-entrypoint.test.mjs
+      - name: Verify first lesson midnight in a fresh PostgreSQL cluster
+        run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/seojin-seven-lessons.ISOLATED-TEST.sql
