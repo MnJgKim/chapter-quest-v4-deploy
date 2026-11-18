@@ -38,6 +38,8 @@ jobs:
           node-version: '22'
       - name: Run original repository Node tests
         run: node --test app/tests/lesson-day-authorization-static.test.mjs
+      - name: Verify newly added submit/makeup lock ordering
+        run: node --test app/tests/makeup-submission-lock.test.mjs
       - name: Confirm isolated PostgreSQL 16 (no Supabase credentials)
         run: |
           psql -v ON_ERROR_STOP=1 -c 'SELECT current_database(), current_user, version();'
