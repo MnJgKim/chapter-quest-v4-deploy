@@ -10,6 +10,8 @@ chapter='99999999-9999-4999-8999-999999999999'
 parent='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'
 cleanup() {
   psql -X -v ON_ERROR_STOP=1 -q <<SQL
+DELETE FROM public.cq_v4_student_submissions WHERE chapter_uuid='$chapter';
+DELETE FROM storage.objects WHERE bucket_id='cq-v4-speaking' AND name='$student/$chapter.webm';
 DELETE FROM public.cq_v4_lesson_schedule WHERE chapter_id='$chapter';
 DELETE FROM public.cq_v4_approved_chapter_queue WHERE chapter_id='$chapter';
 DELETE FROM public.cq_v4_student_weekday_policy WHERE student_user_id='$student';
@@ -100,4 +102,51 @@ fi
 count=$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM public.cq_v4_lesson_schedule WHERE chapter_id='$chapter'")
 if [[ "$count" != '1' ]]; then echo "Parent/student race schedule count: $count" >&2; exit 1; fi
 echo 'PARENT_SCHEDULER_PARALLEL_ASSERTIONS_PASSED'
+# Student submission must win the chapter lock and make a concurrent
+# parent reschedule fail without mutating the completed lesson.
+psql -X -v ON_ERROR_STOP=1 -q <<SQL
+UPDATE public.cq_v4_activities
+SET questions='[{"kind":"mc","options":["A","B"]}]'::jsonb
+WHERE chapter_uuid='$chapter';
+INSERT INTO storage.objects(bucket_id,name)
+VALUES('cq-v4-speaking','$student/$chapter.webm');
+SQL
+psql -X -At -v ON_ERROR_STOP=1 >"$first" <<SQL &
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','$student',true);
+SELECT pg_catalog.pg_advisory_xact_lock(
+  pg_catalog.hashtextextended('$student:$chapter',0));
+SELECT pg_sleep(2);
+SELECT chapter_uuid FROM public.cq_v4_submit_answers('$chapter',
+ '{"readComplete":true,"answers":["0"],"essay":"Test essay","speaking":"Test script","hasAudio":true}'::jsonb);
+COMMIT;
+SQL
+pid_a=$!
+sleep 0.4
+# The parent request is expected to be denied after the student commits.
+psql -X -At -v ON_ERROR_STOP=1 >"$second" 2>&1 <<SQL &
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','$parent',true);
+SELECT public.cq_v4_parent_schedule_lesson('$student','$chapter',
+  (now() AT TIME ZONE 'Asia/Seoul')::date + 1);
+COMMIT;
+SQL
+pid_b=$!
+wait "$pid_a"
+if wait "$pid_b"; then
+  echo 'Parent rescheduled a chapter concurrently submitted by student' >&2; exit 1
+fi
+if ! grep -Fq 'Completed lessons cannot be rescheduled' "$second"; then
+  echo 'Parent request failed for unexpected reason:' >&2; cat "$second" >&2; exit 1
+fi
+if ! grep -Fq "$chapter" "$first"; then
+  echo 'Student submission failed to commit' >&2; exit 1
+fi
+count=$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM public.cq_v4_student_submissions WHERE chapter_uuid='$chapter' AND child_user_id='$student'")
+if [[ "$count" != '1' ]]; then echo 'Student submission not immutable' >&2; exit 1; fi
+count=$(psql -X -At -v ON_ERROR_STOP=1 -c "SELECT count(*) FROM public.cq_v4_lesson_schedule WHERE chapter_id='$chapter' AND lesson_date=(now() AT TIME ZONE 'Asia/Seoul')::date")
+if [[ "$count" != '1' ]]; then echo 'Submitted lesson date changed' >&2; exit 1; fi
+echo 'SUBMISSION_PARENT_PARALLEL_ASSERTIONS_PASSED'
 echo 'ATOMIC_SCHEDULER_PARALLEL_ASSERTIONS_PASSED'
