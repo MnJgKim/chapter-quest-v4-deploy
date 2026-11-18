@@ -8,3 +8,10 @@ test('completed lesson view retains a PDF viewer but no editable submission form
   assert.match(source,/if\(!submitted\)\{\s*const activityRows=await viewApi\.chapterActivities/);
   assert.match(source,/if\(!submitted&&c\.lesson_date!==seoulLessonDate\(\)\)/);
 });
+
+test('historical PDF viewer stays current without an editable form',()=>{
+  assert.match(source,/detail\.dataset\.viewChapter=c\.chapter_uuid/);
+  assert.match(source,/document\.getElementById\('cqChildDetail'\)\?\.dataset\.viewChapter===chapterUuid/);
+  assert.match(source,/target===document\.getElementById\('cqServerPdfViewer'\)/);
+  assert.match(source,/if\(!form\)\{target\.insertAdjacentHTML\('beforeend','<p class="muted">제출 완료 원본 PDF를 읽기 전용으로 표시합니다\.<\/p>'\);return;\}/);
+});
