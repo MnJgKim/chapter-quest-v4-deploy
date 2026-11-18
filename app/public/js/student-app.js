@@ -1,6 +1,6 @@
 /* Optional child account connection: isolated from parent credentials and local student selector. */
 (()=>{
- let session=null, childApi=null, chapters=[],busy=false, voiceRecorder=null, voiceStream=null, voiceChunks=[], voiceBlob=null, voiceChapter=null, uploadedAudio=new Set(), childGeneration=0, activeChildUpload=null, activeChildSubmit=null;
+ let lessonSchedule=[],session=null, childApi=null, chapters=[],busy=false, voiceRecorder=null, voiceStream=null, voiceChunks=[], voiceBlob=null, voiceChapter=null, uploadedAudio=new Set(), childGeneration=0, activeChildUpload=null, activeChildSubmit=null;
  let serverPdfController=null,serverPdfDocument=null,serverPdfObjectUrl=null;
  // Dedicated student tablets: persist only the rotating refresh token, never the password.
  // The token is scoped to the exact Supabase project and user. A shared device must use Logout.
@@ -36,12 +36,24 @@
    const owner=childContext(),api=childApi;
    const rows=await api.assignedChapters();
    assertChildContext(owner);if(childApi!==api)return;
-   chapters=rows;draw();status(rows.length+'개 공개 챕터를 자동으로 불러왔습니다.');
+   chapters=rows;await fetchStudentLessonSchedule();draw();status(rows.length+'개 공개 챕터를 자동으로 불러왔습니다.');
   }catch(err){
    // Do not erase the original refresh token on network failure: the learner may be offline.
    if(err.message==='saved-session-expired'||err.message==='saved-session-mismatch')forgetDedicatedChild();
    if(!session&&mode==='student')status('자동 로그인에 실패했습니다. 기존 학생 이메일로 로그인하세요. 학습 답안은 보존됩니다.');
   }
+ }
+ async function fetchStudentLessonSchedule(){
+  const owner=childContext(),project=studentProject(),token=await childAccessToken();
+  const response=await fetch(project.url+'/rest/v1/rpc/cq_v4_my_lesson_schedule',{
+   method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+token,'Content-Type':'application/json'},
+   body:'{}',cache:'no-store'
+  });
+  if(!response.ok)throw Error('주간 예정 일정 조회에 실패했습니다.');
+  const rows=await response.json();
+  assertChildContext(owner);
+  if(!Array.isArray(rows))throw Error('예정 일정 형식이 올바르지 않습니다.');
+  lessonSchedule=rows.filter(row=>/^\\d{4}-\\d{2}-\\d{2}$/.test(row.lesson_date||'')&&typeof row.chapter_title==='string');
  }
  const sameProject=(a,b)=>!!a&&!!b&&a.url===b.url&&a.anonKey===b.anonKey;
  function studentProject(){
@@ -334,12 +346,12 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
   const todayUTC=new Date(todaySeoul+'T00:00:00Z');const mondayUTC=new Date(todayUTC);mondayUTC.setUTCDate(todayUTC.getUTCDate()-((todayUTC.getUTCDay()+6)%7));
   const nextMondayUTC=new Date(mondayUTC);nextMondayUTC.setUTCDate(mondayUTC.getUTCDate()+7);
   const mondayKey=mondayUTC.toISOString().slice(0,10),nextMondayKey=nextMondayUTC.toISOString().slice(0,10);
-  const weeklyChapters=chapters.filter(c=>c.lesson_date&&c.lesson_date>=mondayKey&&c.lesson_date<nextMondayKey);
+  const weeklyChapters=lessonSchedule.filter(c=>c.lesson_date>=mondayKey&&c.lesson_date<nextMondayKey).map(c=>({...c,available:chapters.some(ch=>ch.chapter_uuid===c.chapter_uuid)}));
   const pastChapters=chapters.filter(c=>c.lesson_date&&c.lesson_date<mondayKey);
   root.innerHTML=`<section class="card"><h2>${session?'📚 이번 주 학습':'🔐 학생 계정 로그인'}</h2>
    <p class="muted">학생 본인의 계정으로 로그인하세요. 부모가 승인하고 배정한 챕터를 학습할 수 있습니다. 기기 데모 기록은 별도로 보관됩니다. 작성 중인 답안은 이 기기에 자동 저장되며 같은 계정으로 다시 로그인하면 이어서 학습할 수 있습니다.</p>
    ${session?`<details><summary>계정 관리 · 로그인 상태 확인</summary><p>학생 계정 로그인됨 · 계정 확인번호 <strong data-child-reference>${escape(session.uid.slice(-8))}</strong></p>${session.resumedExisting?`<div role="status" aria-live="polite" data-session-summary><p>인증: 기존 익명 계정 확인됨</p><p>부모 연결: 기존 연결 확인됨 · 재초대하지 마세요.</p><p>승인·배정: ${session.assignmentCount==null?'조회 전 또는 조회 실패':session.assignmentCount+'개 공개됨'}</p>${session.assignmentCount===0?'<p>아직 공개된 챕터가 없습니다. 예정된 수업은 공개일에 자동으로 표시됩니다.</p>':''}</div>`:`<div class="row"><input id="cqChildInvite" placeholder="부모 초대코드 (48자리)" autocomplete="off" style="flex:1"><input id="cqChildInviteName" placeholder="학생 이름" style="max-width:130px"><button data-child="claim">연결 요청</button></div>`}<button data-child="list">공개된 챕터 새로고침</button>${session.resumedExisting?'<button data-child="recheck-existing">같은 계정 세션 다시 확인 · 답안 유지</button>':'<button data-child="logout">로그아웃</button>'}</details>
-    <section aria-label="주간 학습" class="card"><h3>공개된 학습 일정</h3><p class="muted">부모가 승인·배정하고 공개한 챕터만 예정일부터 표시됩니다. 지정 요일 외에도 학습할 수 있으며, 새 배정이 없으면 다음 주에 자동 추가되지 않습니다.</p><div class="grid">${weeklyChapters.map(c=>`<div class="book"><h4>${c.lesson_date?escape(c.lesson_date)+' ('+['일','월','화','수','목','금','토'][new Date(c.lesson_date+'T00:00:00Z').getUTCDay()]+')':'공개된 학습'}</h4><p>${escape(c.chapter_title)}</p><button type="button" data-child="view" data-uuid="${escape(c.chapter_uuid)}" ${c.lesson_date!==todaySeoul?'disabled aria-label="해당 수업일에만 학습 가능"':''}>${c.lesson_date===todaySeoul?'학습 시작':'수업일에만 시작 가능'}</button></div>`).join('')||'<p class="muted">이번 주 공개된 챕터가 없습니다. 기존 학습과 제출 기록은 유지됩니다.</p>'}</div></section>
+    <section aria-label="주간 학습" class="card"><h3>이번 주 학습 일정</h3><p class="muted">예정된 학습은 날짜와 챕터만 미리 볼 수 있습니다. 원문과 문제는 수업 당일에만 열 수 있습니다.</p><div class="grid">${weeklyChapters.map(c=>`<div class="book"><h4>${c.lesson_date?escape(c.lesson_date)+' ('+['일','월','화','수','목','금','토'][new Date(c.lesson_date+'T00:00:00Z').getUTCDay()]+')':'공개된 학습'}</h4><p>${escape(c.chapter_title)}</p><button type="button" data-child="view" data-uuid="${escape(c.chapter_uuid)}" ${c.lesson_date!==todaySeoul||!c.available||!c.is_released?'disabled aria-label="해당 수업일에만 학습 가능"':''}>${c.lesson_date===todaySeoul&&c.available&&c.is_released?'학습 시작':'수업 예정'}</button></div>`).join('')||'<p class="muted">이번 주 공개된 챕터가 없습니다. 기존 학습과 제출 기록은 유지됩니다.</p>'}</div></section>
     <details><summary>이전 학습 기록 (${pastChapters.length}개)</summary><div>${pastChapters.map(c=>`<div class="book"><b>${escape(c.chapter_title)}</b> <button type="button" data-child="view" data-uuid="${escape(c.chapter_uuid)}">학습·피드백 보기</button></div>`).join('')}</div></details><div id="cqChildDetail"></div>`:
     `<div class="grid"><label>학생 이메일<input id="cqChildEmail" type="email" autocomplete="username"></label><label>학생 비밀번호<input id="cqChildPassword" type="password" autocomplete="current-password"></label></div><button data-child="inspect-existing">이 기기의 기존 익명 계정 확인 · 읽기 전용</button><p class="muted">기존 저장 세션만 확인합니다. 새 가입·토큰 갱신·계정 전환은 하지 않습니다. 기록이 없거나 만료됐으면 원래 계정을 유지하고 중단합니다.</p><details><summary>기존 계정으로 다시 들어가는 방법</summary><p>기존에 쓰던 브라우저와 프로필에서 확인하세요. 이메일 계정이었던 경우에만 아래 기존 이메일 로그인을 사용하세요. 익명 계정은 이메일 입력이나 새 가입으로 복구되지 않습니다. 저장 세션이 없거나 만료되면 계정을 바꾸지 말고 부모와 기존 계정 확인번호를 대조한 뒤 복구 절차를 요청하세요. 비밀번호·인증 토큰은 공유하지 마세요.</p></details><button data-child="login">학생 계정 로그인</button><button data-child="signup-open">학생 계정 만들기</button><div id="cqChildSignup" hidden><label>비밀번호 확인<input id="cqChildPasswordConfirm" type="password" autocomplete="new-password"></label><p class="muted">학생용 별도 계정을 만들고 부모 초대코드로 연결하세요. 비밀번호는 8자 이상 입력하세요.</p><button data-child="signup">새 학생 계정 생성</button><button data-child="signup-cancel">취소</button></div>`}
    <p id="cqChildStatus" class="status"></p></section>`;
@@ -402,7 +414,7 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
   const b=e.target.closest('[data-child]');if(!b||mode!=='student')return;
   if(b.dataset.child==='logout'){
     if(!confirmLessonDeparture())return;
-    invalidateVoiceForNavigation();cancelChildUpload();uploadedAudio.clear();forgetDedicatedChild();session=null;childRefreshPromise=null;childApi=null;chapters=[];
+    invalidateVoiceForNavigation();cancelChildUpload();uploadedAudio.clear();forgetDedicatedChild();session=null;childRefreshPromise=null;childApi=null;chapters=[];lessonSchedule=[];
     draw();status('로그아웃했습니다. 진행 중인 녹음 업로드는 취소를 요청했습니다.');return;
   }
   if(b.dataset.child==='voice-stop'){if(voiceRecorder?.state==='recording')voiceRecorder.stop();return;}
@@ -558,7 +570,7 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
    if(b.dataset.child==='list'){
      const owner=childContext(),api=childApi;const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)throw Error('학생 계정이 변경되었습니다.');
      if(hasAtRiskDraft()){status('조회 중 답안 저장에 실패해 이동을 중단했습니다. 답안 저장 재시도를 누르세요.');return;}
-     invalidateVoiceForNavigation();clearServerPdf();chapters=rows;if(session.resumedExisting)session.assignmentCount=rows.length;draw();status(chapters.length+'개 공개 챕터를 불러왔습니다.');
+     invalidateVoiceForNavigation();clearServerPdf();chapters=rows;if(session.resumedExisting)session.assignmentCount=rows.length;await fetchStudentLessonSchedule();draw();status(chapters.length+'개 공개 챕터를 불러왔습니다.');
    }
    if(b.dataset.child==='view'||b.dataset.child==='feedback'){
     const c=chapters.find(x=>x.chapter_uuid===b.dataset.uuid);
