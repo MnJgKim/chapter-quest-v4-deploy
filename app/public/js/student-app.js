@@ -347,7 +347,7 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
   const todayUTC=new Date(todaySeoul+'T00:00:00Z');const mondayUTC=new Date(todayUTC);mondayUTC.setUTCDate(todayUTC.getUTCDate()-((todayUTC.getUTCDay()+6)%7));
   const nextMondayUTC=new Date(mondayUTC);nextMondayUTC.setUTCDate(mondayUTC.getUTCDate()+7);
   const mondayKey=mondayUTC.toISOString().slice(0,10),nextMondayKey=nextMondayUTC.toISOString().slice(0,10);
-  const weeklyChapters=lessonSchedule.filter(c=>c.lesson_date>=mondayKey&&c.lesson_date<nextMondayKey).map(c=>({...c,available:chapters.some(ch=>ch.chapter_uuid===c.chapter_uuid)}));
+  const weeklyChapters=lessonSchedule.filter(c=>c.lesson_date>=mondayKey&&c.lesson_date<nextMondayKey).map(c=>{const authorized=chapters.some(ch=>ch.chapter_uuid===c.chapter_uuid);return {...c,available:authorized,is_released:authorized&&c.is_released===true};});
   const pastChapters=chapters.filter(c=>c.lesson_date&&c.lesson_date<mondayKey);
   root.innerHTML=`<section class="card"><h2>${session?'📚 이번 주 학습':'🔐 학생 계정 로그인'}</h2>
    <p class="muted">학생 본인의 계정으로 로그인하세요. 부모가 승인하고 배정한 챕터를 학습할 수 있습니다. 기기 데모 기록은 별도로 보관됩니다. 작성 중인 답안은 이 기기에 자동 저장되며 같은 계정으로 다시 로그인하면 이어서 학습할 수 있습니다.</p>
