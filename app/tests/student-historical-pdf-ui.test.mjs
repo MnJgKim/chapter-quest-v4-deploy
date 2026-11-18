@@ -29,3 +29,11 @@ test('weekly lesson button requires server-approved list AND released schedule f
   assert.match(source,/available:authorized,is_released:authorized&&c\.is_released===true/);
   assert.match(source,/c\.lesson_date!==todaySeoul\|\|!c\.available\|\|!c\.is_released/);
 });
+
+test('review-only weekly schedule release uses approved gate and immutable history, not manual release',async()=>{
+  const sql=await fs.readFile(new URL('../../review/sql-candidates/cq_v4_my_lesson_schedule_release_guard.sql',import.meta.url),'utf8');
+  assert.match(sql,/cq_v4_can_start_approved_lesson\(s\.chapter_id/);
+  assert.match(sql,/cq_v4_student_submissions done/);
+  assert.doesNotMatch(sql,/cq_v4_is_released\(/);
+  assert.match(sql,/REVIEW CANDIDATE ONLY/);
+});
