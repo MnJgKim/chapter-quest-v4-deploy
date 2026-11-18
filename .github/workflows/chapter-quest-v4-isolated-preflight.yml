@@ -6,6 +6,7 @@ on:
       - '.github/workflows/chapter-quest-v4-isolated-preflight.yml'
       - 'app/tests/**'
       - 'app/public/js/student-app.js'
+      - 'app/public/js/parent-app.js'
       - 'app/public/js/student-api.js'
       - 'app/public/js/pdf-transport.js'
       - 'app/sql/**'
@@ -48,6 +49,8 @@ jobs:
         run: node --test app/tests/sql-dollar-quote-static.test.mjs
       - name: Verify actual student UI transport authorization sequence
         run: node --test app/student-api.test.mjs app/student-api-safety.test.mjs app/tests/student-historical-pdf-ui.test.mjs
+      - name: Verify parent objective reread advisory without subjective scoring
+        run: node --test app/tests/parent-objective-reread.test.mjs
       - name: Verify student authorized lesson gateway and PDF signer client
         run: node --test app/tests/student-approved-lessons.test.mjs
       - name: Verify PDF signer authorization before service-role signing
