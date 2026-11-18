@@ -64,3 +64,34 @@ END;
 $fn$;
 REVOKE ALL ON FUNCTION public.cq_v4_parent_sync_reread_notice(uuid,uuid) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.cq_v4_parent_sync_reread_notice(uuid,uuid) TO authenticated;
+
+-- Parent inbox: do not expose approval keys or student answer JSON.
+CREATE OR REPLACE FUNCTION public.cq_v4_parent_reread_inbox()
+RETURNS TABLE(notice_id uuid,student_user_id uuid,chapter_uuid uuid,correct_mc integer,total_mc integer,submitted_at timestamptz,created_at timestamptz,acknowledged_at timestamptz)
+LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO '' AS $fn$
+ SELECT n.id,n.student_user_id,n.chapter_uuid,n.correct_mc,n.total_mc,n.submitted_at,n.created_at,n.acknowledged_at
+ FROM public.cq_v4_reread_notices n
+ JOIN public.cq_v4_pdf_chapters c ON c.chapter_id=n.chapter_uuid AND c.parent_user_id=n.parent_user_id
+ JOIN public.cq_v4_pdf_enrollments e ON e.parent_user_id=n.parent_user_id AND e.student_user_id=n.student_user_id
+ WHERE n.parent_user_id=auth.uid() AND public.cq_is_admin()
+ ORDER BY n.created_at DESC,n.id;
+$fn$;
+REVOKE ALL ON FUNCTION public.cq_v4_parent_reread_inbox() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_parent_reread_inbox() TO authenticated;
+
+CREATE OR REPLACE FUNCTION public.cq_v4_parent_ack_reread_notice(p_notice uuid)
+RETURNS boolean
+LANGUAGE plpgsql SECURITY DEFINER SET search_path TO '' AS $fn$
+DECLARE v_parent uuid:=auth.uid();v_found boolean;
+BEGIN
+ IF v_parent IS NULL OR NOT public.cq_is_admin() THEN RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501';END IF;
+ UPDATE public.cq_v4_reread_notices n SET acknowledged_at=COALESCE(n.acknowledged_at,now())
+ WHERE n.id=p_notice AND n.parent_user_id=v_parent
+ AND EXISTS(SELECT 1 FROM public.cq_v4_pdf_chapters c WHERE c.chapter_id=n.chapter_uuid AND c.parent_user_id=v_parent)
+ AND EXISTS(SELECT 1 FROM public.cq_v4_pdf_enrollments e WHERE e.parent_user_id=v_parent AND e.student_user_id=n.student_user_id)
+ RETURNING true INTO v_found;
+ RETURN COALESCE(v_found,false);
+END;
+$fn$;
+REVOKE ALL ON FUNCTION public.cq_v4_parent_ack_reread_notice(uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_parent_ack_reread_notice(uuid) TO authenticated;
