@@ -44,5 +44,28 @@ BEGIN
   RAISE EXCEPTION 'Same-day second chapter was scheduled after completion';
  END IF;
 END $$;
+-- Existing parent schedule must not be overwritten even after chapter 1 completion.
+SET LOCAL ROLE postgres;
+DELETE FROM public.cq_v4_lesson_schedule
+ WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
+INSERT INTO public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date)
+VALUES ('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',
+ '22222222-2222-4222-8222-222222222222',(now() AT TIME ZONE 'Asia/Seoul')::date + 3);
+SET LOCAL ROLE authenticated;
+DO $
+BEGIN
+ IF public.cq_v4_ensure_today_approved_lesson() IS NOT NULL THEN
+  RAISE EXCEPTION 'Existing parent schedule overwritten';
+ END IF;
+END $;
+SET LOCAL ROLE postgres;
+DO $
+BEGIN
+ IF (SELECT lesson_date FROM public.cq_v4_lesson_schedule
+     WHERE chapter_id='22222222-2222-4222-8222-222222222222')
+    IS DISTINCT FROM (now() AT TIME ZONE 'Asia/Seoul')::date+3 THEN
+  RAISE EXCEPTION 'Parent schedule changed';
+ END IF;
+END $;
 ROLLBACK;
 \echo 'ATOMIC_WEEKDAY_SCHEDULER_ASSERTIONS_PASSED'
