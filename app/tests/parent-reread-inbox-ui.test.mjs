@@ -26,3 +26,12 @@ test('project change, login reset and logout purge parent inbox state',()=>{
  assert.match(source,/const clearRereadInbox=\(\)=>\{rereadNotices=\[\];rereadOwner=null;rereadAvailable=false;\}/);
  assert.equal(source.split('session=null;clearRereadInbox();issuedInvite=""').length-1,3);
 });
+
+test('acknowledgement re-fetch validates all notice records before rendering',()=>{
+ const ack=source.indexOf("parentRpc('cq_v4_parent_ack_reread_notice'");
+ assert.ok(ack>=0);
+ const fragment=source.slice(ack,ack+1100);
+ assert.match(fragment,/const valid=rows\.every\(/);
+ assert.match(fragment,/if\(!valid\)throw Error\('알림 갱신 데이터가 올바르지 않습니다/);
+ assert.match(fragment,/rereadNotices=rows;rereadOwner=owner;rereadAvailable=true;render\(\)/);
+});
