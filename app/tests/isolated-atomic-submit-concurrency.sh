@@ -12,7 +12,10 @@ CREATE TABLE IF NOT EXISTS public.cq_v4_approval_requests(id uuid PRIMARY KEY,pa
 INSERT INTO public.cq_v4_pdf_chapters VALUES
  ('33333333-3333-4333-8333-333333333333','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true,'Approved'),
  ('44444444-4444-4444-8444-444444444444','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true,'Not approved');
-INSERT INTO public.cq_v4_pdf_enrollments VALUES ('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb');
+-- Earlier isolated regression steps may already enroll this same fixture student.
+-- Preserve the enrollment while allowing this independent concurrency scenario to run.
+INSERT INTO public.cq_v4_pdf_enrollments VALUES ('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb')
+ON CONFLICT (parent_user_id,student_user_id) DO NOTHING;
 INSERT INTO public.cq_v4_pdf_assignments VALUES
  ('33333333-3333-4333-8333-333333333333','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'),
  ('44444444-4444-4444-8444-444444444444','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb');
