@@ -56,6 +56,11 @@
       if(!Array.isArray(rows)||rows.length>1||rows.some(row=>!row||row.chapter_uuid!==chapterUuid||typeof row.submitted_at!=='string'||!Number.isFinite(Date.parse(row.submitted_at))||typeof row.feedback_released!=='boolean'||(row.feedback!==null&&typeof row.feedback!=='string')))throw Error('제출 상태 응답을 확인할 수 없습니다. 기존 답안·녹음을 보존하고 다시 시도하세요.');
       return rows.map(row=>({chapter_uuid:row.chapter_uuid,submitted_at:row.submitted_at,feedback_released:row.feedback_released,feedback:row.feedback_released?row.feedback:null}));
     }
+    async function releasedRereadSuggestion(chapterUuid,options={}){
+      const value=await rpc('cq_v4_my_released_reread_suggestion',{p_chapter:requireChapterUuid(chapterUuid)},options);
+      if(typeof value!=='boolean')throw Error('재독서 안내 응답 형식이 올바르지 않습니다.');
+      return value;
+    }
     async function chapterActivities(chapterUuid,options={}){
       const rows=await rpc('cq_v4_my_chapter_activities',{p_chapter_uuid:requireChapterUuid(chapterUuid)},options);
       if(!Array.isArray(rows)||rows.length!==1)throw Error('챕터 학습 활동 응답을 확인하세요.');
@@ -67,7 +72,8 @@
       assignedChapters,
       chapterActivities,
       submit,
-      submission
+      submission,
+      releasedRereadSuggestion
     });
   }
   root.CQStudentAPI=Object.freeze({createStudentAPI});
