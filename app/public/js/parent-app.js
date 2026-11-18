@@ -274,7 +274,7 @@
   for(let i=0;i<questions.length;i++){
    const q=questions[i];if(q?.kind!=='mc')continue;
    if(!Array.isArray(q.options)||!Number.isInteger(key[i])||key[i]<0||key[i]>=q.options.length)return null;
-   if(!/^(0|[1-9]\\d*)$/.test(String(answers[i]??'')))return null;
+   if(!/^(0|[1-9]\d*)$/.test(String(answers[i]??'')))return null;
    total++;if(Number(answers[i])===key[i])correct++;
   }
   if(total===0)return null;
