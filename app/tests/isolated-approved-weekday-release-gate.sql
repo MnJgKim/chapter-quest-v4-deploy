@@ -40,23 +40,23 @@ UPDATE public.cq_v4_student_weekday_policy
 SET weekdays=ARRAY[EXTRACT(ISODOW FROM (now() AT TIME ZONE 'Asia/Seoul')::date + 1)::integer]
 WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
 SET LOCAL ROLE authenticated;
-DO $
+DO $audit$
 BEGIN
  IF public.cq_v4_can_start_approved_lesson('11111111-1111-4111-8111-111111111111','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
   RAISE EXCEPTION 'Non-weekday opened without approved makeup';
  END IF;
-END $;
+END $audit$;
 SET LOCAL ROLE postgres;
 INSERT INTO public.cq_v4_makeup_approvals(parent_user_id,student_user_id,chapter_id,original_lesson_date,approved_lesson_date)
 VALUES ('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','11111111-1111-4111-8111-111111111111',
  (now() AT TIME ZONE 'Asia/Seoul')::date - 1,(now() AT TIME ZONE 'Asia/Seoul')::date);
 SET LOCAL ROLE authenticated;
-DO $
+DO $audit$
 BEGIN
  IF NOT public.cq_v4_can_start_approved_lesson('11111111-1111-4111-8111-111111111111','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
   RAISE EXCEPTION 'Audited makeup not honored';
  END IF;
-END $;
+END $audit$;
 SET LOCAL ROLE postgres;
 DELETE FROM public.cq_v4_makeup_approvals WHERE chapter_id='11111111-1111-4111-8111-111111111111';
 UPDATE public.cq_v4_student_weekday_policy SET weekdays=ARRAY[1,2,3,4,5,6,7]
@@ -64,7 +64,7 @@ WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
 INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers)
 VALUES ('11111111-1111-4111-8111-111111111111','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','{}');
 SET LOCAL ROLE authenticated;
-DO $
+DO $audit$
 BEGIN
  IF public.cq_v4_can_start_approved_lesson('11111111-1111-4111-8111-111111111111','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
   RAISE EXCEPTION 'Submitted chapter still open for new work';
@@ -72,7 +72,7 @@ BEGIN
  IF public.cq_v4_can_start_approved_lesson('22222222-2222-4222-8222-222222222222','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
   RAISE EXCEPTION 'Second chapter opened on same Seoul learning day';
  END IF;
-END $;
+END $audit$;
 SET LOCAL ROLE postgres;
 UPDATE public.cq_v4_student_weekday_policy SET enabled=false WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';
 SET LOCAL ROLE authenticated;
