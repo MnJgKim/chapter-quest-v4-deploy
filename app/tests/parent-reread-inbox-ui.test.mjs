@@ -21,3 +21,8 @@ test('inbox never renders server answer key or student answer JSON',()=>{
  assert.doesNotMatch(panel,/answer_key|\.answers|approval_hash/);
  assert.match(panel,/acknowledged_at/);
 });
+
+test('project change, login reset and logout purge parent inbox state',()=>{
+ assert.match(source,/const clearRereadInbox=\(\)=>\{rereadNotices=\[\];rereadOwner=null;rereadAvailable=false;\}/);
+ assert.equal(source.split('session=null;clearRereadInbox();issuedInvite=""').length-1,3);
+});
