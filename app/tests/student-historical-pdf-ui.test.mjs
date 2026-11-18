@@ -15,3 +15,11 @@ test('historical PDF viewer stays current without an editable form',()=>{
   assert.match(source,/target===document\.getElementById\('cqServerPdfViewer'\)/);
   assert.match(source,/if\(!form\)\{target\.insertAdjacentHTML\('beforeend','<p class="muted">제출 완료 원본 PDF를 읽기 전용으로 표시합니다\.<\/p>'\);return;\}/);
 });
+
+test('weekly schedule accepts ISO Seoul lesson dates rather than literal backslash-d',()=>{
+  const match=source.match(/lessonSchedule=rows\.filter\(row=>(\/\^.*?\$\/)\.test\(row\.lesson_date/);
+  assert.ok(match,'schedule date filter must exist');
+  const regex=Function('return '+match[1])();
+  assert.equal(regex.test('2026-11-18'),true);
+  assert.equal(regex.test('not-a-date'),false);
+});
