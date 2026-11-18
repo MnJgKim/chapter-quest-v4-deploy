@@ -71,6 +71,10 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-atomic-weekday-scheduler.sql
       - name: Verify concurrent student/day scheduler transactions in isolated PostgreSQL
         run: bash app/tests/isolated-atomic-scheduler-concurrency.sh
+      - name: Verify approved release overlay against isolated PostgreSQL
+        run: |
+          psql -v ON_ERROR_STOP=1 -f app/sql/approved-release-rpc-storage-overlay-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-approved-release-rpc-storage.sql
       - name: Publish isolated PostgreSQL verification summary
         if: success()
         run: |
