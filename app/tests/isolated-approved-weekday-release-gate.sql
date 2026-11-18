@@ -69,8 +69,8 @@ BEGIN
  IF public.cq_v4_can_start_approved_lesson('11111111-1111-4111-8111-111111111111','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
   RAISE EXCEPTION 'Submitted chapter still open for new work';
  END IF;
- IF NOT public.cq_v4_can_start_approved_lesson('22222222-2222-4222-8222-222222222222','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
-  RAISE EXCEPTION 'Next approved chapter failed after submission';
+ IF public.cq_v4_can_start_approved_lesson('22222222-2222-4222-8222-222222222222','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
+  RAISE EXCEPTION 'Second chapter opened on same Seoul learning day';
  END IF;
 END $;
 SET LOCAL ROLE postgres;
