@@ -27,6 +27,16 @@ BEGIN
  END IF;
 END $$;
 SET LOCAL ROLE postgres;
+UPDATE public.cq_v4_pdf_chapters SET pdf_ready=false WHERE chapter_id='11111111-1111-4111-8111-111111111111';
+SET LOCAL ROLE authenticated;
+DO $
+BEGIN
+ IF public.cq_v4_next_approved_chapter('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') IS NOT NULL THEN
+  RAISE EXCEPTION 'Skipped earlier unready approved chapter';
+ END IF;
+END $;
+SET LOCAL ROLE postgres;
+UPDATE public.cq_v4_pdf_chapters SET pdf_ready=true WHERE chapter_id='11111111-1111-4111-8111-111111111111';
 INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers)
 VALUES ('11111111-1111-4111-8111-111111111111','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','{}');
 SET LOCAL ROLE authenticated;
