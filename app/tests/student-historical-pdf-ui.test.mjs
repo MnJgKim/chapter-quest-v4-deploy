@@ -23,3 +23,9 @@ test('weekly schedule accepts ISO Seoul lesson dates rather than literal backsla
   assert.equal(regex.test('2026-11-18'),true);
   assert.equal(regex.test('not-a-date'),false);
 });
+
+test('weekly lesson button requires server-approved list AND released schedule flag',()=>{
+  assert.match(source,/const authorized=chapters\.some\(ch=>ch\.chapter_uuid===c\.chapter_uuid\)/);
+  assert.match(source,/available:authorized,is_released:authorized&&c\.is_released===true/);
+  assert.match(source,/c\.lesson_date!==todaySeoul\|\|!c\.available\|\|!c\.is_released/);
+});
