@@ -11,6 +11,9 @@ AS $function$
 DECLARE v_uid uuid := auth.uid(); v_questions jsonb; v_question jsonb; v_answer jsonb; v_index integer; v_value text; v_number numeric;
 BEGIN
  IF v_uid IS NULL THEN RAISE EXCEPTION 'Login required' USING ERRCODE='28000'; END IF;
+ -- Serialize with parent rescheduling for the same student/chapter pair.
+ -- Lock must precede idempotency and lesson-day checks to avoid a submit/reschedule race.
+ PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::text || ':' || p_chapter_uuid::text, 0));
  -- Existing immutable submissions are idempotent and remain readable after lesson day.
  IF EXISTS (SELECT 1 FROM public.cq_v4_student_submissions existing
             WHERE existing.chapter_uuid=p_chapter_uuid AND existing.child_user_id=v_uid) THEN
