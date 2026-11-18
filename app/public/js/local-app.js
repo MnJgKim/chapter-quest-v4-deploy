@@ -57,19 +57,38 @@ async function loadAudio(){const el=$('#audioPreview');if(!el)return;const expec
 let parentUnlocked=false;
 const PARENT_PIN_KEY='cq_v4_parent_pin_hash';
 async function pinDigest(pin){const bytes=new TextEncoder().encode('CQ-V4-parent-local-v1:'+pin);return Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes))).map(x=>x.toString(16).padStart(2,'0')).join('')}
+function requestMaskedParentPin(message){
+ return new Promise(resolve=>{
+  const dialog=document.createElement('dialog');
+  dialog.setAttribute('aria-label','부모 관리자 PIN');
+  const form=document.createElement('form');form.method='dialog';
+  const label=document.createElement('label');label.textContent=message;
+  const field=document.createElement('input');field.type='password';field.inputMode='numeric';field.autocomplete='off';field.pattern='[0-9]{6,12}';field.minLength=6;field.maxLength=12;field.required=true;field.setAttribute('aria-label','숫자 PIN');
+  const actions=document.createElement('div');actions.className='row';
+  const ok=document.createElement('button');ok.type='submit';ok.textContent='확인';
+  const cancel=document.createElement('button');cancel.type='button';cancel.textContent='취소';
+  actions.append(ok,cancel);label.append(field);form.append(label,actions);dialog.append(form);document.body.append(dialog);
+  let settled=false;
+  function finish(value){if(settled)return;settled=true;dialog.close();dialog.remove();resolve(value)}
+  cancel.addEventListener('click',()=>finish(null));
+  dialog.addEventListener('cancel',e=>{e.preventDefault();finish(null)});
+  form.addEventListener('submit',e=>{e.preventDefault();if(field.checkValidity())finish(field.value)});
+  try{dialog.showModal();field.focus()}catch(_){dialog.remove();resolve(null)}
+ });
+}
 async function requestParentAccess(){
  if(parentUnlocked)return true;
  if(!crypto.subtle){alert('관리자 잠금을 지원하지 않는 환경입니다. HTTPS 환경에서 사용하세요.');return false}
  const existing=localStorage.getItem(PARENT_PIN_KEY);
  if(!existing){
-   const pin=prompt('부모 관리자용 숫자 PIN 6~12자리를 새로 설정하세요. 이 PIN은 기기 내 화면 잠금용이며 서버 인증을 대체하지 않습니다.');
+   const pin=await requestMaskedParentPin('부모 관리자용 숫자 PIN 6~12자리를 새로 설정하세요. 이 PIN은 기기 내 화면 잠금용이며 서버 인증을 대체하지 않습니다.');
    if(pin===null)return false;
    if(!/^\d{6,12}$/.test(pin)){alert('숫자 6~12자리로 설정하세요.');return false}
-   const repeat=prompt('부모 PIN을 다시 입력하세요.');
+   const repeat=await requestMaskedParentPin('부모 PIN을 다시 입력하세요.');
    if(repeat!==pin){alert('PIN이 일치하지 않습니다.');return false}
    localStorage.setItem(PARENT_PIN_KEY,await pinDigest(pin));
  }else{
-   const pin=prompt('부모 관리자 PIN을 입력하세요.');
+   const pin=await requestMaskedParentPin('부모 관리자 PIN을 입력하세요.');
    if(pin===null)return false;
    if(await pinDigest(pin)!==existing){alert('PIN이 일치하지 않습니다.');return false}
  }
