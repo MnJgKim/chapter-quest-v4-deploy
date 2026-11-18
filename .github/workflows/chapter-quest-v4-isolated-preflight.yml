@@ -4,7 +4,7 @@ on:
     branches: [work/hosted-readonly-preflight-20261117]
     paths:
       - '.github/workflows/chapter-quest-v4-isolated-preflight.yml'
-      - 'app/tests/lesson-day-authorization-static.test.mjs'
+      - 'app/tests/**'
       - 'app/sql/**'
       - 'app/supabase/functions/cq-v4-pdf-link/index.ts'
   workflow_dispatch:
@@ -42,6 +42,13 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -c 'SELECT current_database(), current_user, version();'
           psql -v ON_ERROR_STOP=1 -c "SELECT count(*) AS production_tables_expected_zero FROM pg_catalog.pg_tables WHERE schemaname = 'public';"
+      - name: Execute security SQL against isolated PostgreSQL only
+        run: |
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-bootstrap.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/lesson-day-authorization-v2.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/lesson-day-rpc-storage-v3.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/makeup-approval-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-security.sql
       - name: Record remaining SQL integration prerequisites
         run: |
           echo 'SQL/RLS integration is NOT complete: Supabase auth/storage schemas and application tables must be bootstrapped in this isolated DB.'
