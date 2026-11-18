@@ -41,6 +41,16 @@ BEGIN
  SELECT * INTO v FROM public.cq_v4_parent_sync_reread_notice(s,c);
  SELECT count(*) INTO n FROM public.cq_v4_reread_notices;
  IF n<>1 THEN RAISE EXCEPTION 'Idempotent notice count %',n;END IF;
+ -- Parent inbox returns only this parent's notice, and acknowledgement is idempotent.
+ IF (SELECT count(*) FROM public.cq_v4_parent_reread_inbox())<>1 THEN RAISE EXCEPTION 'Parent inbox count mismatch';END IF;
+ IF NOT public.cq_v4_parent_ack_reread_notice((SELECT id FROM public.cq_v4_reread_notices LIMIT 1)) THEN RAISE EXCEPTION 'Parent acknowledgement failed';END IF;
+ IF NOT public.cq_v4_parent_ack_reread_notice((SELECT id FROM public.cq_v4_reread_notices LIMIT 1)) THEN RAISE EXCEPTION 'Repeated acknowledgement failed';END IF;
+ IF (SELECT acknowledged_at FROM public.cq_v4_reread_notices LIMIT 1) IS NULL THEN RAISE EXCEPTION 'Acknowledgement timestamp missing';END IF;
+ PERFORM set_config('request.jwt.claim.sub',s::text,true);
+ BEGIN PERFORM public.cq_v4_parent_ack_reread_notice((SELECT id FROM public.cq_v4_reread_notices LIMIT 1));RAISE EXCEPTION 'Student acknowledged parent notice';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ IF EXISTS(SELECT 1 FROM public.cq_v4_parent_reread_inbox()) THEN RAISE EXCEPTION 'Student read parent inbox';END IF;
+ PERFORM set_config('request.jwt.claim.sub',p::text,true);
  -- A 70% submission must never generate an additional notice.
  UPDATE public.cq_v4_student_submissions SET answers='{"answers":["0","0","0","0","0","0","0","1","1","1"]}'::jsonb WHERE chapter_uuid=c;
  SELECT * INTO v FROM public.cq_v4_parent_sync_reread_notice(s,c);
