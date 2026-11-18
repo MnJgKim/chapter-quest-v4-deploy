@@ -33,6 +33,7 @@ BEGIN
  IF NOT EXISTS (
   SELECT 1 FROM public.cq_v4_pdf_enrollments e
   JOIN public.cq_v4_pdf_chapters c ON c.parent_user_id=e.parent_user_id
+  JOIN public.cq_v4_pdf_assignments a ON a.chapter_id=c.chapter_id AND a.student_user_id=e.student_user_id
   JOIN public.cq_v4_activities act ON act.chapter_uuid=c.chapter_id AND act.published_at IS NOT NULL
   WHERE e.parent_user_id=v_parent AND e.student_user_id=p_student_user_id
     AND c.chapter_id=p_chapter_id AND c.pdf_ready IS TRUE
