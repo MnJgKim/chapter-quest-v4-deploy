@@ -33,7 +33,7 @@ BEGIN
  JOIN public.cq_v4_activities a ON a.chapter_uuid=c.chapter_id AND a.published_at IS NOT NULL
  JOIN public.cq_v4_approval_requests r ON r.id=a.approval_id AND r.chapter_uuid=c.chapter_id AND r.parent_user_id=v_parent
  WHERE s.child_user_id=p_student AND s.chapter_uuid=p_chapter
- AND a.approval_hash IS NOT DISTINCT FROM r.content_hash;
+ AND a.approval_hash IS NOT NULL AND r.content_hash IS NOT NULL AND a.approval_hash=r.content_hash;
  IF NOT FOUND THEN RAISE EXCEPTION 'Submission or approval snapshot unavailable' USING ERRCODE='42501';END IF;
  IF jsonb_typeof(v_q)<>'array' OR jsonb_typeof(v_key)<>'array' OR jsonb_typeof(v_ans)<>'array'
  OR jsonb_array_length(v_q)<>jsonb_array_length(v_key) OR jsonb_array_length(v_q)<>jsonb_array_length(v_ans)
