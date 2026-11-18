@@ -18,6 +18,14 @@ INSERT INTO public.cq_v4_approved_chapter_queue(parent_user_id,student_user_id,c
 INSERT INTO public.cq_v4_student_weekday_policy(student_user_id,weekdays,effective_from)
 VALUES ('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',ARRAY[1,2,3,4,5,6,7],DATE '2020-01-01');
 SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-cccc-cccccccccccc',true);
+DO $identity$
+BEGIN
+ IF public.cq_v4_ensure_today_approved_lesson() IS NOT NULL THEN
+  RAISE EXCEPTION 'Unenrolled user scheduled another student chapter';
+ END IF;
+END $identity$;
+SET LOCAL ROLE authenticated;
 SELECT set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',true);
 DO $$
 BEGIN
