@@ -25,7 +25,7 @@ BEGIN
  IF NOT public.cq_v4_can_start_lesson(p_chapter_uuid,v_uid) THEN
    RAISE EXCEPTION 'New work is only permitted on the scheduled Seoul lesson day' USING ERRCODE='42501';
  END IF;
- IF NOT public.cq_v4_is_released(p_chapter_uuid,v_uid) THEN RAISE EXCEPTION 'Lesson not released by parent' USING ERRCODE='42501'; END IF;
+ -- New-work release is authorized by cq_v4_can_start_lesson; do not require manual released_at.
  IF p_answers IS NULL OR jsonb_typeof(p_answers)<>'object' OR pg_catalog.octet_length(p_answers::text)>65536 THEN
    RAISE EXCEPTION 'Invalid answers' USING ERRCODE='22023'; END IF;
  -- Enforce the exact client payload contract; never trust hasAudio alone.
