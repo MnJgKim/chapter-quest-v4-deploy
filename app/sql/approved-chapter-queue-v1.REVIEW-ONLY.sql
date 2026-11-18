@@ -33,6 +33,15 @@ AS $$
      SELECT 1 FROM public.cq_v4_student_submissions done
      WHERE done.child_user_id=p_student AND done.chapter_uuid=q.chapter_id
    )
+   -- Never skip an earlier approved but unready/unsubmitted chapter.
+   AND NOT EXISTS (
+     SELECT 1 FROM public.cq_v4_approved_chapter_queue prior
+     WHERE prior.student_user_id=q.student_user_id AND prior.ordinal<q.ordinal
+       AND NOT EXISTS (
+         SELECT 1 FROM public.cq_v4_student_submissions done_prior
+         WHERE done_prior.child_user_id=p_student AND done_prior.chapter_uuid=prior.chapter_id
+       )
+   )
  ORDER BY q.ordinal
  LIMIT 1;
 $$;
