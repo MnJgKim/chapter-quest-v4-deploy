@@ -56,3 +56,10 @@ test('student login reports weekly schedule RPC failure instead of silently show
   assert.match(source,/fetchStudentLessonSchedule\(\)\.catch\(error=>\{lessonSchedule=\[\];scheduleError=error;\}\)/);
   assert.match(source,/if\(scheduleError\)status\('로그인은 성공했지만 주간 일정 조회에 실패했습니다/);
 });
+
+test('student schedule failure is surfaced on all lesson refresh paths',()=>{
+  assert.match(source,/async function refreshStudentScheduleNotice\(\)/);
+  assert.doesNotMatch(source,/fetchStudentLessonSchedule\(\)\.catch\(\(\)=>\{lessonSchedule=\[\];\}\)/);
+  assert.ok((source.match(/await refreshStudentScheduleNotice\(\)/g)||[]).length>=4);
+  assert.match(source,/let scheduleNotice=null;\s*try\{const rows=await api\.assignedChapters\(\)/);
+});
