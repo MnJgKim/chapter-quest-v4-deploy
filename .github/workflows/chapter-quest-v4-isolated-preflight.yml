@@ -52,5 +52,5 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-authenticated.sql
       - name: Record remaining SQL integration prerequisites
         run: |
-          echo 'SQL/RLS integration is NOT complete: Supabase auth/storage schemas and application tables must be bootstrapped in this isolated DB.'
+          echo 'Isolated bootstrap and SQL assertions ran; real Supabase Auth/Storage, JWT issuance, Edge signing and concurrency remain unverified.'
           echo 'Never point this workflow at production Supabase.'
