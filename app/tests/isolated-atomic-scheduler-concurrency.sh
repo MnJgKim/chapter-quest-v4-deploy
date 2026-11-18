@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Isolated PostgreSQL 16 CI only. Never set PGHOST/PGDATABASE to Supabase.
 set -euo pipefail
+if [[ "${PGDATABASE:-}" != 'cq_v4_isolated' || "${PGHOST:-}" != 'localhost' ]]; then
+  echo 'Refusing to run outside local cq_v4_isolated PostgreSQL' >&2; exit 2
+fi
 export PGOPTIONS='-c statement_timeout=12000'
 student='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
 chapter='99999999-9999-4999-8999-999999999999'
