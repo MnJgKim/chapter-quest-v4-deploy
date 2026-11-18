@@ -464,7 +464,8 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
      childGeneration++;childRefreshPromise=null;session={...result.session,project:Object.freeze({...project}),resumedExisting:true};
      childApi=CQStudentAPI.createStudentAPI({url:project.url,anonKey:project.anonKey,getAccessToken:childAccessToken});chapters=[];draw();
      const owner=childContext(),api=childApi;
-     try{const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)return;chapters=rows;session.assignmentCount=rows.length;const scheduleNotice=await refreshStudentScheduleNotice();draw();}catch(err){if(session?.uid===owner.uid&&childGeneration===owner.generation)status('인증·부모 연결은 확인됐지만 배정 조회에 실패했습니다. 공개된 챕터 새로고침로 재시도하세요.');return;}
+     let scheduleNotice=null;
+     try{const rows=await api.assignedChapters();assertChildContext(owner);if(childApi!==api)return;chapters=rows;session.assignmentCount=rows.length;scheduleNotice=await refreshStudentScheduleNotice();draw();}catch(err){if(session?.uid===owner.uid&&childGeneration===owner.generation)status('인증·부모 연결은 확인됐지만 배정 조회에 실패했습니다. 공개된 챕터 새로고침로 재시도하세요.');return;}
      status((scheduleNotice? scheduleNotice+' ':'')+'기존 익명 계정과 부모 연결을 읽기로 확인했습니다. 계정 확인번호를 부모와 대조한 뒤 내 배정 챕터를 불러오세요. 토큰 갱신·계정 변경은 하지 않았습니다.');
     }else{
      const messages={absent:'이 브라우저에서 지원되는 기존 세션 기록을 찾지 못했습니다. 계정이 삭제됐다는 뜻은 아닙니다.',expired:'기존 세션으로 인증되지 않거나 만료되었습니다. 자동 갱신하지 않았습니다.',unlinked:'이 계정의 기존 부모 연결을 확인하지 못했습니다. 임의로 연결하지 않았습니다.','not-anonymous':'저장된 세션을 기존 익명 학생으로 확인할 수 없습니다. 다른 계정으로 전환하지 않았습니다.',configuration:'프로젝트 공개 설정을 확인하세요.',unreadable:'기존 세션 기록을 안전하게 읽지 못했습니다. 원본은 보존했습니다.',invalid:'기존 세션 형식/유효 기간을 확인하지 못했습니다. 원본은 보존했습니다.',unavailable:'읽기 확인에 실패했습니다. 계정·세션 기록은 변경하지 않았습니다.'};
