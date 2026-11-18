@@ -38,12 +38,14 @@ BEGIN
  IF jsonb_typeof(v_q)<>'array' OR jsonb_typeof(v_key)<>'array' OR jsonb_typeof(v_ans)<>'array'
  OR jsonb_array_length(v_q)<>jsonb_array_length(v_key) OR jsonb_array_length(v_q)<>jsonb_array_length(v_ans)
  THEN RAISE EXCEPTION 'Invalid grading snapshot' USING ERRCODE='22023';END IF;
+ IF jsonb_array_length(v_q)=0 THEN RETURN QUERY SELECT 0,0,false;RETURN;END IF;
  FOR v_i IN 0..jsonb_array_length(v_q)-1 LOOP
   IF v_q->v_i->>'kind'='mc' THEN
    IF jsonb_typeof(v_q->v_i->'options')<>'array' OR jsonb_array_length(v_q->v_i->'options')<2
     OR jsonb_typeof(v_key->v_i)<>'number' OR (v_key->>v_i)!~'^(0|[1-9][0-9]*)$'
     OR jsonb_typeof(v_ans->v_i) NOT IN ('number','string') OR (v_ans->>v_i)!~'^(0|[1-9][0-9]*)$'
    THEN RAISE EXCEPTION 'Invalid MC answer or key' USING ERRCODE='22023';END IF;
+   IF pg_catalog.length(v_key->>v_i)>8 OR pg_catalog.length(v_ans->>v_i)>8 THEN RAISE EXCEPTION 'MC index too large' USING ERRCODE='22023';END IF;
    v_option=(v_key->>v_i)::integer;
    IF v_option>=jsonb_array_length(v_q->v_i->'options') OR (v_ans->>v_i)::numeric>=jsonb_array_length(v_q->v_i->'options')
    THEN RAISE EXCEPTION 'MC index out of bounds' USING ERRCODE='22023';END IF;
