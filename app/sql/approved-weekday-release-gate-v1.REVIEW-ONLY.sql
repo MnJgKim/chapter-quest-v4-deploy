@@ -20,6 +20,17 @@ AS $$
      WHERE s.student_user_id=p_student AND s.chapter_id=p_chapter
        AND s.lesson_date=clock.today
        AND public.cq_v4_next_approved_chapter(p_student)=p_chapter
+       -- A completed chapter earlier today consumes today's learning slot.
+       -- Prevent a second queued chapter from opening after same-day submission.
+       AND NOT EXISTS (
+         SELECT 1 FROM public.cq_v4_student_submissions done_today
+         JOIN public.cq_v4_approved_chapter_queue prior
+           ON prior.chapter_id=done_today.chapter_uuid
+          AND prior.student_user_id=done_today.child_user_id
+         WHERE done_today.child_user_id=p_student
+           AND prior.ordinal<q.ordinal
+           AND (done_today.submitted_at AT TIME ZONE 'Asia/Seoul')::date=clock.today
+       )
        AND (
          EXISTS (
            SELECT 1 FROM public.cq_v4_student_weekday_policy pol
