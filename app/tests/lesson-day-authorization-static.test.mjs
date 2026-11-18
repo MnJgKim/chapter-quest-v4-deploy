@@ -28,3 +28,19 @@ test('scripts are review-only, no student-data deletes',()=>{
  assert.match(v3,/REVIEW ONLY/);
  assert.doesNotMatch(v2+'\n'+v3,/\bDELETE FROM public\.cq_v4_student_submissions\b/i);
 });
+
+test('PDF Edge uses RLS-safe server read predicate',()=>{
+ const edge=readFileSync(new URL('../supabase/functions/cq-v4-pdf-link/index.ts',import.meta.url),'utf8');
+ assert.match(v2,/CREATE OR REPLACE FUNCTION public\.cq_v4_can_read_lesson/);
+ assert.match(edge,/rpc\('cq_v4_can_read_lesson'/);
+ assert.doesNotMatch(edge,/\.from\('cq_v4_student_submissions'\)/);
+ assert.match(edge,/userClient\.auth\.getUser\(\)/);
+});
+test('make-up rescheduling is parent approved, auditable and immutable',()=>{
+ const makeup=readFileSync(new URL('../sql/makeup-approval-v1.REVIEW-ONLY.sql',import.meta.url),'utf8');
+ assert.match(makeup,/public\.cq_is_admin\(\)/);
+ assert.match(makeup,/INSERT INTO public\.cq_v4_makeup_approvals/);
+ assert.match(makeup,/FOR UPDATE/);
+ assert.match(makeup,/Completed lessons cannot be rescheduled/);
+ assert.doesNotMatch(makeup,/DELETE FROM public\.cq_v4_student_submissions/i);
+});
