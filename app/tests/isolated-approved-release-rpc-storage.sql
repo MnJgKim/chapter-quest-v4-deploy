@@ -52,5 +52,19 @@ BEGIN
  IF NOT public.cq_v4_can_read_lesson('33333333-3333-4333-8333-333333333333','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
    RAISE EXCEPTION 'Historical read denied'; END IF;
 END $test$;
+-- A second submission must be idempotent: no additional row or mutation.
+SELECT chapter_uuid FROM public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333',
+ '{"readComplete":true,"answers":["1"],"essay":"Attempted overwrite","speaking":"Changed","hasAudio":true}'::jsonb);
+DO $idempotency$
+BEGIN
+ IF (SELECT count(*) FROM public.cq_v4_student_submissions
+     WHERE chapter_uuid='33333333-3333-4333-8333-333333333333'::uuid
+       AND child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid) <> 1 THEN
+   RAISE EXCEPTION 'Duplicate immutable submission row'; END IF;
+ IF (SELECT answers->>'essay' FROM public.cq_v4_student_submissions
+     WHERE chapter_uuid='33333333-3333-4333-8333-333333333333'::uuid
+       AND child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid) <> 'Test' THEN
+   RAISE EXCEPTION 'Submitted essay was overwritten'; END IF;
+END $idempotency$;
 ROLLBACK;
 \echo 'APPROVED_RELEASE_RPC_STORAGE_ASSERTIONS_PASSED'
