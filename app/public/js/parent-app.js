@@ -265,11 +265,29 @@
   if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다.');
   return rows.map(row=>({...row,lessonContext:contexts.get(row.chapter_uuid)||localLessonContext(row.chapter_uuid)}));
  }
+ // Parent-only advisory: score ONLY objective multiple-choice answers with a valid answer key.
+ // This is not a server grade, student-visible feedback, or a delivered push notification.
+ function objectiveReadingAdvisory(row){
+  const questions=row.lessonContext?.questions,key=row.lessonContext?.answer_key,answers=row.answers?.answers;
+  if(!Array.isArray(questions)||!Array.isArray(key)||!Array.isArray(answers)||questions.length!==key.length||questions.length!==answers.length)return null;
+  let total=0,correct=0;
+  for(let i=0;i<questions.length;i++){
+   const q=questions[i];if(q?.kind!=='mc')continue;
+   if(!Array.isArray(q.options)||!Number.isInteger(key[i])||key[i]<0||key[i]>=q.options.length)return null;
+   if(!/^(0|[1-9]\\d*)$/.test(String(answers[i]??'')))return null;
+   total++;if(Number(answers[i])===key[i])correct++;
+  }
+  if(total===0)return null;
+  const percent=Math.round(100*correct/total);
+  return {correct,total,percent,needsReread:correct*10<total*7};
+ }
  function resultDetails(row){
   const context=row.lessonContext,questions=Array.isArray(context?.questions)?context.questions:[],answers=Array.isArray(row.answers?.answers)?row.answers.answers:[];
+  const advisory=objectiveReadingAdvisory(row);
+  const rereadNotice=advisory?.needsReread?'<p role="status"><strong>재독서 권장 · 부모 확인 필요</strong> — 객관식 '+advisory.correct+'/'+advisory.total+'개 정답 ('+advisory.percent+'%). 70% 미만입니다. 서술형·독후감·말하기는 채점하지 않았습니다. 이 알림은 부모 화면에만 표시되며 학생에게 자동 전송되지 않습니다.</p>':advisory?'<p>객관식 참고 정답률: '+advisory.correct+'/'+advisory.total+' ('+advisory.percent+'%). 서술형·독후감·말하기 제외.</p>':'';
   const display=(q,value)=>value===undefined||value===null||value===''?'미응답':q.kind==='mc'&&Array.isArray(q.options)?q.options[Number(value)]??'미응답':String(value??'미응답');
   const questionsHtml=questions.map((q,i)=>q?`<li><b>${escapeHtml(q.text||'문제')}</b><p>학생 답변: ${escapeHtml(display(q,answers[i]))}</p><details><summary>기준 답안</summary><p>${escapeHtml(display(q,context.answer_key?.[i]))}</p></details></li>`:'').join('');
-  return `<div class="submitted-lesson">${questionsHtml?'<ol>'+questionsHtml+'</ol>':'<p class="muted">문제·기준 답안을 불러오지 못했습니다. 부모 기기의 학습 자료를 확인하세요.</p>'}<h4>영어 독후감</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.essay||'')}</p><h4>말하기 대본</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.speaking||'')}</p><p>단어 복습 체크: ${Array.isArray(row.answers?.wordsReviewed)?row.answers.wordsReviewed.length:0}개</p></div>`;
+  return `<div class="submitted-lesson">${rereadNotice}${questionsHtml?'<ol>'+questionsHtml+'</ol>':'<p class="muted">문제·기준 답안을 불러오지 못했습니다. 부모 기기의 학습 자료를 확인하세요.</p>'}<h4>영어 독후감</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.essay||'')}</p><h4>말하기 대본</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.speaking||'')}</p><p>단어 복습 체크: ${Array.isArray(row.answers?.wordsReviewed)?row.answers.wordsReviewed.length:0}개</p></div>`;
  }
  const feedbackPanel=()=>`<section class="card" id="cqParentFeedback"><h2>학생 제출·피드백 관리 (서버)</h2><p class="muted">로그인한 부모 계정의 제출만 조회합니다. 기존 로컬 제출 기록과는 별개입니다.</p><button data-parent-feedback="list" ${session?'':'disabled'}>제출 기록 불러오기</button><div>${submissions.map((r,i)=>`<div class="book"><h3>${escapeHtml(r.student_name||r.child_user_id)} · ${escapeHtml(r.chapter_title||r.chapter_uuid)}</h3><p>제출: ${escapeHtml(r.submitted_at||'')}</p>${resultDetails(r)}<details><summary>제출 원본 보기</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(JSON.stringify(r.answers??{},null,2))}</pre></details><label>부모 피드백<textarea data-parent-feedback-text="${i}" rows="3">${escapeHtml(r.feedback||'')}</textarea></label><label><input type="checkbox" data-parent-feedback-release="${i}" ${r.feedback_released?'checked':''}> 학생에게 공개</label><button data-parent-feedback="save" data-index="${i}">피드백 저장</button><button data-parent-feedback="audio" data-index="${i}">녹음 재생</button><div data-audio-player="${i}"></div></div>`).join('')}</div><p id="cqParentFeedbackStatus" class="status"></p></section>`;
  async function parentRpc(name,args={}){
