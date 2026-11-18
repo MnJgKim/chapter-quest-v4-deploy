@@ -50,6 +50,7 @@ jobs:
           psql -v ON_ERROR_STOP=1 -f app/sql/makeup-approval-v1.REVIEW-ONLY.sql
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-security.sql
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-authenticated.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-makeup-audit.sql
       - name: Record remaining SQL integration prerequisites
         run: |
           echo 'Isolated bootstrap and SQL assertions ran; real Supabase Auth/Storage, JWT issuance, Edge signing and concurrency remain unverified.'
