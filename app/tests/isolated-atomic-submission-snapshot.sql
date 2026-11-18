@@ -53,6 +53,23 @@ BEGIN
 END $test$;
 INSERT INTO storage.objects(bucket_id,name) VALUES
  ('cq-v4-speaking','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb/33333333-3333-4333-8333-333333333333.webm');
+-- Deliberately fail capture AFTER submission INSERT; the exception subtransaction
+-- must roll back the submission and its snapshot, not leave an orphan.
+UPDATE public.cq_v4_activities SET approval_hash='deliberately-mismatched'
+ WHERE chapter_uuid='33333333-3333-4333-8333-333333333333';
+DO $atomic_rollback$
+BEGIN
+ BEGIN
+  PERFORM public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333',
+   '{"readComplete":true,"answers":["0"],"essay":"Rollback","speaking":"Rollback","hasAudio":true}'::jsonb);
+  RAISE EXCEPTION 'Hash mismatch incorrectly accepted';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;END;
+ IF EXISTS(SELECT 1 FROM public.cq_v4_student_submissions WHERE child_user_id=auth.uid() AND chapter_uuid='33333333-3333-4333-8333-333333333333')
+ OR EXISTS(SELECT 1 FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id=auth.uid() AND chapter_uuid='33333333-3333-4333-8333-333333333333')
+ THEN RAISE EXCEPTION 'Failed capture left partial submission or snapshot';END IF;
+END $atomic_rollback$;
+UPDATE public.cq_v4_activities SET approval_hash='frozen-approved'
+ WHERE chapter_uuid='33333333-3333-4333-8333-333333333333';
 SELECT chapter_uuid FROM public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333',
  '{"readComplete":true,"answers":["0"],"essay":"Test","speaking":"Test","hasAudio":true}'::jsonb);
 DO $test$
