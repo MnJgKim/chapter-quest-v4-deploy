@@ -118,7 +118,7 @@ WITH CHECK (
   OR (
     name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f-]{36}[.](webm|mp4|ogg)$')
     AND public.cq_v4_can_start_lesson(
-      (split_part(split_part(name,'/',2),'.',1))::uuid,(SELECT auth.uid())
+      (CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f-]{36}[.](webm|mp4|ogg),(SELECT auth.uid())
     )
   )
 );
@@ -136,6 +136,49 @@ WITH CHECK (
     name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f-]{36}[.](webm|mp4|ogg)$')
     AND public.cq_v4_can_start_lesson(
       (split_part(split_part(name,'/',2),'.',1))::uuid,(SELECT auth.uid())
+    )
+  )
+);
+-- UUID parsing is guarded with CASE to avoid malformed-path cast failures.
+-- Confirm parent/admin speaking update needs before adopting the restrictive UPDATE policy.
+ THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid())
+    )
+  )
+);
+CREATE POLICY cq_v4_speaking_same_day_update_v2 ON storage.objects
+AS RESTRICTIVE FOR UPDATE TO authenticated
+USING (
+  bucket_id <> 'cq-v4-speaking'
+  OR public.cq_v4_can_start_lesson(
+    (CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f-]{36}[.](webm|mp4|ogg),(SELECT auth.uid())
+  )
+)
+WITH CHECK (
+  bucket_id <> 'cq-v4-speaking'
+  OR (
+    name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f-]{36}[.](webm|mp4|ogg)$')
+    AND public.cq_v4_can_start_lesson(
+      (split_part(split_part(name,'/',2),'.',1))::uuid,(SELECT auth.uid())
+    )
+  )
+);
+-- SECURITY BLOCKER: replace the UUID cast with guarded CASE to avoid
+-- cast exceptions on malformed object paths before deploying.
+ THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid())
+  )
+)
+WITH CHECK (
+  bucket_id <> 'cq-v4-speaking'
+  OR (
+    name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f-]{36}[.](webm|mp4|ogg)$')
+    AND public.cq_v4_can_start_lesson(
+      (CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f-]{36}[.](webm|mp4|ogg),(SELECT auth.uid())
+    )
+  )
+);
+-- SECURITY BLOCKER: replace the UUID cast with guarded CASE to avoid
+-- cast exceptions on malformed object paths before deploying.
+ THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid())
     )
   )
 );
