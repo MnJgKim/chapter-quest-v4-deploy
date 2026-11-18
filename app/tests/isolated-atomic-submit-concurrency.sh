@@ -45,9 +45,37 @@ SELECT chapter_uuid FROM public.cq_v4_submit_answers('33333333-3333-4333-8333-33
 COMMIT;
 SQL
 }
-submit 0 > /tmp/cq-submit-concurrent-a.log 2>&1 & a=$!
-submit 1 > /tmp/cq-submit-concurrent-b.log 2>&1 & b=$!
-wait "$a"; wait "$b"
+# Hold the exact advisory lock used by the submission RPC.
+PGAPPNAME=cq_v4_submit_lock_holder psql -X -v ON_ERROR_STOP=1 -At <<'BLOCKER' > /tmp/cq-submit-blocker.log 2>&1 &
+BEGIN;
+SELECT pg_advisory_xact_lock(hashtextextended('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb:33333333-3333-4333-8333-333333333333',0));
+SELECT pg_sleep(25);
+COMMIT;
+BLOCKER
+blocker=$!
+trap 'kill "$blocker" 2>/dev/null || true' EXIT
+ready=0
+for attempt in $(seq 1 80); do
+  if [[ "$(psql -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM pg_stat_activity WHERE application_name='cq_v4_submit_lock_holder' AND wait_event='PgSleep'")" == 1 ]]; then ready=1; break; fi
+  sleep 0.1
+done
+[[ "$ready" == 1 ]] || { echo 'Lock holder did not acquire lock' >&2; cat /tmp/cq-submit-blocker.log >&2; exit 1; }
+PGAPPNAME=cq_v4_submit_contender_a submit 0 > /tmp/cq-submit-concurrent-a.log 2>&1 & a=$!
+PGAPPNAME=cq_v4_submit_contender_b submit 1 > /tmp/cq-submit-concurrent-b.log 2>&1 & b=$!
+contended=0
+for attempt in $(seq 1 120); do
+  waiting="$(psql -X -v ON_ERROR_STOP=1 -At -c "SELECT count(*) FROM pg_stat_activity WHERE application_name IN ('cq_v4_submit_contender_a','cq_v4_submit_contender_b') AND wait_event_type='Lock' AND wait_event='advisory'")"
+  if [[ "$waiting" == 2 ]]; then contended=1; break; fi
+  sleep 0.1
+done
+[[ "$contended" == 1 ]] || { echo 'Two advisory-lock waiters were not observed' >&2; cat /tmp/cq-submit-concurrent-{a,b}.log >&2; exit 1; }
+echo 'ATOMIC_TWO_ADVISORY_LOCK_WAITERS_OBSERVED'
+wait "$blocker"
+trap - EXIT
+wait "$a" || { cat /tmp/cq-submit-concurrent-a.log >&2; exit 1; }
+wait "$b" || { cat /tmp/cq-submit-concurrent-b.log >&2; exit 1; }
+# Retry with a different answer; the frozen winner must remain unchanged.
+PGAPPNAME=cq_v4_submit_retry submit 1 > /tmp/cq-submit-retry.log 2>&1 || { cat /tmp/cq-submit-retry.log >&2; exit 1; }
 psql -X -v ON_ERROR_STOP=1 -At <<'VERIFY'
 DO $verify$
 DECLARE n integer; frozen integer; essay text; frozen_answer text;
