@@ -12,7 +12,7 @@ BEGIN
    RAISE EXCEPTION 'Invalid weekday policy' USING ERRCODE='22023';
  END IF;
  FOR v_offset IN (CASE WHEN p_include_today THEN 0 ELSE 1 END)..7 LOOP
-   IF pg_catalog.extract(isodow FROM (p_from + v_offset)::timestamp)::integer = ANY(p_weekdays) THEN
+   IF EXTRACT(ISODOW FROM (p_from + v_offset)::timestamp)::integer = ANY(p_weekdays) THEN
      RETURN p_from + v_offset;
    END IF;
  END LOOP;
