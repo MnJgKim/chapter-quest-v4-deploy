@@ -44,16 +44,7 @@ BEGIN
  PERFORM pg_catalog.pg_advisory_xact_lock(
    pg_catalog.hashtextextended('cq_v4_day:' || p_student_user_id::text || ':' || p_lesson_date::text,0)
  );
- IF EXISTS (
-   SELECT 1 FROM public.cq_v4_lesson_schedule existing
-   WHERE existing.student_user_id=p_student_user_id
-     AND existing.lesson_date=p_lesson_date
-     AND existing.chapter_id<>p_chapter_id
- ) THEN
-   RAISE EXCEPTION 'Only one chapter may be scheduled per student per day'
-     USING ERRCODE='23505';
- END IF;
- -- Check again while holding the target-day mutex; this also guards the
+ -- Check while holding the target-day mutex; this guards the
  -- student/day invariant against an automatic scheduler that ran meanwhile.
  IF EXISTS (
    SELECT 1 FROM public.cq_v4_lesson_schedule existing
