@@ -50,6 +50,7 @@ Deno.serve(async req=>{
   const {data:link,error:signError}=await admin.storage.from('cq-v4-originals').createSignedUrl(chapterRow.storage_path,120);
   if(signError||!link?.signedUrl)return json({error:'PDF_NOT_AVAILABLE'},404);
   const signed=new URL(link.signedUrl,url);
-  if(signed.origin!==new URL(url).origin||!signed.pathname.startsWith('/storage/v1/object/sign/cq-v4-originals/'))return json({error:'INVALID_SIGNED_LINK'},500);
+  const expectedSignedPath='/storage/v1/object/sign/cq-v4-originals/'+chapterRow.storage_path;
+  if(signed.origin!==new URL(url).origin||signed.pathname!==expectedSignedPath||!signed.searchParams.has('token'))return json({error:'INVALID_SIGNED_LINK'},500);
   return json({signed_url:signed.toString(),expires_at:new Date(Date.now()+120000).toISOString()});
 });
