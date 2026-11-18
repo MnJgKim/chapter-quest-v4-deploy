@@ -63,3 +63,11 @@ test('student schedule failure is surfaced on all lesson refresh paths',()=>{
   assert.ok((source.match(/await refreshStudentScheduleNotice\(\)/g)||[]).length>=4);
   assert.match(source,/let scheduleNotice=null;\s*try\{const rows=await api\.assignedChapters\(\)/);
 });
+
+test('student PDF edge signed URL must match the authorized original object and token',async()=>{
+  const edge=await fs.readFile(new URL('../supabase/functions/cq-v4-pdf-link/index.ts',import.meta.url),'utf8');
+  assert.match(edge,/const expectedSignedPath='\/storage\/v1\/object\/sign\/cq-v4-originals\/'\+chapterRow\.storage_path/);
+  assert.match(edge,/signed\.pathname!==expectedSignedPath\|\|!signed\.searchParams\.has\('token'\)/);
+  assert.match(edge,/userClient\.rpc\('cq_v4_can_read_lesson'/);
+  assert.match(edge,/createSignedUrl\(chapterRow\.storage_path,120\)/);
+});
