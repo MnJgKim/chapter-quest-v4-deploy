@@ -49,7 +49,7 @@ SQL
 PGAPPNAME=cq_v4_submit_lock_holder psql -X -v ON_ERROR_STOP=1 -At <<'BLOCKER' > /tmp/cq-submit-blocker.log 2>&1 &
 BEGIN;
 SELECT pg_advisory_xact_lock(hashtextextended('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb:33333333-3333-4333-8333-333333333333',0));
-SELECT pg_sleep(25);
+SELECT pg_sleep(18);
 COMMIT;
 BLOCKER
 blocker=$!
@@ -75,7 +75,25 @@ trap - EXIT
 wait "$a" || { cat /tmp/cq-submit-concurrent-a.log >&2; exit 1; }
 wait "$b" || { cat /tmp/cq-submit-concurrent-b.log >&2; exit 1; }
 # Retry with a different answer; the frozen winner must remain unchanged.
-PGAPPNAME=cq_v4_submit_retry submit 1 > /tmp/cq-submit-retry.log 2>&1 || { cat /tmp/cq-submit-retry.log >&2; exit 1; }
+winner="$(psql -X -v ON_ERROR_STOP=1 -At -c "SELECT answers->'answers'->>0 FROM public.cq_v4_student_submissions WHERE chapter_uuid='33333333-3333-4333-8333-333333333333' AND child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'")"
+case "$winner" in 0) retry_answer=1 ;; 1) retry_answer=0 ;; *) echo "Unexpected winning answer: $winner" >&2; exit 1 ;; esac
+PGAPPNAME=cq_v4_submit_retry submit "$retry_answer" > /tmp/cq-submit-retry.log 2>&1 || { cat /tmp/cq-submit-retry.log >&2; exit 1; }
+# Exercise authorization with a different authenticated student (not a table-owner query).
+psql -X -v ON_ERROR_STOP=1 -At <<'CROSS_STUDENT'
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-cccc-cccccccccccc',true);
+DO $cross$
+BEGIN
+  BEGIN
+    PERFORM public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333',
+      '{"readComplete":true,"answers":["0"],"essay":"Unauthorized","speaking":"Unauthorized","hasAudio":true}'::jsonb);
+    RAISE EXCEPTION 'Cross-student submission bypass succeeded';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $cross$;
+ROLLBACK;
+CROSS_STUDENT
 psql -X -v ON_ERROR_STOP=1 -At <<'VERIFY'
 DO $verify$
 DECLARE n integer; frozen integer; essay text; frozen_answer text;
@@ -85,7 +103,7 @@ BEGIN
  IF n<>1 OR frozen<>1 THEN RAISE EXCEPTION 'Concurrent submit count mismatch: %, %',n,frozen;END IF;
  SELECT answers->>'essay' INTO essay FROM public.cq_v4_student_submissions WHERE chapter_uuid='33333333-3333-4333-8333-333333333333';
  SELECT submitted_answers->>0 INTO frozen_answer FROM public.cq_v4_immutable_grading_snapshots WHERE chapter_uuid='33333333-3333-4333-8333-333333333333';
- IF (essay='Concurrent 0' AND frozen_answer<>'0') OR (essay='Concurrent 1' AND frozen_answer<>'1') OR essay NOT IN ('Concurrent 0','Concurrent 1')
+ IF (essay='Concurrent 0' AND frozen_answer IS DISTINCT FROM '0') OR (essay='Concurrent 1' AND frozen_answer IS DISTINCT FROM '1') OR essay IS NULL OR essay NOT IN ('Concurrent 0','Concurrent 1')
  THEN RAISE EXCEPTION 'Frozen answer differs from winning submission';END IF;
  RAISE NOTICE 'ATOMIC_CONCURRENT_SUBMISSION_ASSERTIONS_PASSED';
 END $verify$;
