@@ -1,5 +1,6 @@
 -- REVIEW CANDIDATE ONLY. Do not run against production without approval.
--- Align student schedule's is_released with the approved new-work gate and immutable historical submissions.\n-- Apply only after reviewed approved-weekday-release-gate and submission overlay; no production execution.
+-- Align student schedule's is_released with the approved new-work gate and immutable historical submissions.
+-- Apply only after reviewed approved-weekday-release-gate and submission overlay; no production execution.
 -- Preserve existing return columns, order, enrollment checks and lesson records.
 CREATE OR REPLACE FUNCTION public.cq_v4_my_lesson_schedule()
 RETURNS TABLE(chapter_uuid uuid, chapter_title text, lesson_date date, is_released boolean)
@@ -21,3 +22,6 @@ AS $function$
  WHERE s.student_user_id=(select auth.uid()) AND c.pdf_ready IS TRUE
  ORDER BY s.lesson_date, s.chapter_id;
 $function$;
+
+REVOKE ALL ON FUNCTION public.cq_v4_my_lesson_schedule() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_my_lesson_schedule() TO authenticated;
