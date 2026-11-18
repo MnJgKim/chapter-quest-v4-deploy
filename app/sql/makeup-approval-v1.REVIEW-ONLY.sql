@@ -38,6 +38,9 @@ BEGIN
     AND c.chapter_id=p_chapter_id AND c.pdf_ready IS TRUE
  ) THEN RAISE EXCEPTION 'Approved PDF and enrolled student required' USING ERRCODE='42501';
  END IF;
+ -- Serialize with the submission RPC for this student/chapter pair before checking completion.
+ -- Both paths must acquire this same transaction advisory lock before any state reads.
+ PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(p_student_user_id::text || ':' || p_chapter_id::text, 0));
  -- Existing immutable submissions may never be rescheduled by this RPC.
  IF EXISTS (
    SELECT 1 FROM public.cq_v4_student_submissions done
