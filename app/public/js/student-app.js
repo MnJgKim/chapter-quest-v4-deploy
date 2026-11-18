@@ -387,7 +387,7 @@ function seoulLessonDate(){return new Intl.DateTimeFormat('en-CA',{timeZone:'Asi
    const data=await response.json();
    if(session!==owner||generation!==childGeneration)throw Error('학생 계정이 변경되었습니다.');
    studentProject();
-   if(!response.ok||!data.access_token||!data.refresh_token)throw Error('학생 로그인 갱신에 실패했습니다. 다시 로그인하세요. 임시 답변은 보존됩니다.');
+   if(!response.ok||!data.access_token||!data.refresh_token||!data.user?.id||data.user.id!==owner.uid)throw Error('학생 로그인 갱신 또는 계정 일치 확인에 실패했습니다. 다시 로그인하세요. 임시 답변은 보존됩니다.');
    owner.token=data.access_token;owner.refreshToken=data.refresh_token;owner.expiresAt=Date.now()+(data.expires_in||3600)*1000;saveDedicatedChild(owner);
    return owner.token;
   })();childRefreshPromise=pending;
