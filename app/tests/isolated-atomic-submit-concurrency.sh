@@ -94,6 +94,52 @@ BEGIN
 END $cross$;
 ROLLBACK;
 CROSS_STUDENT
+# A different authenticated student cannot mutate the winner's frozen snapshot.
+psql -X -v ON_ERROR_STOP=1 -At <<'SNAPSHOT_TAMPER'
+BEGIN;
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-cccc-cccccccccccc',true);
+DO $tamper$
+BEGIN
+  BEGIN
+    UPDATE public.cq_v4_immutable_grading_snapshots
+       SET submitted_answers='["1"]'::jsonb
+     WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+       AND chapter_uuid='33333333-3333-4333-8333-333333333333';
+    RAISE EXCEPTION 'Cross-student snapshot UPDATE was not denied';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM public.cq_v4_immutable_grading_snapshots
+     WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+       AND chapter_uuid='33333333-3333-4333-8333-333333333333';
+    RAISE EXCEPTION 'Cross-student snapshot DELETE was not denied';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $tamper$;
+ROLLBACK;
+SNAPSHOT_TAMPER
+# Even a table owner must be rejected by the immutable UPDATE/DELETE trigger.
+psql -X -v ON_ERROR_STOP=1 -At <<'SNAPSHOT_OWNER_GUARD'
+DO $owner_guard$
+BEGIN
+  BEGIN
+    UPDATE public.cq_v4_immutable_grading_snapshots
+       SET submitted_answers='["1"]'::jsonb
+     WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+       AND chapter_uuid='33333333-3333-4333-8333-333333333333';
+    RAISE EXCEPTION 'Owner bypassed immutable snapshot UPDATE guard';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+  BEGIN
+    DELETE FROM public.cq_v4_immutable_grading_snapshots
+     WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
+       AND chapter_uuid='33333333-3333-4333-8333-333333333333';
+    RAISE EXCEPTION 'Owner bypassed immutable snapshot DELETE guard';
+  EXCEPTION WHEN insufficient_privilege THEN NULL;
+  END;
+END $owner_guard$;
+SNAPSHOT_OWNER_GUARD
 psql -X -v ON_ERROR_STOP=1 -At <<'VERIFY'
 DO $verify$
 DECLARE n integer; frozen integer; essay text; frozen_answer text;
