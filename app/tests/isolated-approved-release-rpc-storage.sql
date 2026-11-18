@@ -24,6 +24,10 @@ DO $test$
 BEGIN
  IF (SELECT count(*) FROM public.cq_v4_my_released_chapters())<>1 THEN
    RAISE EXCEPTION 'Unapproved chapter leaked into released list'; END IF;
+ IF public.cq_v4_can_read_lesson('44444444-4444-4444-8444-444444444444','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb') THEN
+   RAISE EXCEPTION 'Unapproved chapter leaked through PDF/read predicate'; END IF;
+ IF public.cq_v4_can_read_lesson('33333333-3333-4333-8333-333333333333','cccccccc-cccc-4ccc-cccc-cccccccccccc') THEN
+   RAISE EXCEPTION 'Cross-student PDF/read predicate bypass'; END IF;
  BEGIN
    PERFORM public.cq_v4_submit_answers('44444444-4444-4444-8444-444444444444',
      '{"readComplete":true,"answers":["0"],"essay":"Test","speaking":"Test","hasAudio":true}'::jsonb);
