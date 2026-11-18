@@ -81,7 +81,7 @@
      if(!session?.refreshToken)throw Error('로그인 시간이 만료되었습니다. 다시 로그인하세요.');
      const result=await auth('token?grant_type=refresh_token',{refresh_token:session.refreshToken});
      if(generation!==sessionGeneration||!session)throw Error('로그인 상태가 변경되었습니다.');
-     if(!result.access_token||!result.refresh_token)throw Error('로그인 갱신에 실패했습니다.');
+     if(!result.access_token||!result.refresh_token||result.user?.id!==session.uid)throw Error('로그인 갱신 계정이 일치하지 않습니다.');
      session.token=result.access_token;session.refreshToken=result.refresh_token;
      session.expiresAt=Date.now()+(result.expires_in||3600)*1000;
      CQCloud.updateToken(session.token);saveParentSession();
@@ -458,7 +458,7 @@
     const url=document.getElementById('cloudUrl').value.trim().replace(/\/$/,'');
     const anonKey=document.getElementById('cloudKey').value.trim();
     if(!(globalThis.CQOrigin?.allows(url)??/^https:\/\/[a-z0-9-]+\.supabase\.co$/i.test(url))||!anonKey)throw Error('Supabase URL과 공개 키를 확인하세요.');
-    sessionGeneration++;project={url,anonKey};auto=false;dirty=false;clearTimeout(syncTimer);baseline=undefined;aligned=false;localStorage.setItem('cq_v4_cloud_project',JSON.stringify(project));session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();render();status('프로젝트 설정 저장 완료');
+    forgetParentSession();parentRestoreAttempted=true;sessionGeneration++;project={url,anonKey};auto=false;dirty=false;clearTimeout(syncTimer);baseline=undefined;aligned=false;localStorage.setItem('cq_v4_cloud_project',JSON.stringify(project));session=null;issuedInvite="";pendingChildren=[];submissions=[];pdfServerChapters=[];pdfServerStudents=[];pdfServerAssignments=[];CQCloud.reset();render();status('프로젝트 설정 저장 완료');
    }else if(action==='login'){
     if(!project)throw Error('먼저 프로젝트 설정을 저장하세요.');
     const email=document.getElementById('cloudEmail').value.trim(),password=document.getElementById('cloudPassword').value;
