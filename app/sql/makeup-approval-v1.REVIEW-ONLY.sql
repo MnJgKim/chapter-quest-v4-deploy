@@ -75,6 +75,7 @@ REVOKE ALL ON FUNCTION public.cq_v4_parent_schedule_lesson(uuid,uuid,date) FROM 
 GRANT EXECUTE ON FUNCTION public.cq_v4_parent_schedule_lesson(uuid,uuid,date) TO authenticated;
 -- Important: revoke direct UPDATE on lesson_schedule from authenticated and
 -- audit all other SECURITY DEFINER schedule writers before deployment.
--- New date alone is not sufficient: existing released_at and publication
--- status must still be checked by cq_v4_can_start_lesson.
+-- A scheduled date alone is not sufficient: assigned chapter, approved PDF,
+-- published questions, enrollment and student identity remain mandatory.
+-- Manual released_at is not a new-work prerequisite.
 -- No historical student submissions are modified by this migration.
