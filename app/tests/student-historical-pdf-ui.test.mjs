@@ -45,3 +45,8 @@ test('speaking upload and recovery sign refresh child JWT instead of using stale
   assert.match(source,/Authorization:'Bearer '\+token,'Content-Type':'application\/json'/);
   assert.doesNotMatch(source,/Authorization:'Bearer '\+session\.token/);
 });
+
+test('audio recovery signed URL must target exact student chapter object and contain token',()=>{
+  assert.match(source,/const expectedPath='\/storage\/v1\/object\/sign\/cq-v4-speaking\/'\+uid\+'\/'\+uuid\+'\.'\+ext/);
+  assert.match(source,/signedUrl\.pathname!==expectedPath\|\|!signedUrl\.searchParams\.has\('token'\)/);
+});
