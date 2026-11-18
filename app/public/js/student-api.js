@@ -34,7 +34,7 @@
       try {
         await rpc('cq_v4_ensure_today_approved_lesson');
       } catch (error) {
-        if (!/Student request failed \(404\):/.test(error.message) || !/Could not find the function public\\.cq_v4_ensure_today_approved_lesson/.test(error.message)) throw error;
+        if (!/Student request failed \(404\):/.test(error.message) || !error.message.includes('Could not find the function public.cq_v4_ensure_today_approved_lesson')) throw error;
       }
       const rows=await rpc('cq_v4_my_released_chapters');
       if(!Array.isArray(rows))throw Error('배정 챕터 목록 형식을 확인해 주세요.');
