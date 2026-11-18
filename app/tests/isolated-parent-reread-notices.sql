@@ -61,6 +61,17 @@ BEGIN
  RAISE EXCEPTION 'Anonymous acknowledged notice';
  EXCEPTION WHEN insufficient_privilege THEN NULL;END;
  PERFORM set_config('request.jwt.claim.sub',p::text,true);
+ -- Student suggestion is hidden until parent explicitly releases feedback.
+ PERFORM set_config('request.jwt.claim.sub',s::text,true);
+ IF public.cq_v4_my_released_reread_suggestion(c) THEN RAISE EXCEPTION 'Unreleased student suggestion leaked';END IF;
+ PERFORM set_config('request.jwt.claim.sub','eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee',true);
+ IF public.cq_v4_my_released_reread_suggestion(c) THEN RAISE EXCEPTION 'Other student suggestion leaked';END IF;
+ PERFORM set_config('request.jwt.claim.sub',p::text,true);
+ UPDATE public.cq_v4_student_submissions SET feedback_released=true WHERE chapter_uuid=c AND child_user_id=s;
+ PERFORM set_config('request.jwt.claim.sub',s::text,true);
+ IF NOT public.cq_v4_my_released_reread_suggestion(c) THEN RAISE EXCEPTION 'Released student suggestion missing';END IF;
+ PERFORM set_config('request.jwt.claim.sub',p::text,true);
+ UPDATE public.cq_v4_student_submissions SET feedback_released=false WHERE chapter_uuid=c AND child_user_id=s;
  -- A 70% submission must never generate an additional notice.
  UPDATE public.cq_v4_student_submissions SET answers='{"answers":["0","0","0","0","0","0","0","1","1","1"]}'::jsonb WHERE chapter_uuid=c;
  SELECT * INTO v FROM public.cq_v4_parent_sync_reread_notice(s,c);
