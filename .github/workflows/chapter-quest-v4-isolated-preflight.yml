@@ -5,6 +5,9 @@ on:
     paths:
       - '.github/workflows/chapter-quest-v4-isolated-preflight.yml'
       - 'app/tests/**'
+      - 'app/public/js/student-app.js'
+      - 'app/public/js/student-api.js'
+      - 'app/public/js/pdf-transport.js'
       - 'app/sql/**'
       - 'review/sql-candidates/cq_v4_my_lesson_schedule_release_guard.sql'
       - 'app/supabase/functions/cq-v4-pdf-link/index.ts'
