@@ -16,6 +16,7 @@ test('student only asks for reread after released feedback and does not expose s
  assert.doesNotMatch(app.slice(begin,end),/correct_mc|total_mc|answer_key|approval_hash/);
 });
 test('missing review-only RPC preserves submitted feedback view',()=>{
- assert.match(app,/404\|PGRST202\|does not exist\|not found/);
+ assert.match(app,/rereadSuggested=false;\s*console\.warn\('Optional reread suggestion unavailable:/);
+ assert.match(app,/assertChildContext\(viewContext\);if\(childApi!==viewApi\)return/);
  assert.match(app,/\$\{feedback\}\$\{rereadNotice\}/);
 });
