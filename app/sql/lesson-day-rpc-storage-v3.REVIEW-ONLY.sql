@@ -109,78 +109,29 @@ AS $function$
  ORDER BY s.lesson_date,s.chapter_id;
 $function$
 ;
--- Storage: restrictive policy narrows INSERT and UPDATE, without altering historical SELECT.
--- This assumes all speaking writes are by the authenticated student.
+-- Storage: restrictive policies narrow INSERT and UPDATE; SELECT remains untouched.
+-- Existing permissive INSERT policy is retained. No permissive UPDATE currently
+-- exists, so UPDATE is denied regardless; keep this guard for future policies.
 CREATE POLICY cq_v4_speaking_same_day_insert_v2 ON storage.objects
 AS RESTRICTIVE FOR INSERT TO authenticated
 WITH CHECK (
   bucket_id <> 'cq-v4-speaking'
   OR (
     name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f-]{36}[.](webm|mp4|ogg)$')
-    AND public.cq_v4_can_start_lesson(
-      (CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f-]{36}[.](webm|mp4|ogg),(SELECT auth.uid())
-    )
+    AND public.cq_v4_can_start_lesson((CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f-]{36}[.](webm|mp4|ogg)$' THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid()))
   )
 );
 CREATE POLICY cq_v4_speaking_same_day_update_v2 ON storage.objects
 AS RESTRICTIVE FOR UPDATE TO authenticated
 USING (
   bucket_id <> 'cq-v4-speaking'
-  OR public.cq_v4_can_start_lesson(
-    (split_part(split_part(name,'/',2),'.',1))::uuid,(SELECT auth.uid())
-  )
+  OR public.cq_v4_can_start_lesson((CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f-]{36}[.](webm|mp4|ogg)$' THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid()))
 )
 WITH CHECK (
   bucket_id <> 'cq-v4-speaking'
   OR (
     name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f-]{36}[.](webm|mp4|ogg)$')
-    AND public.cq_v4_can_start_lesson(
-      (split_part(split_part(name,'/',2),'.',1))::uuid,(SELECT auth.uid())
-    )
+    AND public.cq_v4_can_start_lesson((CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f-]{36}[.](webm|mp4|ogg)$' THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid()))
   )
 );
--- UUID parsing is guarded with CASE to avoid malformed-path cast failures.
--- Confirm parent/admin speaking update needs before adopting the restrictive UPDATE policy.
- THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid())
-    )
-  )
-);
-CREATE POLICY cq_v4_speaking_same_day_update_v2 ON storage.objects
-AS RESTRICTIVE FOR UPDATE TO authenticated
-USING (
-  bucket_id <> 'cq-v4-speaking'
-  OR public.cq_v4_can_start_lesson(
-    (CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f-]{36}[.](webm|mp4|ogg),(SELECT auth.uid())
-  )
-)
-WITH CHECK (
-  bucket_id <> 'cq-v4-speaking'
-  OR (
-    name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f-]{36}[.](webm|mp4|ogg)$')
-    AND public.cq_v4_can_start_lesson(
-      (split_part(split_part(name,'/',2),'.',1))::uuid,(SELECT auth.uid())
-    )
-  )
-);
--- SECURITY BLOCKER: replace the UUID cast with guarded CASE to avoid
--- cast exceptions on malformed object paths before deploying.
- THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid())
-  )
-)
-WITH CHECK (
-  bucket_id <> 'cq-v4-speaking'
-  OR (
-    name ~ ('^' || (SELECT auth.uid())::text || '/[0-9a-f-]{36}[.](webm|mp4|ogg)$')
-    AND public.cq_v4_can_start_lesson(
-      (CASE WHEN split_part(name,'/',2) ~ '^[0-9a-f-]{36}[.](webm|mp4|ogg),(SELECT auth.uid())
-    )
-  )
-);
--- SECURITY BLOCKER: replace the UUID cast with guarded CASE to avoid
--- cast exceptions on malformed object paths before deploying.
- THEN split_part(split_part(name,'/',2),'.',1)::uuid ELSE NULL::uuid END),(SELECT auth.uid())
-    )
-  )
-);
--- SECURITY BLOCKER: replace the UUID cast with guarded CASE to avoid
--- cast exceptions on malformed object paths before deploying.
+-- REVIEW BLOCKER: PostgreSQL parser and RLS behavior require isolated execution.
