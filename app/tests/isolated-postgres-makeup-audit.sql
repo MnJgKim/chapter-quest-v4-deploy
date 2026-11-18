@@ -25,7 +25,7 @@ SET LOCAL ROLE postgres;
 INSERT INTO public.cq_v4_pdf_assignments VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb');
 DO $$
 BEGIN
- IF (SELECT count(*) FROM public.cq_v4_makeup_approvals)!=1 THEN RAISE EXCEPTION 'Missing makeup audit'; END IF;
+ IF (SELECT count(*) FROM public.cq_v4_makeup_approvals)!=1 THEN RAISE EXCEPTION 'Missing or unexpected makeup audit'; END IF;
  IF (SELECT lesson_date FROM public.cq_v4_lesson_schedule)!=(now() AT TIME ZONE 'Asia/Seoul')::date THEN RAISE EXCEPTION 'Makeup date unchanged'; END IF;
 END $$;
 INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','{}');
@@ -48,5 +48,11 @@ BEGIN
  EXCEPTION WHEN insufficient_privilege THEN NULL;
  END;
 END $$;
+SET LOCAL ROLE postgres;
+DO $
+BEGIN
+ IF (SELECT count(*) FROM public.cq_v4_makeup_approvals)!=1 THEN RAISE EXCEPTION 'Audit count changed after rejected requests'; END IF;
+ IF (SELECT lesson_date FROM public.cq_v4_lesson_schedule WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb')!=(now() AT TIME ZONE 'Asia/Seoul')::date THEN RAISE EXCEPTION 'Rejected request changed schedule'; END IF;
+END $;
 ROLLBACK;
 \echo 'MAKEUP_AUDIT_ASSERTIONS_PASSED'
