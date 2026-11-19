@@ -54,6 +54,19 @@ INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers,
 VALUES ('00000000-0000-0000-0000-000000000106','00000000-0000-0000-0000-000000000011',
  jsonb_build_object('answers',(SELECT jsonb_agg(CASE WHEN n<=7 THEN '0' ELSE '1' END ORDER BY n) FROM generate_series(1,10) AS n)),true);
 
+
+-- Above threshold: 80% (8/10) must not trigger reread.
+INSERT INTO public.cq_v4_pdf_chapters VALUES ('00000000-0000-0000-0000-000000000107','00000000-0000-0000-0000-000000000001');
+INSERT INTO public.cq_v4_pdf_assignments VALUES ('00000000-0000-0000-0000-000000000107','00000000-0000-0000-0000-000000000011');
+INSERT INTO public.cq_v4_approval_requests
+SELECT '00000000-0000-0000-0000-000000000207','00000000-0000-0000-0000-000000000107','hash-80',
+ (SELECT jsonb_agg(jsonb_build_object('kind','mc','options',jsonb_build_array('A','B'))) FROM generate_series(1,10)),
+ (SELECT jsonb_agg(0) FROM generate_series(1,10));
+INSERT INTO public.cq_v4_activities VALUES ('00000000-0000-0000-0000-000000000107','00000000-0000-0000-0000-000000000207','hash-80',now());
+INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers,feedback_released)
+VALUES ('00000000-0000-0000-0000-000000000107','00000000-0000-0000-0000-000000000011',
+ jsonb_build_object('answers',(SELECT jsonb_agg(CASE WHEN n<=8 THEN '0' ELSE '1' END ORDER BY n) FROM generate_series(1,10) AS n)),true);
+
 -- Immutable snapshot sentinel: acknowledgements and reread queries must never touch it.
 CREATE TABLE public.cq_v4_snapshots(chapter_uuid uuid,child_user_id uuid,snapshot_payload jsonb,PRIMARY KEY(chapter_uuid,child_user_id));
 INSERT INTO public.cq_v4_snapshots VALUES ('00000000-0000-0000-0000-000000000101','00000000-0000-0000-0000-000000000011','{"immutable":"original"}');
