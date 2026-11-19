@@ -33,6 +33,8 @@ jobs:
       PGDATABASE: chapter_quest_isolated
     steps:
       - uses: actions/checkout@v4
+      - name: Run auto-release static regression tests
+        run: node --test app/tests/student-auto-release-prerequisite.test.mjs
       - name: Apply isolated fixtures
         run: psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-fixtures.sql
       - name: Install policy and approved queue
