@@ -1,0 +1,16 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {planSharedZackChapter} from './zack-chapter-plan.mjs';
+const chapterUuid='1dcf0d1f-c048-4e3a-bb7e-3d05c4600143';
+const seowoo='b7c90ec0-da6b-4519-90cb-58a07d6881a6';
+const seojin='fde16ade-a761-4aee-9992-a453f2668488';
+const valid={chapterUuid,pdfVerified:true,approved:true,published:true,parentReviewed:true,students:[{studentUuid:seowoo,lessonDate:'2026-11-23'},{studentUuid:seojin,lessonDate:'2026-11-24'}]};
+test('same approved chapter, separate students and lesson dates',()=>{const p=planSharedZackChapter(valid);assert.equal(p.assignments.length,2);assert.equal(p.assignments[0].chapterUuid,p.assignments[1].chapterUuid);assert.notEqual(p.assignments[0].studentUuid,p.assignments[1].studentUuid);assert.notEqual(p.assignments[0].lessonDate,p.assignments[1].lessonDate);assert.equal(p.writesPerformed,0);assert.equal(p.requiresProductionApproval,true)});
+test('requires real parent review',()=>assert.throws(()=>planSharedZackChapter({...valid,parentReviewed:false}),/review/));
+test('rejects unpublished chapter',()=>assert.throws(()=>planSharedZackChapter({...valid,published:false}),/publication/));
+test('rejects unverified PDF',()=>assert.throws(()=>planSharedZackChapter({...valid,pdfVerified:false}),/Verified PDF/));
+test('rejects unapproved chapter',()=>assert.throws(()=>planSharedZackChapter({...valid,approved:false}),/approval/));
+test('rejects duplicate student',()=>assert.throws(()=>planSharedZackChapter({...valid,students:[valid.students[0],valid.students[0]]}),/duplicate/));
+test('rejects malformed date',()=>assert.throws(()=>planSharedZackChapter({...valid,students:[valid.students[0],{studentUuid:seojin,lessonDate:'2026-02-30'}]}),/date/));
+test('rejects invented chapter ID',()=>assert.throws(()=>planSharedZackChapter({...valid,chapterUuid:'chapter-2'}),/UUID/));
+test('plan is immutable',()=>{const p=planSharedZackChapter(valid);assert.throws(()=>p.assignments.push({}),TypeError);assert.throws(()=>{p.assignments[0].lessonDate='2026-11-25'},TypeError)});
