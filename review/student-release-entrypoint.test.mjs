@@ -9,8 +9,8 @@ const scripts = [...html.matchAll(/<script\s+src="([^"]+)"/g)].map(match => matc
 
 test('the versioned student entry point waits for automatic release and only renders server-listed chapters', async () => {
   const apiScript = scripts.find(src => src.startsWith('/js/student-api.js?'));
-  assert.equal(apiScript, '/js/student-api.js?v=weekday-release-1');
-  assert.ok(scripts.indexOf(apiScript) < scripts.indexOf('/js/student-app.js'));
+  assert.equal(apiScript, '/js/student-api.js?v=weekday-release-2');
+  assert.ok(scripts.indexOf(apiScript) < scripts.indexOf('/js/student-app.js?v=student-display-1'));
   const script = new URL(apiScript.slice(1), assets);
   const browser = vm.createContext({});
   vm.runInContext(readFileSync(script, 'utf8'), browser);

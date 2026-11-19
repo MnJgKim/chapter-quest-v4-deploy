@@ -23,6 +23,10 @@
       if(!response.ok){const detail=await response.json().catch(()=>({}));throw Error('Student request failed ('+response.status+'): '+(detail.message||'Access denied'))}
       return response.json();
     }
+    async function myDisplayName(){
+      const value=await rpc('cq_v4_my_display_name');
+      return typeof value==='string'&&value.trim()?value.trim():null;
+    }
     async function assignedChapters(){
       // Scheduled lessons are returned only after their Asia/Seoul release date.
       // The server-side RPC is authoritative; the UI must not compute access locally.
@@ -77,6 +81,7 @@
     }
     return Object.freeze({
       assignedChapters,
+      myDisplayName,
       chapterActivities,
       submit,
       submission,

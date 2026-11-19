@@ -7,6 +7,7 @@ on:
       - 'app/tests/**'
       - 'review/sql-candidates/recurring-publication.ISOLATED-TEST.sql'
       - 'review/sql-candidates/recurring-pause.ISOLATED-TEST.sql'
+      - 'review/sql-candidates/student-display-names.ISOLATED-TEST.sql'
       - 'review/recurring-publication-concurrency.sh'
       - 'app/public/index.html'
       - 'app/public/js/student-app.js'
@@ -176,6 +177,8 @@ jobs:
         run: node --test review/student-release-entrypoint.test.mjs
       - name: Verify first lesson midnight in a fresh PostgreSQL cluster
         run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/seojin-seven-lessons.ISOLATED-TEST.sql
+      - name: Verify display names and targeted rollback
+        run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/student-display-names.ISOLATED-TEST.sql
 
   recurring-approved-publication:
     runs-on: ubuntu-latest
