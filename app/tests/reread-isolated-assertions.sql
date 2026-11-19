@@ -29,6 +29,7 @@ BEGIN
  IF public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000103') THEN RAISE EXCEPTION 'Unscored should not notify'; END IF;
  IF public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000104') THEN RAISE EXCEPTION 'Missing key should not notify'; END IF;
  IF public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000105') THEN RAISE EXCEPTION 'Missing approval should not notify'; END IF;
+ IF public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000106') THEN RAISE EXCEPTION 'Exactly 70 percent incorrectly flagged'; END IF;
 END;$$;
 SELECT set_config('test.uid','00000000-0000-0000-0000-000000000012',false);
 DO $$
@@ -42,7 +43,7 @@ BEGIN
  SELECT count(*) INTO n FROM public.cq_v4_reread_ack;
  IF n<>1 THEN RAISE EXCEPTION 'Duplicate acknowledgement rows'; END IF;
  SELECT count(*) INTO n FROM public.cq_v4_student_submissions;
- IF n<>5 THEN RAISE EXCEPTION 'Submissions unexpectedly changed'; END IF;
+ IF n<>6 THEN RAISE EXCEPTION 'Submissions unexpectedly changed'; END IF;
 END;$$;
 -- A student's unread or unreleased feedback must not disclose the score.
 SET ROLE authenticated;
