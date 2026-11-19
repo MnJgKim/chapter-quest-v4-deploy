@@ -37,10 +37,8 @@ jobs:
         run: node --test app/tests/student-auto-release-prerequisite.test.mjs
       - name: Apply isolated fixtures
         run: psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-fixtures.sql
-      - name: Install policy and approved queue
-        run: psql -v ON_ERROR_STOP=1 -f app/sql/student-weekday-policy-and-approved-queue.REVIEW-ONLY.sql
-      - name: Install auto release in isolated database
-        run: psql -v ON_ERROR_STOP=1 -f app/sql/student-auto-release-existing-schedule.REVIEW-ONLY.sql
+      - name: Install both components in one atomic transaction
+        run: psql -v ON_ERROR_STOP=1 -f app/sql/student-auto-release-atomic-install.REVIEW-ONLY.sql
       - name: Run isolated assertions
         run: |
           set -o pipefail
