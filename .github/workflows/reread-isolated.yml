@@ -8,6 +8,8 @@ on:
       - 'app/tests/reread-isolated-*.sql'
       - '.github/workflows/reread-isolated.yml'
   workflow_dispatch:
+permissions:
+  contents: read
 jobs:
   reread-isolated:
     runs-on: ubuntu-latest
@@ -41,3 +43,11 @@ jobs:
           set -o pipefail
           psql -v ON_ERROR_STOP=1 -f app/tests/reread-isolated-assertions.sql 2>&1 | tee /tmp/reread-results.log
           grep -q REREAD_ISOLATED_ASSERTIONS_PASSED /tmp/reread-results.log
+      - name: Save isolated PostgreSQL test log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: reread-postgres-results
+          path: /tmp/reread-results.log
+          if-no-files-found: warn
+          retention-days: 7
