@@ -11,7 +11,7 @@ ROOT=Path(__file__).parent;out=Path(sys.argv[1]);out.mkdir(parents=True,exist_ok
 class Quiet(SimpleHTTPRequestHandler):
  def log_message(self,*args):pass
 server=ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Quiet,directory=str(ROOT/'public')));threading.Thread(target=server.serve_forever,daemon=True).start();origin=f'http://127.0.0.1:{server.server_port}'
-report={'scope':'synthetic parent review in isolated local browser; no hosted data','checks':[],'page_errors':[],'blocked_requests':[]}
+report={'scope':'parent review in isolated local browser; no hosted requests','checks':[],'page_errors':[],'blocked_requests':[]}
 def open_parent(page, first_time=False):
  page.locator('#parentBtn').click()
  for _ in range(2 if first_time else 1):
@@ -51,6 +51,18 @@ try:
   page.locator('[data-act="reviewSaved"]').click();assert not page.evaluate('!!chapter().approvalReceipt');passed('reopening saved content invalidates approval before editing')
   for width,height in [(360,800),(800,1280),(1280,800)]:
    page.set_viewport_size({'width':width,'height':height});assert page.evaluate('document.documentElement.scrollWidth<=innerWidth');passed(f'review controls fit {width}x{height}')
+  page.evaluate("""() => {
+   const setItem = Storage.prototype.setItem;
+   Storage.prototype.setItem = function (key, value) {
+    if (key === 'chapter_quest_v4_state') throw new DOMException('test quota', 'QuotaExceededError');
+    return setItem.call(this, key, value);
+   };
+  }""")
+  with page.expect_file_chooser() as chooser:
+   page.get_by_role('button',name='AI 초안 JSON 가져오기').click()
+  chooser.value.set_files(str(out/'draft.json'))
+  expect(page.locator('#notice')).to_have_text('초안 저장 실패. 화면을 닫지 말고 백업하세요.')
+  passed('failed draft storage is reported as a failure')
   before=page.evaluate('draft.questions[0].text');page.evaluate("mode='student';parentUnlocked=false;const el=document.querySelector('[data-draftq=\"0\"]');el.value='Unauthorized edit';el.dispatchEvent(new Event('input',{bubbles:true}))");assert page.evaluate('draft.questions[0].text')==before;passed('review input handler rejects edits after parent mode is lost')
   assert not report['page_errors'] and not report['blocked_requests'];passed('no runtime errors or hosted requests');browser.close()
 except Exception as e:report['failure']=str(e)
