@@ -52,6 +52,25 @@ BEGIN
  IF (SELECT answers FROM public.cq_v4_student_submissions WHERE chapter_uuid='00000000-0000-0000-0000-000000000101' AND child_user_id='00000000-0000-0000-0000-000000000011') IS DISTINCT FROM '{"answers":["0","1","1"]}'::jsonb THEN RAISE EXCEPTION 'Submitted answers were modified'; END IF;
  IF (SELECT snapshot_payload FROM public.cq_v4_snapshots WHERE chapter_uuid='00000000-0000-0000-0000-000000000101') IS DISTINCT FROM '{"immutable":"original"}'::jsonb THEN RAISE EXCEPTION 'Immutable snapshot changed'; END IF;
 END;$$;
+-- Inspect exact scoring boundaries under the privileged fixture owner, without granting
+-- authenticated users direct access to the SECURITY DEFINER scorer.
+SELECT set_config('test.uid','00000000-0000-0000-0000-000000000001',false);
+DO $exact_scores$
+DECLARE v_correct integer; v_total integer;
+BEGIN
+ SELECT correct_mc,total_mc INTO v_correct,v_total
+ FROM public.cq_v4_objective_reread_score('00000000-0000-0000-0000-000000000106','00000000-0000-0000-0000-000000000011');
+ IF v_correct IS DISTINCT FROM 7 OR v_total IS DISTINCT FROM 10
+ THEN RAISE EXCEPTION 'Expected exact 7/10 score, got %/%',v_correct,v_total; END IF;
+ SELECT correct_mc,total_mc INTO v_correct,v_total
+ FROM public.cq_v4_objective_reread_score('00000000-0000-0000-0000-000000000107','00000000-0000-0000-0000-000000000011');
+ IF v_correct IS DISTINCT FROM 8 OR v_total IS DISTINCT FROM 10
+ THEN RAISE EXCEPTION 'Expected exact 8/10 score, got %/%',v_correct,v_total; END IF;
+ IF EXISTS (SELECT 1 FROM public.cq_v4_objective_reread_score('00000000-0000-0000-0000-000000000105','00000000-0000-0000-0000-000000000011'))
+ THEN RAISE EXCEPTION 'Unapproved legacy publication was scored'; END IF;
+END;$exact_scores$;
+SELECT set_config('test.uid','',false);
+
 -- Verify direct score access is denied, and anonymous access to all public RPCs is denied.
 DO $access$
 BEGIN
