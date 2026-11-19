@@ -1,0 +1,42 @@
+name: Auto release isolated PostgreSQL
+on:
+  push:
+    branches:
+      - work/hosted-readonly-preflight-20261117
+    paths:
+      - 'app/sql/student-*.REVIEW-ONLY.sql'
+      - 'app/tests/auto-release-isolated-*.sql'
+      - '.github/workflows/auto-release-isolated.yml'
+  workflow_dispatch:
+jobs:
+  auto-release-isolated:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chapter_quest_isolated
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: chapter_quest_isolated
+    steps:
+      - uses: actions/checkout@v4
+      - name: Apply isolated fixtures
+        run: psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-fixtures.sql
+      - name: Install policy and approved queue
+        run: psql -v ON_ERROR_STOP=1 -f app/sql/student-weekday-policy-and-approved-queue.REVIEW-ONLY.sql
+      - name: Install auto release in isolated database
+        run: psql -v ON_ERROR_STOP=1 -f app/sql/student-auto-release-existing-schedule.REVIEW-ONLY.sql
+      - name: Run isolated assertions
+        run: psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-assertions.sql | tee /tmp/auto-release-results.log
