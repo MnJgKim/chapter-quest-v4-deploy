@@ -41,3 +41,15 @@ INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers,
  ('00000000-0000-0000-0000-000000000103','00000000-0000-0000-0000-000000000011','{"answers":[]}',true),
  ('00000000-0000-0000-0000-000000000104','00000000-0000-0000-0000-000000000011','{"answers":["0"]}',true),
  ('00000000-0000-0000-0000-000000000105','00000000-0000-0000-0000-000000000011','{"answers":["1"]}',true);
+
+-- Exactly 70% (7/10) must NOT trigger a reread notice.
+INSERT INTO public.cq_v4_pdf_chapters VALUES ('00000000-0000-0000-0000-000000000106','00000000-0000-0000-0000-000000000001');
+INSERT INTO public.cq_v4_pdf_assignments VALUES ('00000000-0000-0000-0000-000000000106','00000000-0000-0000-0000-000000000011');
+INSERT INTO public.cq_v4_approval_requests
+SELECT '00000000-0000-0000-0000-000000000206','00000000-0000-0000-0000-000000000106','hash-70',
+ (SELECT jsonb_agg(jsonb_build_object('kind','mc','options',jsonb_build_array('A','B'))) FROM generate_series(1,10)),
+ (SELECT jsonb_agg(0) FROM generate_series(1,10));
+INSERT INTO public.cq_v4_activities VALUES ('00000000-0000-0000-0000-000000000106','00000000-0000-0000-0000-000000000206','hash-70',now());
+INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers,feedback_released)
+VALUES ('00000000-0000-0000-0000-000000000106','00000000-0000-0000-0000-000000000011',
+ jsonb_build_object('answers',(SELECT jsonb_agg(CASE WHEN n<=7 THEN '0' ELSE '1' END ORDER BY n) FROM generate_series(1,10) AS n)),true);
