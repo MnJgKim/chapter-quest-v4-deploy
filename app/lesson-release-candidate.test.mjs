@@ -17,7 +17,11 @@ test('student PDF candidate checks authoritative release before signing',()=>{
 });
 test('schedule candidate uses same release predicate without changing output columns',()=>{
   assert.match(schedule,/RETURNS TABLE\(chapter_uuid uuid, chapter_title text, lesson_date date, is_released boolean\)/);
-  assert.match(schedule,/public\.cq_v4_is_released\(s\.chapter_id, \(select auth\.uid\(\)\)\)/);
+  // New work uses the approved lesson gate; only immutable prior submissions remain visible.
+  assert.match(schedule,/public\\.cq_v4_can_start_approved_lesson\\(s\\.chapter_id, \\(select auth\\.uid\\(\\)\\)\\)/);
+  assert.match(schedule,/OR EXISTS \\(SELECT 1 FROM public\\.cq_v4_student_submissions done/);
+  assert.match(schedule,/done\\.child_user_id=\\(select auth\\.uid\\(\\)\\)/);
+  assert.match(schedule,/done\\.chapter_uuid=s\\.chapter_id/);
   assert.match(schedule,/s\.student_user_id=\(select auth\.uid\(\)\)/);
   assert.match(schedule,/ORDER BY s\.lesson_date, s\.chapter_id/);
   assert.doesNotMatch(schedule,/\b(?:DELETE|TRUNCATE|DROP)\b/i);
