@@ -118,7 +118,8 @@
     </ul><label>책 안의 챕터 번호 <input type="number" min="1" max="1000" step="1" id="cqRecurringChapterNumber"></label>
     <label><input id="cqRecurringFinalChapter" type="checkbox"> 이 책의 마지막 챕터</label>
     <p>서버 게시 대상에서 검증된 PDF와 학생을 선택하세요. 대기 중인 승인본을 수정하려면 먼저 해당 자료를 철회하세요.</p>
-    <button data-parent-publish data-recurring-queue="true" data-c="${escapeHtml(c.id)}">승인 자료를 대기열에 추가</button>`:''}
+    <button data-parent-publish data-recurring-queue="true" data-c="${escapeHtml(c.id)}">승인 자료를 대기열에 추가</button>
+    <button data-parent-publish data-recurring-queue="true" data-existing-publication="true" data-c="${escapeHtml(c.id)}">기존 서버 게시본을 대기열에 추가</button>`:''}
     <div class="grid">${rows.map(row=>`<div class="book"><b>${escapeHtml(pendingChildren.find(child=>child.child_user_id===row.student_id)?.student_name||row.student_id.slice(-8))}</b>
      <p>${escapeHtml(row.weekdays?.map(day=>['','월','화','수','목','금','토','일'][day]).join('·')||'요일 미설정')} ${row.enabled?`· ${escapeHtml(row.effective_from)} 시작`:'· 자동 공개 꺼짐'}</p>
      ${row.book_title?`<p>도서 · ${escapeHtml(row.book_title)}</p>`:''}
@@ -385,6 +386,7 @@
    const currentBook=selectedBook,currentChapter=selectedChapter,c=chapter(),owner=cloudIdentity();
    if(!c||c.id!==button.dataset.c){publishStatus('현재 챕터를 다시 선택하세요.');return;}
    const willQueue=button.dataset.recurringQueue==='true';
+   const useExisting=willQueue&&button.dataset.existingPublication==='true';
    const chapterNumber=willQueue?document.getElementById('cqRecurringChapterNumber')?.valueAsNumber:null;
    const recurringBookTitle=willQueue?String(book()?.title||'').trim():null;
    const endsBook=willQueue&&document.getElementById('cqRecurringFinalChapter')?.checked===true;
@@ -392,8 +394,10 @@
    let pendingApprovalId=null,pendingTargetChildren=[],publicationSnapshot=null,publicationPdf=null;
    try{
      if(willQueue&&(!Number.isInteger(chapterNumber)||chapterNumber<1||chapterNumber>1000))throw Error('책 안의 챕터 번호를 입력하세요.');
-     const eligible=await cqPublicationEligibility(c);
-     if(!eligible.ok)throw Error(eligible.reason);
+     if(!useExisting){
+       const eligible=await cqPublicationEligibility(c);
+       if(!eligible.ok)throw Error(eligible.reason);
+     }
      const linked=pendingChildren.filter(x=>x.active===true&&typeof x.child_user_id==='string').map(x=>x.child_user_id);
      if(!linked.length)throw Error('활성 학생 연결이 없습니다. 위의 연결 요청 불러오기를 먼저 실행하세요.');
      const selected=linked.filter(uid=>document.querySelector('[data-publish-child="'+uid+'"]')?.checked);
@@ -404,6 +408,18 @@
      if(!/^[0-9a-f-]{36}$/i.test(serverPdfUuid)||!pdfServerChapters.some(x=>x.uuid===serverPdfUuid&&x.ready))
        throw Error('검증된 서버 PDF 챕터를 선택하고 서버 PDF 목록을 새로고침하세요.');
      if(c.pdfRange&&(!c.serverRangeVerified||!c.serverPdfUuid||c.serverPdfUuid!==serverPdfUuid||c.serverPdfOwner!==session.uid||c.serverPdfOrigin!==project.url))throw Error('선택 범위 자료와 서버 PDF가 다릅니다. 이 범위의 파생 PDF를 등록하고 연결된 항목을 선택하세요.');
+     if(useExisting){
+       const queued=await parentRpc('cq_v4_parent_enqueue_published',{
+         p_chapter:serverPdfUuid,p_students:selected,p_chapter_number:chapterNumber,
+         p_book_title:recurringBookTitle,p_ends_book:endsBook
+       });
+       if(queued!==serverPdfUuid)throw Error('기존 서버 게시본 등록 결과를 확인하세요.');
+       if(cloudIdentity()!==owner)return;
+       await refreshRecurring();
+       const node=document.getElementById('cqRecurringStatus');
+       if(node)node.textContent='기존 서버 게시본을 대기열에 연결했습니다.';
+       return;
+     }
      pendingTargetChildren=[...selected];
      const {questions,answerKey}=publicationPayload(c);publicationSnapshot={questions,answer_key:answerKey,vocabulary:structuredClone(c.vocabulary||[])};publicationPdf=serverPdfUuid;
      if(cloudIdentity()!==owner||selectedBook!==currentBook||selectedChapter!==currentChapter||chapter()!==c)throw Error('계정 또는 챕터가 변경되었습니다.');

@@ -119,6 +119,29 @@ $$;
 REVOKE ALL ON FUNCTION public.cq_v4_parent_enqueue_approved(uuid,uuid[],integer,text,boolean) FROM PUBLIC,anon;
 GRANT EXECUTE ON FUNCTION public.cq_v4_parent_enqueue_approved(uuid,uuid[],integer,text,boolean) TO authenticated;
 
+-- Attach an already published snapshot using its canonical approval ID.
+-- This path neither registers approval content nor republishes or assigns it.
+CREATE OR REPLACE FUNCTION public.cq_v4_parent_enqueue_published(
+ p_chapter uuid, p_students uuid[], p_chapter_number integer,
+ p_book_title text DEFAULT NULL, p_ends_book boolean DEFAULT false
+) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
+AS $$
+DECLARE v_approval uuid;
+BEGIN
+ IF auth.uid() IS NULL OR NOT public.cq_is_admin() THEN
+   RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501';
+ END IF;
+ SELECT a.approval_id INTO v_approval FROM public.cq_v4_activities a
+ JOIN public.cq_v4_approval_requests r ON r.id=a.approval_id AND r.chapter_uuid=a.chapter_uuid
+ WHERE a.chapter_uuid=p_chapter AND r.parent_user_id=auth.uid()
+   AND a.published_at IS NOT NULL AND a.approval_hash=r.content_hash;
+ IF v_approval IS NULL THEN RAISE EXCEPTION 'Published approval not found' USING ERRCODE='42501'; END IF;
+ RETURN public.cq_v4_parent_enqueue_approved(v_approval,p_students,p_chapter_number,p_book_title,p_ends_book);
+END;
+$$;
+REVOKE ALL ON FUNCTION public.cq_v4_parent_enqueue_published(uuid,uuid[],integer,text,boolean) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_parent_enqueue_published(uuid,uuid[],integer,text,boolean) TO authenticated;
+
 -- No client clock. The timestamp parameter is available only to its owner/isolated tests.
 CREATE OR REPLACE FUNCTION public.cq_v4_release_recurring_student_at(v_student uuid, p_now timestamptz)
 RETURNS uuid LANGUAGE plpgsql VOLATILE SET search_path TO ''

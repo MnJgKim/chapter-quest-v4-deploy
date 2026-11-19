@@ -6,6 +6,7 @@ on:
       - '.github/workflows/chapter-quest-v4-isolated-preflight.yml'
       - 'app/tests/**'
       - 'review/sql-candidates/recurring-publication.ISOLATED-TEST.sql'
+      - 'review/sql-candidates/recurring-pause.ISOLATED-TEST.sql'
       - 'review/recurring-publication-concurrency.sh'
       - 'app/public/index.html'
       - 'app/public/js/student-app.js'
@@ -200,3 +201,4 @@ jobs:
       - run: node --check app/public/js/parent-app.js
       - run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/recurring-publication.ISOLATED-TEST.sql
       - run: bash review/recurring-publication-concurrency.sh
+      - run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/recurring-pause.ISOLATED-TEST.sql
