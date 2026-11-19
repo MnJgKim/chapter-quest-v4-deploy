@@ -69,3 +69,18 @@
 - 별도 운영 승인 후 `app/sql/student-display-names.REVIEW-ONLY.sql`을 적용한다. 해당 SQL은 등록 테이블에 nullable 표시 이름을 추가하고 기존 부모 조회 및 학생 본인 이름 조회를 연결한다. 등록 RLS를 유지하며 브라우저에 직접 수정 정책을 추가하지 않는다.
 - `app/sql/seowoo-display-name.REVIEW-ONLY.sql`에 승인된 기존 학생·부모 UUID와 `display_previous_is_null=true`를 전달한다. 적용 대상은 기존 등록 행 한 건이며 값은 NULL에서 서우로 바뀐다. 기대한 행이 한 건이 아니면 트랜잭션이 실패한다. 초대·인증·일정·배정·제출 행은 건드리지 않는다. 다른 학생의 기존 초대 이름은 기존 값에서 읽는다.
 - 복구 시 같은 두 UUID와 `display_previous_is_null=false`로 이름만 NULL로 되돌린다. 스키마·RPC까지 되돌려야 할 경우 앞서 확보한 부모 조회 RPC 정의와 이전 Worker를 복원한다. 기존 Worker에 다른 변경을 덮어쓰는 위험을 막기 위해 최신 운영·Stage 버전과 복구 권한을 먼저 확인한 뒤 HTML·부모 JS·학생 API 및 학생 화면 변경만 반영한다.
+
+## 최종 적용 순서와 출시 판정
+
+아래 순서는 이 문서 앞부분의 초기 적용안을 대체한다. 첫 수업의 기존 공개 플래그와 일정은 그대로 두고, 별도 승인된 변경만 진행한다.
+
+| 단계 | 정확한 변경 대상 | 검증과 중단 조건 |
+| --- | --- | --- |
+| 0. 적용 전 | 운영 RPC 정의·ACL, 일정 키·날짜·공개 플래그, 배정·제출·녹음·피드백 기준 정보 보관. Cloudflare 운영/Stage 배포 ID, 자산 해시, 재배포 권한과 복구 대상 확인 | 공개 자산 사본은 Worker 백업으로 대체할 수 없다. 실제 버전과 복구 권한을 확인할 수 없으면 Worker 적용을 보류한다. |
+| 1. DB 기능 설치 | `student-weekday-policy-v1.REVIEW-ONLY.sql` → `approved-chapter-queue-v1.REVIEW-ONLY.sql` → `student-auto-release-existing-schedule.REVIEW-ONLY.sql` → `recurring-approved-publication.REVIEW-ONLY.sql` | 정책·큐는 비운 채 설치한다. 기존 예약과 공개 판정은 바뀌지 않아야 한다. 첫 수업의 기존 플래그나 날짜를 다시 저장하지 않는다. |
+| 2. 자산 검증과 반영 | 최신 운영 자산을 기준으로 HTML, 부모 화면, 학생 API와 학생 화면의 승인된 차이만 반영 | 승인된 Stage에서 테스트한 뒤 운영 적용 여부를 결정한다. 학생 조회가 날짜와 계정을 지키는지, 원본 PDF 및 활동이 정상인지, 부모가 기존 게시본을 재게시 없이 등록할 수 있는지 확인한다. 운영 학생 계정에 테스트 제출·녹음을 생성하지 않는다. |
+| 3. 승인된 자료와 정책 활성화 | `recurring-weekday-config.REVIEW-ONLY.sql`만 사용한다. 이전 공통 시작일 초기화 SQL은 실행하지 않는다. 기존 첫 게시본만 필요 시 `cq_v4_parent_enqueue_published`로 연결한다. 후속 챕터는 검증된 PDF·본문·문제와 부모 최종 승인이 있는 항목만 등록한다. | 기존 예약이 같은 날 우선한다. 이미 예약된 챕터를 재배정하지 않는다. 아직 승인 자료가 없는 날짜는 출시 대상에서 제외한다. 이후 날짜는 요일 정책과 앞 챕터 제출에 따라 잡힌다. |
+| 4. 자정 작업 | 승인된 운영 프로젝트에서 `CREATE EXTENSION IF NOT EXISTS pg_cron` 후 UTC 설정을 확인하고 `recurring-publication-cron.REVIEW-ONLY.sql` 실행 | 작업 이름·예약 시간과 실행 결과를 확인한다. 서울 자정 전후 열람과 신규 배정·공개 건수를 확인한다. |
+| 별도 적용 | 서우 표시 이름은 `student-display-names.REVIEW-ONLY.sql` → `seowoo-display-name.REVIEW-ONLY.sql` 순서 | 이름 표시가 수업 접근 조건에 관여하지 않으므로 첫 수업을 기다리게 하지 않는다. 배포가 필요한 경우 SQL과 이름 표시 자산을 함께 확인한다. |
+
+실패 시 신규 공개가 계속되지 않도록 `recurring-publication-pause.REVIEW-ONLY.sql`부터 실행한다. 기존 수업이 열리는지 확인한 뒤 필요한 경우 백업한 기존 RPC와 Worker 버전을 복원한다. 표시 이름만 되돌릴 때는 대상 이름이 예상 값과 일치할 때만 같은 등록 행을 NULL로 복원한다. 신규 수업 운영 중 생성된 배정·제출·녹음 기록은 일괄 삭제하지 않는다.
