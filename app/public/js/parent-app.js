@@ -116,6 +116,7 @@
       <li>문제·단어: ${stateLabel(c.questions?.length&&c.vocabulary?.length)}</li>
       <li>부모 승인: ${c.approvalReceipt?'승인 기록 있음 · 대기열 등록 시 검증':'검토 필요'}</li>
     </ul><label>책 안의 챕터 번호 <input type="number" min="1" max="1000" step="1" id="cqRecurringChapterNumber"></label>
+    <label><input id="cqRecurringFinalChapter" type="checkbox"> 이 책의 마지막 챕터</label>
     <p>서버 게시 대상에서 검증된 PDF와 학생을 선택하세요. 대기 중인 승인본을 수정하려면 먼저 해당 자료를 철회하세요.</p>
     <button data-parent-publish data-recurring-queue="true" data-c="${escapeHtml(c.id)}">승인 자료를 대기열에 추가</button>`:''}
     <div class="grid">${rows.map(row=>`<div class="book"><b>${escapeHtml(pendingChildren.find(child=>child.child_user_id===row.student_id)?.student_name||row.student_id.slice(-8))}</b>
@@ -386,6 +387,7 @@
    const willQueue=button.dataset.recurringQueue==='true';
    const chapterNumber=willQueue?document.getElementById('cqRecurringChapterNumber')?.valueAsNumber:null;
    const recurringBookTitle=willQueue?String(book()?.title||'').trim():null;
+   const endsBook=willQueue&&document.getElementById('cqRecurringFinalChapter')?.checked===true;
    publicationBusy=true;button.disabled=true;
    let pendingApprovalId=null,pendingTargetChildren=[],publicationSnapshot=null,publicationPdf=null;
    try{
@@ -422,7 +424,7 @@
      if(cloudIdentity()!==owner||selectedBook!==currentBook||selectedChapter!==currentChapter||chapter()!==c||!await isApprovalCurrent(c))
        throw Error('PDF 연결 후 계정 또는 학습 자료가 변경되어 게시를 중단했습니다.');
      if(willQueue){
-       await parentRpc('cq_v4_parent_enqueue_approved',{p_approval:approvalId,p_students:selected,p_chapter_number:chapterNumber,p_book_title:recurringBookTitle});
+       await parentRpc('cq_v4_parent_enqueue_approved',{p_approval:approvalId,p_students:selected,p_chapter_number:chapterNumber,p_book_title:recurringBookTitle,p_ends_book:endsBook});
        if(cloudIdentity()!==owner)return;
        await refreshRecurring();
        publishStatus('승인 자료를 대기열에 추가했습니다.');

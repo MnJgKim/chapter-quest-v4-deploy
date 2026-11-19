@@ -53,8 +53,14 @@ BEGIN
   RAISE EXCEPTION 'Skipped chapter was accepted';
  EXCEPTION WHEN invalid_parameter_value THEN NULL;
  END;
+ BEGIN
+  PERFORM public.cq_v4_parent_enqueue_approved('20000000-0000-4000-8000-000000000081',
+    ARRAY['10000000-0000-4000-8000-000000000081']::uuid[],1);
+  RAISE EXCEPTION 'Started another book before the current book end was marked';
+ EXCEPTION WHEN invalid_parameter_value THEN NULL;
+ END;
 END $$;
-SELECT public.cq_v4_parent_enqueue_approved(:'second',ARRAY[:'a',:'b']::uuid[],2);
+SELECT public.cq_v4_parent_enqueue_approved(:'second',ARRAY[:'a',:'b']::uuid[],2,'First book',true);
 SELECT public.cq_v4_parent_enqueue_approved(:'third',ARRAY[:'a',:'b']::uuid[],1,'Next book');
 DO $$
 BEGIN

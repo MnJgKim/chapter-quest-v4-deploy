@@ -4,6 +4,7 @@ ALTER TABLE public.cq_v4_approved_chapter_queue
   ADD COLUMN IF NOT EXISTS approval_id uuid REFERENCES public.cq_v4_approval_requests(id),
   ADD COLUMN IF NOT EXISTS book_id text,
   ADD COLUMN IF NOT EXISTS book_title text,
+  ADD COLUMN IF NOT EXISTS ends_book boolean NOT NULL DEFAULT false,
   ADD COLUMN IF NOT EXISTS chapter_number integer CHECK (chapter_number > 0);
 CREATE UNIQUE INDEX IF NOT EXISTS cq_v4_queue_book_chapter
   ON public.cq_v4_approved_chapter_queue(student_user_id, book_id, chapter_number);
@@ -60,7 +61,7 @@ $$;
 REVOKE ALL ON FUNCTION public.cq_v4_recurring_approval_ready(uuid,uuid,uuid) FROM PUBLIC,anon,authenticated;
 
 CREATE OR REPLACE FUNCTION public.cq_v4_parent_enqueue_approved(
- p_approval uuid, p_students uuid[], p_chapter_number integer, p_book_title text DEFAULT NULL
+ p_approval uuid, p_students uuid[], p_chapter_number integer, p_book_title text DEFAULT NULL, p_ends_book boolean DEFAULT false
 ) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
 AS $$
 DECLARE
@@ -90,31 +91,33 @@ BEGIN
    WHERE q.student_user_id=v_student AND q.chapter_id=v_approval.chapter_uuid;
    IF FOUND THEN
      IF v_existing.parent_user_id=v_parent AND v_existing.approval_id=p_approval
-        AND v_existing.chapter_number=p_chapter_number THEN CONTINUE; END IF;
+        AND v_existing.chapter_number=p_chapter_number AND v_existing.ends_book=p_ends_book THEN CONTINUE; END IF;
      RAISE EXCEPTION 'Chapter already queued with different approval or position' USING ERRCODE='23505';
    END IF;
    SELECT * INTO v_last FROM public.cq_v4_approved_chapter_queue q
    WHERE q.student_user_id=v_student AND q.parent_user_id=v_parent
    ORDER BY q.ordinal DESC LIMIT 1;
    IF v_last.book_id=v_approval.book_local_id THEN
-     IF p_chapter_number<>v_last.chapter_number+1 THEN
+     IF v_last.ends_book OR p_chapter_number<>v_last.chapter_number+1 THEN
        RAISE EXCEPTION 'Queue the next chapter in order' USING ERRCODE='22023';
      END IF;
+   ELSIF v_last.book_id IS NOT NULL AND NOT v_last.ends_book THEN
+     RAISE EXCEPTION 'Mark the previous book final chapter before starting another book' USING ERRCODE='22023';
    ELSIF p_chapter_number<>1 OR EXISTS (
      SELECT 1 FROM public.cq_v4_approved_chapter_queue q
      WHERE q.student_user_id=v_student AND q.book_id=v_approval.book_local_id
    ) THEN RAISE EXCEPTION 'A new book must start at Chapter 1' USING ERRCODE='22023'; END IF;
    INSERT INTO public.cq_v4_approved_chapter_queue
-     (parent_user_id,student_user_id,chapter_id,ordinal,approval_id,book_id,book_title,chapter_number)
+     (parent_user_id,student_user_id,chapter_id,ordinal,approval_id,book_id,book_title,chapter_number,ends_book)
    SELECT v_parent,v_student,v_approval.chapter_uuid,coalesce(max(q.ordinal),0)+1,
-          p_approval,v_approval.book_local_id,NULLIF(btrim(p_book_title),''),p_chapter_number
+          p_approval,v_approval.book_local_id,NULLIF(btrim(p_book_title),''),p_chapter_number,coalesce(p_ends_book,false)
    FROM public.cq_v4_approved_chapter_queue q WHERE q.student_user_id=v_student;
  END LOOP;
  RETURN v_approval.chapter_uuid;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.cq_v4_parent_enqueue_approved(uuid,uuid[],integer,text) FROM PUBLIC,anon;
-GRANT EXECUTE ON FUNCTION public.cq_v4_parent_enqueue_approved(uuid,uuid[],integer,text) TO authenticated;
+REVOKE ALL ON FUNCTION public.cq_v4_parent_enqueue_approved(uuid,uuid[],integer,text,boolean) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_parent_enqueue_approved(uuid,uuid[],integer,text,boolean) TO authenticated;
 
 -- No client clock. The timestamp parameter is available only to its owner/isolated tests.
 CREATE OR REPLACE FUNCTION public.cq_v4_release_recurring_student_at(v_student uuid, p_now timestamptz)
