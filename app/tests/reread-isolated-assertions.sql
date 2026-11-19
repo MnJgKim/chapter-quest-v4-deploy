@@ -46,6 +46,22 @@ BEGIN
  IF n<>6 THEN RAISE EXCEPTION 'Submissions unexpectedly changed'; END IF;
  IF (SELECT snapshot_payload FROM public.cq_v4_snapshots WHERE chapter_uuid='00000000-0000-0000-0000-000000000101') IS DISTINCT FROM '{"immutable":"original"}'::jsonb THEN RAISE EXCEPTION 'Immutable snapshot changed'; END IF;
 END;$$;
+-- Verify direct score access is denied, and anonymous access to all public RPCs is denied.
+DO $access$
+BEGIN
+ IF has_function_privilege('authenticated','public.cq_v4_objective_reread_score(uuid,uuid)','EXECUTE')
+ THEN RAISE EXCEPTION 'Authenticated user can call privileged objective scorer directly'; END IF;
+ IF has_function_privilege('anon','public.cq_v4_objective_reread_score(uuid,uuid)','EXECUTE')
+ THEN RAISE EXCEPTION 'Anonymous user can call privileged objective scorer'; END IF;
+ IF has_function_privilege('anon','public.cq_v4_parent_reread_inbox()','EXECUTE')
+ OR has_function_privilege('anon','public.cq_v4_parent_ack_reread_notice(uuid)','EXECUTE')
+ OR has_function_privilege('anon','public.cq_v4_my_released_reread_suggestion(uuid)','EXECUTE')
+ THEN RAISE EXCEPTION 'Anonymous user can access reread RPC'; END IF;
+ IF has_table_privilege('authenticated','public.cq_v4_reread_ack','INSERT')
+ OR has_table_privilege('authenticated','public.cq_v4_reread_ack','UPDATE')
+ THEN RAISE EXCEPTION 'Authenticated user can modify reread acknowledgements directly'; END IF;
+END;$access$;
+
 -- A student's unread or unreleased feedback must not disclose the score.
 SET ROLE authenticated;
 SELECT set_config('test.uid','00000000-0000-0000-0000-000000000011',false);
