@@ -184,7 +184,7 @@
  });
 
  const pdfParentStatus=message=>{const el=document.getElementById('cqPdfParentStatus');if(el)el.textContent=message};
- const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정</h2><p class="note">현재 챕터의 원본을 서버에 등록하면 게시할 PDF에 연결됩니다. 원본은 비공개 저장소에 보관되며 AI용 텍스트와 별도로 관리됩니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><label>챕터 제목 <input id="cqPdfChapterTitle" placeholder="예: Chapter 1" maxlength="200"></label><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf,text/plain,.txt"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF/TXT 등록·검증</button><button data-pdf-parent="from-local" ${session&&chapter()?.pdfStored&&!isOriginalSavePending()?'':'disabled'}>현재 챕터 원본을 서버에 등록</button></div><p class="muted">PDF 최대 50MB · TXT 최대 1MB. TXT는 화면에 표시한 원문을 PDF로 변환해 등록하며 기기의 원본 TXT는 보존합니다.</p><details><summary>PDF 보관·재사용 및 저장 용량 안내</summary><p>이미 등록된 PDF는 위 목록의 ‘선택 학생에게 추가 배정’으로 다른 학생에게 재사용할 수 있습니다. 동일 원본을 다시 업로드하지 마세요.</p><p>위 50MB는 개별 파일 제한이며 프로젝트 전체 무료 저장 용량이나 남은 용량이 아닙니다. 전체 사용량·플랜 한도는 Supabase 프로젝트 사용량 화면에서 별도로 확인해야 합니다. 사용량이 확인되지 않으면 초과 경고나 삭제 권고를 자동 확정하지 않습니다.</p><p>용량이 부족해지면 부모가 완료·미배정 자료를 검토하여 삭제 여부를 직접 승인해야 합니다. 학습 기록과 나중에 다른 학생이 사용할 PDF는 자동 삭제하지 않으며 유료 전환도 자동으로 진행하지 않습니다.</p></details>${session&&pdfServerStudents.length===0?'<p class="note">학생 연결 목록을 새로고침해 확인하세요. 이미 연결된 계정은 재초대하지 않아도 됩니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'PDF 검증 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row">${c.ready?`<button data-pdf-parent="use-existing" data-index="${i}">기존 PDF로 학습 준비</button>${pdfServerStudents.some(s=>pendingChildren.some(x=>x.child_user_id===s.student_user_id&&x.active===true))?`<select data-pdf-student="${i}" aria-label="배정할 학생"><option value="">배정할 학생 선택</option>${pdfServerStudents.filter(s=>pendingChildren.some(x=>x.child_user_id===s.student_user_id&&x.active===true)).map(s=>`<option value="${escapeHtml(s.student_user_id)}">${escapeHtml(studentLabel(s.student_user_id))} · ${escapeHtml(s.student_user_id.slice(-8))}</option>`).join("")}</select><button data-pdf-parent="assign" data-index="${i}">선택 학생에게 추가 배정</button>`:"<span class=\"muted\">연결 학생 목록을 새로고침하세요.</span>"}`:''}${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
+ const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정</h2><p class="note">현재 챕터의 원본을 서버에 등록하면 게시할 PDF에 연결됩니다. 원본은 비공개 저장소에 보관되며 AI용 텍스트와 별도로 관리됩니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><label>챕터 제목 <input id="cqPdfChapterTitle" placeholder="예: Chapter 1" maxlength="200"></label><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf,text/plain,.txt"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF/TXT 등록·검증</button><button data-pdf-parent="from-local" ${session&&chapter()?.pdfStored&&!isOriginalSavePending()?'':'disabled'}>현재 챕터 원본을 서버에 등록</button></div><p class="muted">PDF 최대 50MB · TXT 최대 1MB. TXT는 화면에 표시한 원문을 PDF로 변환해 등록하며 기기의 원본 TXT는 보존합니다.</p><details><summary>PDF 보관·재사용 및 저장 용량 안내</summary><p>이미 등록된 PDF는 위 목록의 ‘선택 학생에게 추가 배정’으로 다른 학생에게 재사용할 수 있습니다. 동일 원본을 다시 업로드하지 마세요.</p><p>위 50MB는 개별 파일 제한이며 프로젝트 전체 무료 저장 용량이나 남은 용량이 아닙니다. 전체 사용량·플랜 한도는 Supabase 프로젝트 사용량 화면에서 별도로 확인해야 합니다. 사용량이 확인되지 않으면 초과 경고나 삭제 권고를 자동 확정하지 않습니다.</p><p>용량이 부족해지면 부모가 완료·미배정 자료를 검토하여 삭제 여부를 직접 승인해야 합니다. 학습 기록과 나중에 다른 학생이 사용할 PDF는 자동 삭제하지 않으며 유료 전환도 자동으로 진행하지 않습니다.</p></details>${session&&pdfServerStudents.length===0?'<p class="note">학생 연결 목록을 새로고침해 확인하세요. 이미 연결된 계정은 재초대하지 않아도 됩니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'PDF 검증 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row">${c.ready?`<button data-pdf-parent="use-existing" data-index="${i}">기존 PDF로 학습 준비</button><button data-parent-preview="${escapeHtml(c.uuid)}">부모 미리보기</button>${pdfServerStudents.some(s=>pendingChildren.some(x=>x.child_user_id===s.student_user_id&&x.active===true))?`<select data-pdf-student="${i}" aria-label="배정할 학생"><option value="">배정할 학생 선택</option>${pdfServerStudents.filter(s=>pendingChildren.some(x=>x.child_user_id===s.student_user_id&&x.active===true)).map(s=>`<option value="${escapeHtml(s.student_user_id)}">${escapeHtml(studentLabel(s.student_user_id))} · ${escapeHtml(s.student_user_id.slice(-8))}</option>`).join("")}</select><button data-pdf-parent="assign" data-index="${i}">선택 학생에게 추가 배정</button>`:"<span class=\"muted\">연결 학생 목록을 새로고침하세요.</span>"}`:''}${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
  async function pdfParentCall(action,args){
    if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('부모 계정으로 로그인해야 합니다.');
    const owner=cloudIdentity();await refreshIfNeeded();
@@ -209,6 +209,45 @@
    try{const children=await parentRpc('cq_v4_list_child_access',{});if(cloudIdentity()!==owner)throw Error('부모 계정 변경');if(Array.isArray(children))pendingChildren=children;}catch(error){console.warn('Linked student names unavailable:',error.message)}
    render();pdfParentStatus('서버 목록을 다시 불러왔습니다. 승인된 학생과 PDF 목록을 확인했습니다.');
  }
+
+ // Read-only published-content preview; never imports or overwrites local books.
+ document.addEventListener('click',async event=>{
+   const button=event.target.closest('[data-parent-preview]');
+   if(!button||button.disabled)return;
+   if(mode!=='parent'||!parentUnlocked||!session||!project){pdfParentStatus('부모 로그인이 필요합니다.');return;}
+   const chapterUuid=button.dataset.parentPreview;
+   if(!pdfServerChapters.some(c=>c.uuid===chapterUuid&&c.ready)){pdfParentStatus('검증된 서버 PDF를 선택하세요.');return;}
+   const owner=cloudIdentity();
+   button.disabled=true;
+   try{
+     await refreshIfNeeded();
+     if(owner!==cloudIdentity())throw Error('계정이 변경되었습니다.');
+     const response=await fetch(project.url+'/functions/v1/cq-v4-parent-preview',{method:'POST',headers:{apikey:project.anonKey,Authorization:'Bearer '+session.token,'Content-Type':'application/json'},body:JSON.stringify({chapter_uuid:chapterUuid}),cache:'no-store'});
+     const data=await response.json().catch(()=>({}));
+     if(owner!==cloudIdentity())throw Error('계정이 변경되었습니다.');
+     if(!response.ok)throw Error(data.error||'미리보기 서버가 준비되지 않았습니다. '+response.status);
+     const signed=new URL(data.signed_url,project.url),base=new URL(project.url),expires=Date.parse(data.expires_at);
+     if(signed.origin!==base.origin||!signed.pathname.startsWith('/storage/v1/object/sign/cq-v4-originals/')||!signed.searchParams.has('token')||!Number.isFinite(expires)||expires<=Date.now()+5000||expires>Date.now()+180000)throw Error('PDF 링크 검증 실패');
+     if(!Array.isArray(data.questions))throw Error('게시 문제 형식 오류');
+     const parentPanel=document.getElementById('cqPdfParentPanel');
+     if(!parentPanel)throw Error('부모 화면이 변경되었습니다.');
+     let preview=document.getElementById('cqParentPreview');
+     if(!preview){preview=document.createElement('section');preview.id='cqParentPreview';preview.className='book';parentPanel.appendChild(preview);}
+     const header=document.createElement('h3');header.textContent='부모 전용 · '+String(data.title||'')+' · 문제 '+data.questions.length+'개';
+     const link=document.createElement('a');link.href=signed.href;link.target='_blank';link.rel='noopener noreferrer';link.textContent='원본 PDF 열기 (2분 유효)';
+     const note=document.createElement('p');note.textContent='읽기 전용 미리보기입니다. 학생 공개일과 제출 기록은 변경되지 않습니다.';
+     const list=document.createElement('ol');
+     for(const question of data.questions){
+       const item=document.createElement('li');
+       const q=typeof question==='string'?question:(question?.question||question?.prompt||question?.text||JSON.stringify(question));
+       item.textContent=String(q??'');
+       list.appendChild(item);
+     }
+     preview.replaceChildren(header,link,note,list);
+     pdfParentStatus('부모 미리보기 '+data.questions.length+'문항을 읽기 전용으로 확인했습니다.');
+   }catch(error){pdfParentStatus('미리보기 실패: '+error.message)}
+   finally{button.disabled=false;}
+ });
  let pdfParentBusy=false;
  document.addEventListener('click',async event=>{
    const button=event.target.closest('[data-pdf-parent]');if(!button||pdfParentBusy)return;
