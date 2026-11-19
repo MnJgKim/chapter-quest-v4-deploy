@@ -30,6 +30,7 @@ BEGIN
  IF public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000104') THEN RAISE EXCEPTION 'Missing key should not notify'; END IF;
  IF public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000105') THEN RAISE EXCEPTION 'Missing approval should not notify'; END IF;
  IF public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000106') THEN RAISE EXCEPTION 'Exactly 70 percent incorrectly flagged'; END IF;
+ IF public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000107') THEN RAISE EXCEPTION '80 percent incorrectly flagged'; END IF;
 END;$$;
 SELECT set_config('test.uid','00000000-0000-0000-0000-000000000012',false);
 DO $$
@@ -43,7 +44,7 @@ BEGIN
  SELECT count(*) INTO n FROM public.cq_v4_reread_ack;
  IF n<>1 THEN RAISE EXCEPTION 'Duplicate acknowledgement rows'; END IF;
  SELECT count(*) INTO n FROM public.cq_v4_student_submissions;
- IF n<>6 THEN RAISE EXCEPTION 'Submissions unexpectedly changed'; END IF;
+ IF n<>7 THEN RAISE EXCEPTION 'Submissions unexpectedly changed'; END IF;
  IF (SELECT answers FROM public.cq_v4_student_submissions WHERE chapter_uuid='00000000-0000-0000-0000-000000000101' AND child_user_id='00000000-0000-0000-0000-000000000011') IS DISTINCT FROM '{"answers":["0","1","1"]}'::jsonb THEN RAISE EXCEPTION 'Submitted answers were modified'; END IF;
  IF (SELECT snapshot_payload FROM public.cq_v4_snapshots WHERE chapter_uuid='00000000-0000-0000-0000-000000000101') IS DISTINCT FROM '{"immutable":"original"}'::jsonb THEN RAISE EXCEPTION 'Immutable snapshot changed'; END IF;
 END;$$;
