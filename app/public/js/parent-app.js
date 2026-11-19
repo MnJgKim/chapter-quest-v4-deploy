@@ -107,7 +107,7 @@
    .map(value=>typeof value==='string'?value.trim():'')
    .find(value=>value&&value!=='연결된 학생')||'계정 '+String(id||'').slice(-8);
 
- let recurringRows=[], recurringOwner=null;
+ let recurringRows=[], recurringOwner=null, recurringBackendMissing=false;
  const recurringLabels={empty:'다음 챕터 준비 필요',in_progress:'공개됨 · 제출 대기',paused:'부모 비공개',scheduled:'예약됨',ready:'자동 공개 대기',blocked:'원본 또는 승인 자료 확인 필요'};
  const recurringPanel=()=>{
    if(!session)return '';
@@ -122,23 +122,35 @@
     </ul><label>책 안의 챕터 번호 <input type="number" min="1" max="1000" step="1" id="cqRecurringChapterNumber"></label>
     <label><input id="cqRecurringFinalChapter" type="checkbox"> 이 책의 마지막 챕터</label>
     <p>서버 게시 대상에서 검증된 PDF와 학생을 선택하세요. 대기 중인 승인본을 수정하려면 먼저 해당 자료를 철회하세요.</p>
-    <button data-parent-publish data-recurring-queue="true" data-c="${escapeHtml(c.id)}">승인 자료를 대기열에 추가</button>
-    <button data-parent-publish data-recurring-queue="true" data-existing-publication="true" data-c="${escapeHtml(c.id)}">기존 서버 게시본을 대기열에 추가</button>`:''}
-    <div class="grid">${rows.map(row=>`<div class="book"><b>${escapeHtml(studentLabel(row.student_id))}</b>
+    <button ${recurringBackendMissing?'disabled title="자동 공개 서버 기능 미설치"':''} data-parent-publish data-recurring-queue="true" data-c="${escapeHtml(c.id)}">승인 자료를 대기열에 추가</button>
+    <button ${recurringBackendMissing?'disabled title="자동 공개 서버 기능 미설치"':''} data-parent-publish data-recurring-queue="true" data-existing-publication="true" data-c="${escapeHtml(c.id)}">기존 서버 게시본을 대기열에 추가</button>`:''}
+    ${recurringBackendMissing?'<p role="alert">자동 공개 대기열 서버 기능이 아직 설치되지 않았습니다. 기존 수업 일정은 유지되며 대기열 추가·철회는 사용할 수 없습니다.</p>':''}<div class="grid">${rows.map(row=>`<div class="book"><b>${escapeHtml(studentLabel(row.student_id))}</b>
      <p>${escapeHtml(row.weekdays?.map(day=>['','월','화','수','목','금','토','일'][day]).join('·')||'요일 미설정')} ${row.enabled?`· ${escapeHtml(row.effective_from)} 시작`:'· 자동 공개 꺼짐'}</p>
      ${row.book_title?`<p>도서 · ${escapeHtml(row.book_title)}</p>`:''}
      <p>최근 공개 · ${escapeHtml(row.current_title||'없음')}</p><p>다음 · ${escapeHtml(row.next_title||'준비 필요')}</p>
      <p>${row.chapter_title?`Chapter ${escapeHtml(row.chapter_number??'')} · ${escapeHtml(row.chapter_title)}`:'대기열 없음'}</p>
      <p>${escapeHtml(recurringLabels[row.state]||'상태 확인 필요')}${row.chapter_title?` · 원본 ${stateLabel(row.pdf_ready)} · 서버 게시 ${stateLabel(row.published)}`:''}</p>
-     ${row.withdraw_chapter?`<button data-recurring="withdraw" data-student="${escapeHtml(row.student_id)}" data-chapter="${escapeHtml(row.withdraw_chapter)}">마지막 대기 자료 철회</button>`: ''}
+     ${row.withdraw_chapter?`<button ${recurringBackendMissing?'disabled':''} data-recurring="withdraw" data-student="${escapeHtml(row.student_id)}" data-chapter="${escapeHtml(row.withdraw_chapter)}">마지막 대기 자료 철회</button>`: ''}
     </div>`).join('')}</div><p id="cqRecurringStatus" class="status" role="status"></p></section>`;
  };
  async function refreshRecurring(){
    const owner=cloudIdentity();
-   const [rows,children]=await Promise.all([
-     parentRpc('cq_v4_parent_recurring_status'),
-     parentRpc('cq_v4_list_child_access').catch(()=>null),
-   ]);
+   let rows,children;
+   try{
+     [rows,children]=await Promise.all([
+       parentRpc('cq_v4_parent_recurring_status'),
+       parentRpc('cq_v4_list_child_access').catch(()=>null),
+     ]);
+     recurringBackendMissing=false;
+   }catch(error){
+     if(/cq_v4_parent_recurring_status/.test(String(error?.message||''))&&/schema cache|could not find the function|PGRST202/i.test(String(error?.message||''))){
+       recurringBackendMissing=true;
+       recurringRows=[];recurringOwner=owner;
+       if(cloudIdentity()===owner)render();
+       return;
+     }
+     throw error;
+   }
    if(cloudIdentity()!==owner)return;
    if(!Array.isArray(rows))throw Error('대기열 응답 형식을 확인하세요.');
    if(Array.isArray(children))pendingChildren=children;
