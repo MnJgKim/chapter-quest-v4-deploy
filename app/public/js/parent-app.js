@@ -103,6 +103,51 @@
  const inviteCfg=()=>({url:project?.url,anonKey:project?.anonKey,getAccessToken:async()=>{await refreshIfNeeded();return session?.token}});
  const publicationChildrenPanel=()=>`<section class="card"><h2>📤 서버 게시 대상 학생</h2><p class="muted">게시할 학생과 서버에서 검증된 PDF 챕터를 각각 선택하세요. 로컬 챕터와 서버 PDF는 자동으로 동일하다고 간주하지 않습니다.</p><label>서버 PDF 챕터<select id="cqPublishVerifiedPdf"><option value="">검증된 서버 PDF 챕터 선택 (필수)</option>${pdfServerChapters.filter(x=>x.ready).map(x=>`<option value="${escapeHtml(x.uuid)}" ${chapter()?.serverPdfUuid===x.uuid?'selected':''}>${escapeHtml(x.title)} · ${escapeHtml(x.uuid)}</option>`).join('')}</select></label>${pendingChildren.filter(c=>c.active).map(c=>`<label><input type="checkbox" data-publish-child="${escapeHtml(c.child_user_id)}"> ${escapeHtml(c.student_name||'연결된 학생')} <small>계정 확인번호 ${escapeHtml(c.child_user_id.slice(-8))}</small></label>`).join('')||'<p>활성 연결 학생 목록을 먼저 불러오세요.</p>'}</section>`;
  let pdfServerChapters=[],pdfServerStudents=[],pdfServerAssignments=[];
+ let recurringRows=[], recurringOwner=null;
+ const recurringLabels={empty:'다음 챕터 준비 필요',in_progress:'공개됨 · 제출 대기',paused:'부모 비공개',scheduled:'예약됨',ready:'자동 공개 대기',blocked:'원본 또는 승인 자료 확인 필요'};
+ const recurringPanel=()=>{
+   if(!session)return '';
+   const c=chapter(),rows=recurringOwner===cloudIdentity()?recurringRows:[];
+   const stateLabel=(ready)=>ready?'완료':'준비 필요';
+   const linkedPdf=pdfServerChapters.some(row=>row.uuid===c?.serverPdfUuid&&row.ready);
+   return `<section class="card"><h2>요일 자동 공개</h2><button data-recurring="refresh">학생별 대기열 조회</button>
+    ${c?`<p>${escapeHtml(book()?.title)} · ${escapeHtml(c.title)}</p><ul>
+      <li>서버 원본: ${stateLabel(linkedPdf)}</li><li>AI용 본문: ${stateLabel(c.source?.trim()&&!c.sourcePreviewOnly)}</li>
+      <li>문제·단어: ${stateLabel(c.questions?.length&&c.vocabulary?.length)}</li>
+      <li>부모 승인: ${c.approvalReceipt?'승인 기록 있음 · 대기열 등록 시 검증':'검토 필요'}</li>
+    </ul><label>책 안의 챕터 번호 <input type="number" min="1" max="1000" step="1" id="cqRecurringChapterNumber"></label>
+    <p>서버 게시 대상에서 검증된 PDF와 학생을 선택하세요. 대기 중인 승인본을 수정하려면 먼저 해당 자료를 철회하세요.</p>
+    <button data-parent-publish data-recurring-queue="true" data-c="${escapeHtml(c.id)}">승인 자료를 대기열에 추가</button>`:''}
+    <div class="grid">${rows.map(row=>`<div class="book"><b>${escapeHtml(pendingChildren.find(child=>child.child_user_id===row.student_id)?.student_name||row.student_id.slice(-8))}</b>
+     <p>${escapeHtml(row.weekdays?.map(day=>['','월','화','수','목','금','토','일'][day]).join('·')||'요일 미설정')} ${row.enabled?`· ${escapeHtml(row.effective_from)} 시작`:'· 자동 공개 꺼짐'}</p>
+     <p>최근 공개 · ${escapeHtml(row.current_title||'없음')}</p><p>다음 · ${escapeHtml(row.next_title||'준비 필요')}</p>
+     <p>${row.chapter_title?`Chapter ${escapeHtml(row.chapter_number??'')} · ${escapeHtml(row.chapter_title)}`:'대기열 없음'}</p>
+     <p>${escapeHtml(recurringLabels[row.state]||'상태 확인 필요')}${row.chapter_title?` · 원본 ${stateLabel(row.pdf_ready)} · 서버 게시 ${stateLabel(row.published)}`:''}</p>
+     ${row.withdraw_chapter?`<button data-recurring="withdraw" data-student="${escapeHtml(row.student_id)}" data-chapter="${escapeHtml(row.withdraw_chapter)}">마지막 대기 자료 철회</button>`: ''}
+    </div>`).join('')}</div><p id="cqRecurringStatus" class="status" role="status"></p></section>`;
+ };
+ async function refreshRecurring(){
+   const owner=cloudIdentity();
+   const rows=await parentRpc('cq_v4_parent_recurring_status');
+   if(cloudIdentity()!==owner)return;
+   if(!Array.isArray(rows))throw Error('대기열 응답 형식을 확인하세요.');
+   recurringOwner=owner;recurringRows=rows;render();
+ }
+ document.addEventListener('click',async event=>{
+   const button=event.target.closest('[data-recurring]');
+   if(!button||button.disabled)return;
+   const owner=cloudIdentity();
+   button.disabled=true;
+   try{
+     if(button.dataset.recurring==='withdraw'){
+       const removed=await parentRpc('cq_v4_parent_withdraw_recurring',{p_student:button.dataset.student,p_chapter:button.dataset.chapter});
+       if(removed!==true)throw Error('이미 예약되었거나 후속 자료가 있어 철회할 수 없습니다.');
+     }
+     await refreshRecurring();
+   }
+   catch(error){const statusNode=document.getElementById('cqRecurringStatus');if(statusNode&&cloudIdentity()===owner)statusNode.textContent='대기열 조회 실패: '+error.message;}
+   finally{button.disabled=false;}
+ });
  let lessonReleases=[];
  const lessonReleasePanel=()=>`<section class="card"><h2>🔓 부모 직접 챕터 공개</h2><p>공개 전에는 학생이 볼 수 없습니다. 월·수·목 외 날짜도 선택할 수 있습니다.</p><button data-lesson="refresh" ${session?'':'disabled'}>공개 상태 새로고침</button>${pdfServerAssignments.map(a=>{const c=pdfServerChapters.find(x=>x.uuid===a.chapter_uuid);const v=lessonReleases.find(x=>x.student_user_id===a.student_user_id&&x.chapter_id===a.chapter_uuid);return `<div class="book"><b>${escapeHtml(c?.title||a.chapter_uuid)}</b> · 학생 ${escapeHtml(a.student_user_id.slice(-8))} · ${v?.released_at?'공개':'비공개'}<div class="row"><input type="date" data-lesson-date="${escapeHtml(a.student_user_id+':'+a.chapter_uuid)}" value="${escapeHtml(v?.lesson_date||'2026-11-23')}"><button data-lesson="schedule" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" ${c?.ready?'':'disabled'}>일정 저장</button><button data-lesson="toggle" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" data-open="${v?.released_at?'false':'true'}" ${v&&c?.ready?'':'disabled'}>${v?.released_at?'비공개 전환':'지금 공개'}</button></div></div>`}).join('')||'<p>서버 챕터와 학생 배정을 먼저 등록하세요.</p>'}<p id="lessonReleaseStatus" class="status"></p></section>`;
  const lessonStatus=t=>{const e=document.getElementById('lessonReleaseStatus');if(e)e.textContent=t};
@@ -337,9 +382,12 @@
    if(mode!=='parent'||!parentUnlocked||!session||!project){publishStatus('부모 Supabase 로그인 후 게시할 수 있습니다.');return;}
    const currentBook=selectedBook,currentChapter=selectedChapter,c=chapter(),owner=cloudIdentity();
    if(!c||c.id!==button.dataset.c){publishStatus('현재 챕터를 다시 선택하세요.');return;}
+   const willQueue=button.dataset.recurringQueue==='true';
+   const chapterNumber=willQueue?document.getElementById('cqRecurringChapterNumber')?.valueAsNumber:null;
    publicationBusy=true;button.disabled=true;
    let pendingApprovalId=null,pendingTargetChildren=[],publicationSnapshot=null,publicationPdf=null;
    try{
+     if(willQueue&&(!Number.isInteger(chapterNumber)||chapterNumber<1||chapterNumber>1000))throw Error('책 안의 챕터 번호를 입력하세요.');
      const eligible=await cqPublicationEligibility(c);
      if(!eligible.ok)throw Error(eligible.reason);
      const linked=pendingChildren.filter(x=>x.active===true&&typeof x.child_user_id==='string').map(x=>x.child_user_id);
@@ -371,12 +419,24 @@
      await parentRpc('cq_v4_bind_verified_pdf',{p_approval_id:approvalId,p_chapter_uuid:serverPdfUuid});
      if(cloudIdentity()!==owner||selectedBook!==currentBook||selectedChapter!==currentChapter||chapter()!==c||!await isApprovalCurrent(c))
        throw Error('PDF 연결 후 계정 또는 학습 자료가 변경되어 게시를 중단했습니다.');
+     if(willQueue){
+       await parentRpc('cq_v4_parent_enqueue_approved',{p_approval:approvalId,p_students:selected,p_chapter_number:chapterNumber});
+       if(cloudIdentity()!==owner)return;
+       await refreshRecurring();
+       publishStatus('승인 자료를 대기열에 추가했습니다.');
+       const node=document.getElementById('cqRecurringStatus');
+       if(node)node.textContent='승인 자료를 대기열에 추가했습니다.';
+       return;
+     }
      const chapterId=await parentRpc('cq_v4_publish_approved',{p_approval_id:approvalId,p_children:selected});
      if(cloudIdentity()!==owner)return;
      rememberPublication(c,serverPdfUuid,publicationSnapshot);publishStatus('✓ 서버 게시 요청 성공 · 학생 '+selected.length+'명 · 챕터 '+String(chapterId)+'. 실제 학생 조회는 별도 확인이 필요합니다.');
    }catch(error){
      if(cloudIdentity()!==owner)return;
-     if(pendingApprovalId&&pendingTargetChildren.length){
+     if(willQueue){
+       const node=document.getElementById('cqRecurringStatus');
+       if(node)node.textContent='대기열 등록 결과 확인 필요: '+error.message;
+     }else if(pendingApprovalId&&pendingTargetChildren.length){
        try{
          // Read-only server check: a lost publish response must not cause a duplicate write.
          const result=await parentRpc('cq_v4_publication_status',{
@@ -398,7 +458,7 @@
    finally{publicationBusy=false;if(button.isConnected)button.disabled=false;}
  });
  const originalRender=render;
- render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel()+rereadPanel());if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession)}};
+ render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+pdfParentPanel()+recurringPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel()+rereadPanel());if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession)}};
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-parent-invite]');if(!b)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project){inviteStatus('부모 Supabase 로그인이 필요합니다.');return;}

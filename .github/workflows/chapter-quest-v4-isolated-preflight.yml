@@ -5,6 +5,8 @@ on:
     paths:
       - '.github/workflows/chapter-quest-v4-isolated-preflight.yml'
       - 'app/tests/**'
+      - 'review/sql-candidates/recurring-publication.ISOLATED-TEST.sql'
+      - 'review/recurring-publication-concurrency.sh'
       - 'app/public/index.html'
       - 'app/public/js/student-app.js'
       - 'app/public/js/parent-app.js'
@@ -173,3 +175,28 @@ jobs:
         run: node --test review/student-release-entrypoint.test.mjs
       - name: Verify first lesson midnight in a fresh PostgreSQL cluster
         run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/seojin-seven-lessons.ISOLATED-TEST.sql
+
+  recurring-approved-publication:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: cq_v4_recurring_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: isolated-test-only
+      PGDATABASE: cq_v4_recurring_test
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check app/public/js/parent-app.js
+      - run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/recurring-publication.ISOLATED-TEST.sql
+      - run: bash review/recurring-publication-concurrency.sh
