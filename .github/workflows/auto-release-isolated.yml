@@ -39,4 +39,12 @@ jobs:
       - name: Install auto release in isolated database
         run: psql -v ON_ERROR_STOP=1 -f app/sql/student-auto-release-existing-schedule.REVIEW-ONLY.sql
       - name: Run isolated assertions
-        run: psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-assertions.sql | tee /tmp/auto-release-results.log
+        run: |
+          set -o pipefail
+          psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-assertions.sql 2>&1 | tee /tmp/auto-release-results.log
+          grep -q AUTO_RELEASE_ISOLATED_ASSERTIONS_PASSED /tmp/auto-release-results.log
+      - name: Run Seojin weekday and parent hide assertions
+        run: |
+          set -o pipefail
+          psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-seojin-and-hide.sql 2>&1 | tee /tmp/auto-release-seojin.log
+          grep -q AUTO_RELEASE_SEOJIN_HIDE_ROLLOVER_ASSERTIONS_PASSED /tmp/auto-release-seojin.log
