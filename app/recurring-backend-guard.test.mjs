@@ -13,6 +13,7 @@ test('recurring queue fails closed before server capability check',()=>{
   assert.match(source,/recurringBackendMissing=true/);
   assert.match(source,/recurringBackendMissing\?'disabled title=/);
   assert.match(source,/recurringBackendMissing\?'disabled':/);
+  assert.match(source,/if\(willQueue&&recurringBackendMissing\)/);
 });
 
 test('missing status RPC is explicitly reported, without simulated queue rows',()=>{
