@@ -107,7 +107,7 @@
    .map(value=>typeof value==='string'?value.trim():'')
    .find(value=>value&&value!=='연결된 학생')||'계정 '+String(id||'').slice(-8);
 
- let recurringRows=[], recurringOwner=null, recurringBackendMissing=false;
+ let recurringRows=[], recurringOwner=null, recurringBackendMissing=true;
  const recurringLabels={empty:'다음 챕터 준비 필요',in_progress:'공개됨 · 제출 대기',paused:'부모 비공개',scheduled:'예약됨',ready:'자동 공개 대기',blocked:'원본 또는 승인 자료 확인 필요'};
  const recurringPanel=()=>{
    if(!session)return '';
