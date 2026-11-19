@@ -35,13 +35,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Create disposable schema and identities
-        run: psql -v ON_ERROR_STOP=1 -f app/tests/reread-isolated-fixtures.sql
+        run: |
+          set -o pipefail
+          psql -v ON_ERROR_STOP=1 -f app/tests/reread-isolated-fixtures.sql 2>&1 | tee /tmp/reread-results.log
       - name: Install review-only reread SQL in disposable database
-        run: psql -v ON_ERROR_STOP=1 -f app/sql/reread-server-inbox.REVIEW-ONLY.sql
+        run: |
+          set -o pipefail
+          psql -v ON_ERROR_STOP=1 -f app/sql/reread-server-inbox.REVIEW-ONLY.sql 2>&1 | tee -a /tmp/reread-results.log
       - name: Assert grading, missing data, permissions and idempotency
         run: |
           set -o pipefail
-          psql -v ON_ERROR_STOP=1 -f app/tests/reread-isolated-assertions.sql 2>&1 | tee /tmp/reread-results.log
+          psql -v ON_ERROR_STOP=1 -f app/tests/reread-isolated-assertions.sql 2>&1 | tee -a /tmp/reread-results.log
           grep -q REREAD_ISOLATED_ASSERTIONS_PASSED /tmp/reread-results.log
       - name: Save isolated PostgreSQL test log
         if: always()
