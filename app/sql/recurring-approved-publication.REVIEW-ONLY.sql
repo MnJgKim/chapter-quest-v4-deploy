@@ -3,6 +3,7 @@ BEGIN;
 ALTER TABLE public.cq_v4_approved_chapter_queue
   ADD COLUMN IF NOT EXISTS approval_id uuid REFERENCES public.cq_v4_approval_requests(id),
   ADD COLUMN IF NOT EXISTS book_id text,
+  ADD COLUMN IF NOT EXISTS book_title text,
   ADD COLUMN IF NOT EXISTS chapter_number integer CHECK (chapter_number > 0);
 CREATE UNIQUE INDEX IF NOT EXISTS cq_v4_queue_book_chapter
   ON public.cq_v4_approved_chapter_queue(student_user_id, book_id, chapter_number);
@@ -44,6 +45,7 @@ AS $$
          WHERE jsonb_typeof(v->'word') IS DISTINCT FROM 'string'
             OR jsonb_typeof(v->'meaning') IS DISTINCT FROM 'string'
             OR CASE WHEN jsonb_typeof(v)='object' THEN v - ARRAY['word','meaning','example'] <> '{}'::jsonb ELSE true END
+            OR coalesce(jsonb_typeof(v->'example'),'null') NOT IN ('null','string')
             OR NULLIF(btrim(v->>'word'),'') IS NULL OR NULLIF(btrim(v->>'meaning'),'') IS NULL
        )
      ELSE false END
@@ -58,7 +60,7 @@ $$;
 REVOKE ALL ON FUNCTION public.cq_v4_recurring_approval_ready(uuid,uuid,uuid) FROM PUBLIC,anon,authenticated;
 
 CREATE OR REPLACE FUNCTION public.cq_v4_parent_enqueue_approved(
- p_approval uuid, p_students uuid[], p_chapter_number integer
+ p_approval uuid, p_students uuid[], p_chapter_number integer, p_book_title text DEFAULT NULL
 ) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path TO ''
 AS $$
 DECLARE
@@ -72,6 +74,7 @@ BEGIN
    RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501';
  END IF;
  IF p_chapter_number IS NULL OR p_chapter_number NOT BETWEEN 1 AND 1000
+   OR coalesce(length(p_book_title),0)>200
    OR coalesce(cardinality(p_students),0) NOT BETWEEN 1 AND 30 OR array_position(p_students,NULL) IS NOT NULL
  THEN RAISE EXCEPTION 'Invalid chapter number or student list' USING ERRCODE='22023'; END IF;
  SELECT * INTO v_approval FROM public.cq_v4_approval_requests r WHERE r.id=p_approval AND r.parent_user_id=v_parent;
@@ -102,16 +105,16 @@ BEGIN
      WHERE q.student_user_id=v_student AND q.book_id=v_approval.book_local_id
    ) THEN RAISE EXCEPTION 'A new book must start at Chapter 1' USING ERRCODE='22023'; END IF;
    INSERT INTO public.cq_v4_approved_chapter_queue
-     (parent_user_id,student_user_id,chapter_id,ordinal,approval_id,book_id,chapter_number)
+     (parent_user_id,student_user_id,chapter_id,ordinal,approval_id,book_id,book_title,chapter_number)
    SELECT v_parent,v_student,v_approval.chapter_uuid,coalesce(max(q.ordinal),0)+1,
-          p_approval,v_approval.book_local_id,p_chapter_number
+          p_approval,v_approval.book_local_id,NULLIF(btrim(p_book_title),''),p_chapter_number
    FROM public.cq_v4_approved_chapter_queue q WHERE q.student_user_id=v_student;
  END LOOP;
  RETURN v_approval.chapter_uuid;
 END;
 $$;
-REVOKE ALL ON FUNCTION public.cq_v4_parent_enqueue_approved(uuid,uuid[],integer) FROM PUBLIC,anon;
-GRANT EXECUTE ON FUNCTION public.cq_v4_parent_enqueue_approved(uuid,uuid[],integer) TO authenticated;
+REVOKE ALL ON FUNCTION public.cq_v4_parent_enqueue_approved(uuid,uuid[],integer,text) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_parent_enqueue_approved(uuid,uuid[],integer,text) TO authenticated;
 
 -- No client clock. The timestamp parameter is available only to its owner/isolated tests.
 CREATE OR REPLACE FUNCTION public.cq_v4_release_recurring_student_at(v_student uuid, p_now timestamptz)
@@ -234,7 +237,7 @@ GRANT EXECUTE ON FUNCTION public.cq_v4_parent_withdraw_recurring(uuid,uuid) TO a
 CREATE OR REPLACE FUNCTION public.cq_v4_parent_recurring_status()
 RETURNS TABLE(student_id uuid, weekdays integer[], effective_from date, enabled boolean,
               book_id text, chapter_number integer, chapter_title text, pdf_ready boolean,
-              published boolean, ready boolean, state text, current_title text, next_title text, withdraw_chapter uuid)
+              published boolean, ready boolean, state text, book_title text, current_title text, next_title text, withdraw_chapter uuid)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
 AS $$
  SELECT e.student_user_id,p.weekdays,p.effective_from,coalesce(p.enabled,false),
@@ -246,7 +249,7 @@ AS $$
              WHEN s.chapter_id IS NOT NULL THEN 'scheduled'
              WHEN public.cq_v4_recurring_approval_ready(q.approval_id,e.parent_user_id,q.chapter_id) THEN 'ready'
              ELSE 'blocked' END,
-        current_lesson.title,
+        q.book_title,current_lesson.title,
         CASE WHEN s.released_at IS NOT NULL THEN following.title ELSE c.title END,
         tail.chapter_id
  FROM public.cq_v4_pdf_enrollments e

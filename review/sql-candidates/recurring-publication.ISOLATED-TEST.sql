@@ -55,7 +55,15 @@ BEGIN
  END;
 END $$;
 SELECT public.cq_v4_parent_enqueue_approved(:'second',ARRAY[:'a',:'b']::uuid[],2);
-SELECT public.cq_v4_parent_enqueue_approved(:'third',ARRAY[:'a',:'b']::uuid[],1);
+SELECT public.cq_v4_parent_enqueue_approved(:'third',ARRAY[:'a',:'b']::uuid[],1,'Next book');
+DO $$
+BEGIN
+ IF public.cq_v4_parent_withdraw_recurring('10000000-0000-4000-8000-000000000081','20000000-0000-4000-8000-000000000083')
+ THEN RAISE EXCEPTION 'Removing a non-tail chapter must not skip the sequence'; END IF;
+ IF NOT public.cq_v4_parent_withdraw_recurring('10000000-0000-4000-8000-000000000081','20000000-0000-4000-8000-000000000081')
+ THEN RAISE EXCEPTION 'Could not withdraw an unstarted tail'; END IF;
+END $$;
+SELECT public.cq_v4_parent_enqueue_approved(:'third',ARRAY[:'a']::uuid[],1,'Next book');
 RESET ROLE;
 UPDATE public.cq_v4_approved_chapter_queue SET approved_at='2026-11-20';
 
@@ -92,6 +100,9 @@ BEGIN
 END $$;
 RESET ROLE;
 UPDATE public.cq_v4_pdf_chapters SET pdf_ready=true WHERE chapter_id=:'second';
+UPDATE public.cq_v4_approval_requests SET questions='[null]' WHERE id=:'second';
+SELECT pg_temp.expect_release(:'a','2026-11-25 00:00+09',NULL);
+UPDATE public.cq_v4_approval_requests SET questions='[{"kind":"short","text":"Synthetic question"}]' WHERE id=:'second';
 
 SELECT pg_temp.expect_release(:'a','2026-11-25 00:00+09',:'second');
 SELECT pg_temp.expect_release(:'b','2026-11-25 00:00+09',:'second');

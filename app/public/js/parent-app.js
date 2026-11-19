@@ -120,6 +120,7 @@
     <button data-parent-publish data-recurring-queue="true" data-c="${escapeHtml(c.id)}">승인 자료를 대기열에 추가</button>`:''}
     <div class="grid">${rows.map(row=>`<div class="book"><b>${escapeHtml(pendingChildren.find(child=>child.child_user_id===row.student_id)?.student_name||row.student_id.slice(-8))}</b>
      <p>${escapeHtml(row.weekdays?.map(day=>['','월','화','수','목','금','토','일'][day]).join('·')||'요일 미설정')} ${row.enabled?`· ${escapeHtml(row.effective_from)} 시작`:'· 자동 공개 꺼짐'}</p>
+     ${row.book_title?`<p>도서 · ${escapeHtml(row.book_title)}</p>`:''}
      <p>최근 공개 · ${escapeHtml(row.current_title||'없음')}</p><p>다음 · ${escapeHtml(row.next_title||'준비 필요')}</p>
      <p>${row.chapter_title?`Chapter ${escapeHtml(row.chapter_number??'')} · ${escapeHtml(row.chapter_title)}`:'대기열 없음'}</p>
      <p>${escapeHtml(recurringLabels[row.state]||'상태 확인 필요')}${row.chapter_title?` · 원본 ${stateLabel(row.pdf_ready)} · 서버 게시 ${stateLabel(row.published)}`:''}</p>
@@ -384,6 +385,7 @@
    if(!c||c.id!==button.dataset.c){publishStatus('현재 챕터를 다시 선택하세요.');return;}
    const willQueue=button.dataset.recurringQueue==='true';
    const chapterNumber=willQueue?document.getElementById('cqRecurringChapterNumber')?.valueAsNumber:null;
+   const recurringBookTitle=willQueue?String(book()?.title||'').trim():null;
    publicationBusy=true;button.disabled=true;
    let pendingApprovalId=null,pendingTargetChildren=[],publicationSnapshot=null,publicationPdf=null;
    try{
@@ -420,7 +422,7 @@
      if(cloudIdentity()!==owner||selectedBook!==currentBook||selectedChapter!==currentChapter||chapter()!==c||!await isApprovalCurrent(c))
        throw Error('PDF 연결 후 계정 또는 학습 자료가 변경되어 게시를 중단했습니다.');
      if(willQueue){
-       await parentRpc('cq_v4_parent_enqueue_approved',{p_approval:approvalId,p_students:selected,p_chapter_number:chapterNumber});
+       await parentRpc('cq_v4_parent_enqueue_approved',{p_approval:approvalId,p_students:selected,p_chapter_number:chapterNumber,p_book_title:recurringBookTitle});
        if(cloudIdentity()!==owner)return;
        await refreshRecurring();
        publishStatus('승인 자료를 대기열에 추가했습니다.');
