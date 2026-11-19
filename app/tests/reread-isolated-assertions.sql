@@ -54,11 +54,11 @@ UPDATE public.cq_v4_student_submissions SET feedback_released=false
 WHERE chapter_uuid='00000000-0000-0000-0000-000000000101';
 SET ROLE authenticated;
 SELECT set_config('test.uid','00000000-0000-0000-0000-000000000011',false);
-DO $
+DO $tag$
 BEGIN
  IF public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000101')
  THEN RAISE EXCEPTION 'Unreleased feedback leaked'; END IF;
-END;$;
+END;$tag$;
 RESET ROLE;
 UPDATE public.cq_v4_student_submissions SET feedback_released=true
 WHERE chapter_uuid='00000000-0000-0000-0000-000000000101';
