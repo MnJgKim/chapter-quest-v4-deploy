@@ -44,6 +44,7 @@ BEGIN
  IF n<>1 THEN RAISE EXCEPTION 'Duplicate acknowledgement rows'; END IF;
  SELECT count(*) INTO n FROM public.cq_v4_student_submissions;
  IF n<>6 THEN RAISE EXCEPTION 'Submissions unexpectedly changed'; END IF;
+ IF (SELECT answers FROM public.cq_v4_student_submissions WHERE chapter_uuid='00000000-0000-0000-0000-000000000101' AND child_user_id='00000000-0000-0000-0000-000000000011') IS DISTINCT FROM '{"answers":["0","1","1"]}'::jsonb THEN RAISE EXCEPTION 'Submitted answers were modified'; END IF;
  IF (SELECT snapshot_payload FROM public.cq_v4_snapshots WHERE chapter_uuid='00000000-0000-0000-0000-000000000101') IS DISTINCT FROM '{"immutable":"original"}'::jsonb THEN RAISE EXCEPTION 'Immutable snapshot changed'; END IF;
 END;$$;
 -- Verify direct score access is denied, and anonymous access to all public RPCs is denied.
