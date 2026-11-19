@@ -13,6 +13,10 @@ BEGIN
  IF n<>1 THEN RAISE EXCEPTION 'Ack state missing'; END IF;
  SELECT count(*) INTO n FROM public.cq_v4_parent_reread_inbox() WHERE correct_mc=1 AND total_mc=3;
  IF n<>1 THEN RAISE EXCEPTION 'Expected 1/3 objective score'; END IF;
+ IF EXISTS (SELECT 1 FROM public.cq_v4_parent_reread_inbox()
+            WHERE chapter_uuid IN ('00000000-0000-0000-0000-000000000106',
+                                   '00000000-0000-0000-0000-000000000107'))
+ THEN RAISE EXCEPTION '70 or 80 percent appeared in parent reread inbox'; END IF;
 END;$$;
 SELECT set_config('test.uid','00000000-0000-0000-0000-000000000002',false);
 DO $$
