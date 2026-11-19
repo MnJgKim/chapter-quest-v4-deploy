@@ -41,9 +41,9 @@ BEGIN
   v_q:=v_questions->v_i;
   IF v_q->>'kind' IS DISTINCT FROM 'mc' THEN CONTINUE; END IF;
   v_k:=v_key->v_i;v_a:=v_answers->>v_i;
-  IF jsonb_typeof(v_q->'options') IS DISTINCT FROM 'array'
-   OR jsonb_array_length(v_q->'options')<2
-   OR jsonb_typeof(v_k) IS DISTINCT FROM 'number'
+  IF jsonb_typeof(v_q->'options') IS DISTINCT FROM 'array' THEN RETURN; END IF;
+  IF jsonb_array_length(v_q->'options')<2 THEN RETURN; END IF;
+  IF jsonb_typeof(v_k) IS DISTINCT FROM 'number'
    OR v_k::text !~ '^(0|[1-9][0-9]*)$'
    OR v_a IS NULL OR v_a !~ '^(0|[1-9][0-9]*)$' THEN RETURN; END IF;
   IF v_k::text::numeric>=jsonb_array_length(v_q->'options')
