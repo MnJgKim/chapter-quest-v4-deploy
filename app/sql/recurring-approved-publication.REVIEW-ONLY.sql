@@ -74,7 +74,7 @@ BEGIN
  IF v_parent IS NULL OR NOT public.cq_is_admin() THEN
    RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501';
  END IF;
- IF p_chapter_number IS NULL OR p_chapter_number NOT BETWEEN 1 AND 1000
+ IF p_chapter_number IS NULL OR p_chapter_number NOT BETWEEN 1 AND 1000 OR p_ends_book IS NULL
    OR coalesce(length(p_book_title),0)>200
    OR coalesce(cardinality(p_students),0) NOT BETWEEN 1 AND 30 OR array_position(p_students,NULL) IS NOT NULL
  THEN RAISE EXCEPTION 'Invalid chapter number or student list' USING ERRCODE='22023'; END IF;
@@ -247,13 +247,14 @@ AS $$
         q.book_id,q.chapter_number,c.title,coalesce(c.pdf_ready,false),a.published_at IS NOT NULL,
         coalesce(public.cq_v4_recurring_approval_ready(q.approval_id,e.parent_user_id,q.chapter_id),false),
         CASE WHEN q.chapter_id IS NULL THEN 'empty'
-             WHEN s.released_at IS NOT NULL THEN 'in_progress'
+             WHEN s.released_at IS NOT NULL AND s.lesson_date<=(now() AT TIME ZONE 'Asia/Seoul')::date THEN 'in_progress'
              WHEN s.auto_release_paused THEN 'paused'
              WHEN s.chapter_id IS NOT NULL THEN 'scheduled'
              WHEN public.cq_v4_recurring_approval_ready(q.approval_id,e.parent_user_id,q.chapter_id) THEN 'ready'
              ELSE 'blocked' END,
         q.book_title,current_lesson.title,
-        CASE WHEN s.released_at IS NOT NULL THEN following.title ELSE c.title END,
+        CASE WHEN s.released_at IS NOT NULL AND s.lesson_date<=(now() AT TIME ZONE 'Asia/Seoul')::date
+             THEN following.title ELSE c.title END,
         tail.chapter_id
  FROM public.cq_v4_pdf_enrollments e
  LEFT JOIN public.cq_v4_student_weekday_policy p ON p.student_user_id=e.student_user_id
