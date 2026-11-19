@@ -44,4 +44,21 @@ BEGIN
  SELECT count(*) INTO n FROM public.cq_v4_student_submissions;
  IF n<>5 THEN RAISE EXCEPTION 'Submissions unexpectedly changed'; END IF;
 END;$$;
+-- A student's unread or unreleased feedback must not disclose the score.
+SET ROLE authenticated;
+SELECT set_config('test.uid','00000000-0000-0000-0000-000000000011',false);
+RESET ROLE;
+UPDATE public.cq_v4_student_submissions SET feedback_released=false
+WHERE chapter_uuid='00000000-0000-0000-0000-000000000101';
+SET ROLE authenticated;
+SELECT set_config('test.uid','00000000-0000-0000-0000-000000000011',false);
+DO $
+BEGIN
+ IF public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000101')
+ THEN RAISE EXCEPTION 'Unreleased feedback leaked'; END IF;
+END;$;
+RESET ROLE;
+UPDATE public.cq_v4_student_submissions SET feedback_released=true
+WHERE chapter_uuid='00000000-0000-0000-0000-000000000101';
+
 SELECT 'REREAD_ISOLATED_ASSERTIONS_PASSED' AS result;
