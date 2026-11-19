@@ -67,7 +67,7 @@ AS $$
  JOIN public.cq_v4_pdf_assignments a ON a.chapter_id=s.chapter_uuid AND a.student_user_id=s.child_user_id
  CROSS JOIN LATERAL public.cq_v4_objective_reread_score(s.chapter_uuid,s.child_user_id) g
  LEFT JOIN public.cq_v4_reread_ack ack ON ack.parent_user_id=c.parent_user_id AND ack.student_user_id=s.child_user_id AND ack.chapter_uuid=s.chapter_uuid
- WHERE g.correct_mc*10<g.total_mc*7
+ WHERE s.feedback_released IS TRUE AND g.correct_mc*10<g.total_mc*7
  ORDER BY s.submitted_at DESC;
 $$;
 REVOKE ALL ON FUNCTION public.cq_v4_parent_reread_inbox() FROM PUBLIC,anon;
