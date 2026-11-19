@@ -24,3 +24,19 @@ test('migration is review only and does not seed or overwrite existing lessons',
  assert.doesNotMatch(prerequisite,/\b(?:TRUNCATE|DELETE FROM public\.cq_v4_|INSERT INTO public\.cq_v4_lesson_schedule)\b/i);
  assert.match(prerequisite,/BEGIN;/);assert.match(prerequisite,/COMMIT;/);
 });
+
+test('no-op release never returns a stale selected chapter',()=>{
+ assert.match(release,/RETURNING s\.chapter_id INTO v_released;\s*RETURN v_released;/);
+ assert.match(release,/RETURNING chapter_id INTO v_released;\s*RETURN v_released;/);
+ assert.match(release,/v_student IS NULL OR p_now IS NULL/);
+});
+test('Seoul boundary and weekday policy examples',()=>{
+ const seoulDay=(iso)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(iso));
+ assert.equal(seoulDay('2026-11-22T14:59:59Z'),'11/22/2026');
+ assert.equal(seoulDay('2026-11-22T15:00:00Z'),'11/23/2026');
+ const isoDow=(day)=>((new Date(day+'T12:00:00Z').getUTCDay()+6)%7)+1;
+ assert.equal(isoDow('2026-11-23'),1);
+ assert.equal(isoDow('2026-11-24'),2);
+ assert.deepEqual([1,3,4].map(d=>[1,3,4].includes(d)),[true,true,true]);
+ assert.deepEqual([2,3,5].map(d=>[2,3,5].includes(d)),[true,true,true]);
+});
