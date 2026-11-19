@@ -44,10 +44,11 @@ DECLARE
   v_today date := (p_now AT TIME ZONE 'Asia/Seoul')::date;
   v_schedule public.cq_v4_lesson_schedule%ROWTYPE;
   v_chapter uuid;
+  v_released uuid;
   v_parent uuid;
 BEGIN
-  IF v_student IS NULL THEN
-    RAISE EXCEPTION 'Student login required' USING ERRCODE = '42501';
+  IF v_student IS NULL OR p_now IS NULL THEN
+    RAISE EXCEPTION 'Student login and timestamp required' USING ERRCODE = '42501';
   END IF;
 
   PERFORM public.cq_v4_lock_student_lesson_writes(v_student);
@@ -110,8 +111,8 @@ BEGIN
       AND s.parent_user_id = v_parent AND s.lesson_date = v_today
       AND s.timezone = 'Asia/Seoul'
       AND s.released_at IS NULL AND NOT s.auto_release_paused
-    RETURNING s.chapter_id INTO v_chapter;
-    RETURN v_chapter;
+    RETURNING s.chapter_id INTO v_released;
+    RETURN v_released;
   END IF;
 
   IF public.cq_v4_next_approved_chapter(v_student) IS DISTINCT FROM v_chapter
@@ -133,8 +134,8 @@ BEGIN
     (parent_user_id, student_user_id, chapter_id, lesson_date, timezone, released_at)
   VALUES (v_parent, v_student, v_chapter, v_today, 'Asia/Seoul', p_now)
   ON CONFLICT (student_user_id, chapter_id) DO NOTHING
-  RETURNING chapter_id INTO v_chapter;
-  RETURN v_chapter;
+  RETURNING chapter_id INTO v_released;
+  RETURN v_released;
 END;
 $$;
 REVOKE ALL ON FUNCTION public.cq_v4_ensure_approved_lesson_at(timestamptz)
