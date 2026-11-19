@@ -1,0 +1,43 @@
+name: Reread isolated PostgreSQL
+on:
+  push:
+    branches:
+      - work/hosted-readonly-preflight-20261117
+    paths:
+      - 'app/sql/reread-server-inbox.REVIEW-ONLY.sql'
+      - 'app/tests/reread-isolated-*.sql'
+      - '.github/workflows/reread-isolated.yml'
+  workflow_dispatch:
+jobs:
+  reread-isolated:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chapter_quest_reread
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: chapter_quest_reread
+    steps:
+      - uses: actions/checkout@v4
+      - name: Create disposable schema and identities
+        run: psql -v ON_ERROR_STOP=1 -f app/tests/reread-isolated-fixtures.sql
+      - name: Install review-only reread SQL in disposable database
+        run: psql -v ON_ERROR_STOP=1 -f app/sql/reread-server-inbox.REVIEW-ONLY.sql
+      - name: Assert grading, missing data, permissions and idempotency
+        run: |
+          set -o pipefail
+          psql -v ON_ERROR_STOP=1 -f app/tests/reread-isolated-assertions.sql 2>&1 | tee /tmp/reread-results.log
+          grep -q REREAD_ISOLATED_ASSERTIONS_PASSED /tmp/reread-results.log
