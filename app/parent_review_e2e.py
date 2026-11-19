@@ -12,15 +12,38 @@ class Quiet(SimpleHTTPRequestHandler):
  def log_message(self,*args):pass
 server=ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Quiet,directory=str(ROOT/'public')));threading.Thread(target=server.serve_forever,daemon=True).start();origin=f'http://127.0.0.1:{server.server_port}'
 report={'scope':'synthetic parent review in isolated local browser; no hosted data','checks':[],'page_errors':[],'blocked_requests':[]}
+def open_parent(page, first_time=False):
+ page.locator('#parentBtn').click()
+ for _ in range(2 if first_time else 1):
+  dialog=page.get_by_role('dialog',name='부모 관리자 PIN')
+  dialog.get_by_label('숫자 PIN').fill('123456')
+  dialog.get_by_role('button',name='확인').click()
+
 def passed(n):report['checks'].append({'name':n,'pass':True})
 evidence=lambda:{'filePages':'1','printedPages':'표시 없음','note':'PARENT_ONLY_EVIDENCE'}
 draft={'questions':[{'kind':'mc','text':'Which object is blue?','options':['Boat','Tree'],'correct':0},{'kind':'inference','text':'Why might someone wait?','sample':'They may want more information.'}],'vocabulary':[{'word':'wait','meaning':'기다리다','example':'Please wait here.'}],'writingPrompt':'Write an opinion.','speakingPrompt':'Explain your opinion.','parentReview':{'questions':[evidence(),evidence()],'vocabulary':[evidence()]}}
 (out/'source.txt').write_text('Synthetic source for reviewing a small blue boat. '*20);(out/'draft.json').write_text(json.dumps(draft))
 try:
  with sync_playwright() as p:
-  browser=launch_browser(p,args=['--no-sandbox']);context=browser.new_context(has_touch=True,viewport={'width':800,'height':1280});context.route('**/*',lambda r:r.continue_() if r.request.url.startswith(origin+'/') else (report['blocked_requests'].append(r.request.url),r.abort()));page=context.new_page();page.on('dialog',lambda d:d.accept('123456') if d.type=='prompt' else d.accept());page.on('pageerror',lambda e:report['page_errors'].append(str(e)));page.goto(origin);page.locator('#parentBtn').click();page.locator('#bookTitle').fill('Synthetic review');page.locator('[data-act="addBook"]').click();page.locator('#chapterTitle').fill('Synthetic chapter');page.locator('[data-act="addChapter"]').click();page.locator('#cqOriginalPDF').set_input_files(str(out/'source.txt'));page.locator('[data-act="savePDF"]').click();page.locator('#cqDraftImport').set_input_files(str(out/'draft.json'));expect(page.locator('#cqParentDraftReview')).to_contain_text('PARENT_ONLY_EVIDENCE');assert page.evaluate('chapter().questions.length')==0;passed('private evidence imports without approving or releasing questions')
+  browser=launch_browser(p,args=['--no-sandbox']);context=browser.new_context(has_touch=True,viewport={'width':800,'height':1280});context.route('**/*',lambda r:r.continue_() if r.request.url.startswith(origin+'/') else (report['blocked_requests'].append(r.request.url),r.abort()));page=context.new_page();page.on('dialog',lambda d:d.accept('123456') if d.type=='prompt' else d.accept());page.on('pageerror',lambda e:report['page_errors'].append(str(e)));page.goto(origin);open_parent(page, first_time=True);page.locator('#bookTitle').fill('Synthetic review');page.locator('[data-act="addBook"]').click();page.locator('#chapterTitle').fill('Synthetic chapter');page.locator('[data-act="addChapter"]').click();page.locator('#cqOriginalPDF').set_input_files(str(out/'source.txt'));page.locator('[data-act="savePDF"]').click();
+  if len(sys.argv)>2:
+   with page.expect_file_chooser() as chooser:
+    page.get_by_role('button',name='AI 초안 JSON 가져오기').click()
+   chooser.value.set_files(sys.argv[2])
+   expect(page.locator('[data-review-draft-count]')).to_have_text('검토 대기 · 문제 2개 · 단어 2개')
+   expect(page.locator('#cqParentDraftReview [data-draftq]')).to_have_count(2)
+   expect(page.locator('#cqParentDraftReview [data-review-field="word"]')).to_have_count(2)
+   assert not page.evaluate('!!chapter().approvalReceipt')
+   passed('original Chapter 2 JSON imports without conversion or approval')
+  with page.expect_file_chooser() as chooser:
+   page.get_by_role('button',name='AI 초안 JSON 가져오기').click()
+  chooser.value.set_files(str(out/'draft.json'))
+  expect(page.locator('[data-review-draft-count]')).to_have_text('검토 대기 · 문제 2개 · 단어 1개')
+  expect(page.locator('#cqParentDraftReview')).to_contain_text('초안 문제 2개 · 단어 1개')
+  expect(page.locator('#notice')).to_contain_text('검토 초안 저장 완료')
+  expect(page.locator('#cqParentDraftReview')).to_contain_text('PARENT_ONLY_EVIDENCE');assert page.evaluate('chapter().questions.length')==0;passed('private evidence imports without approving or releasing questions')
   page.locator('[data-review-q="0"][data-review-option="1"]').fill('Stone');page.locator('[data-review-q="0"][data-review-field="correct"]').select_option('1');page.locator('[data-review-q="1"][data-review-field="sample"]').fill('Another supported explanation.');page.locator('[data-draftq="1"]').fill('Why could the character wait?');page.locator('[data-evidence-q="1"][data-evidence-field="note"]').fill('Updated private evidence.');page.locator('[data-review-v="0"][data-review-field="meaning"]').fill('잠시 기다리다');page.locator('[data-draftactivity="writingPrompt"]').fill('Write two supported sentences.');page.locator('[data-draftactivity="speakingPrompt"]').fill('Record a short explanation.');passed('parent edits options, key, model answer, question, evidence, vocabulary and activities')
-  page.reload();page.locator('#parentBtn').click();page.locator('[data-act="manageBook"]').click();page.locator('[data-act="editChapter"]').click();expect(page.locator('[data-review-q="0"][data-review-option="1"]')).to_have_value('Stone');expect(page.locator('[data-review-q="0"][data-review-field="correct"]')).to_have_value('1');expect(page.locator('[data-review-q="1"][data-review-field="sample"]')).to_have_value('Another supported explanation.');expect(page.locator('[data-evidence-q="1"][data-evidence-field="note"]')).to_have_value('Updated private evidence.');expect(page.locator('[data-draftactivity="speakingPrompt"]')).to_have_value('Record a short explanation.');assert not page.evaluate('!!chapter().approvalReceipt');passed('all review edits survive reload and remain unapproved')
+  page.reload();open_parent(page);page.locator('[data-act="manageBook"]').click();expect(page.locator('[data-review-draft-count]')).to_have_text('검토 대기 · 문제 2개 · 단어 1개');page.locator('[data-act="editChapter"]').click();expect(page.locator('[data-review-q="0"][data-review-option="1"]')).to_have_value('Stone');expect(page.locator('[data-review-q="0"][data-review-field="correct"]')).to_have_value('1');expect(page.locator('[data-review-q="1"][data-review-field="sample"]')).to_have_value('Another supported explanation.');expect(page.locator('[data-evidence-q="1"][data-evidence-field="note"]')).to_have_value('Updated private evidence.');expect(page.locator('[data-draftactivity="speakingPrompt"]')).to_have_value('Record a short explanation.');assert not page.evaluate('!!chapter().approvalReceipt');passed('all review edits survive reload and remain unapproved')
   page.locator('[data-act="approve"]').click();assert not page.evaluate('!!chapter().approvalReceipt');passed('approval requires explicit source confirmation')
   page.locator('#cqEvidenceConfirmed').check();page.locator('[data-evidence-q="0"][data-evidence-field="note"]').fill('');expect(page.locator('#cqEvidenceConfirmed')).not_to_be_checked();page.locator('#cqEvidenceConfirmed').check();page.locator('[data-act="approve"]').click();assert not page.evaluate('!!chapter().approvalReceipt');passed('missing evidence blocks approval and edits reset confirmation')
   page.locator('[data-evidence-q="0"][data-evidence-field="note"]').fill('PARENT_ONLY_EVIDENCE');page.locator('#cqEvidenceConfirmed').check();page.locator('[data-act="approve"]').click();expect(page.locator('[data-act="reviewSaved"]')).to_be_enabled();assert page.evaluate('chapter().questions[0].correct')==1;assert page.evaluate('chapter().parentReview.questions[1].note')=='Updated private evidence.';assert page.evaluate('isApprovalCurrent(chapter())');passed('approval commits the reviewed answer and evidence with a content receipt')
