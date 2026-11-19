@@ -32,8 +32,8 @@ test('no-op release never returns a stale selected chapter',()=>{
 });
 test('Seoul boundary and weekday policy examples',()=>{
  const seoulDay=(iso)=>new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date(iso));
- assert.equal(seoulDay('2026-11-22T14:59:59Z'),'11/22/2026');
- assert.equal(seoulDay('2026-11-22T15:00:00Z'),'11/23/2026');
+ assert.equal(seoulDay('2026-11-22T14:59:59Z'),'2026-11-22');
+ assert.equal(seoulDay('2026-11-22T15:00:00Z'),'2026-11-23');
  const isoDow=(day)=>((new Date(day+'T12:00:00Z').getUTCDay()+6)%7)+1;
  assert.equal(isoDow('2026-11-23'),1);
  assert.equal(isoDow('2026-11-24'),2);
