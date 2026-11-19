@@ -241,6 +241,15 @@
        const item=document.createElement('li');
        const q=typeof question==='string'?question:(question?.question||question?.prompt||question?.text||JSON.stringify(question));
        item.textContent=String(q??'');
+       if(Array.isArray(question?.options)&&question.options.length){
+         const choices=document.createElement('ol');choices.type='A';
+         for(const option of question.options){
+           const choice=document.createElement('li');
+           choice.textContent=typeof option==='string'?option:String(option?.text??option?.label??'');
+           choices.appendChild(choice);
+         }
+         item.appendChild(choices);
+       }
        list.appendChild(item);
      }
      preview.replaceChildren(header,link,note,list);
