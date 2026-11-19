@@ -10,15 +10,34 @@ const source=readFileSync(new URL('./edge-functions/cq-v4-parent-preview/index.t
 const chapter='cda5aa92-39e5-4286-9595-5d80ca779b8f',parent='967982a4-19f9-4a32-a2d5-976f4569091f';
 function setup({user=parent,isAdmin=true,owner=parent,published=true,ready=true,sign=true}={}){
  let handler,signs=0,writes=0;
- const mockClient=(_url,key)=>key==='service-secret'?{
-  from(table){return {select(){return {eq(field,value){
-   if(table==='cq_v4_pdf_chapters')return {eq(_field,uid){return {maybeSingle:async()=>({data:uid===owner?{chapter_id:chapter,title:'The Dark Woods',storage_path:owner+'/'+chapter+'.pdf',pdf_ready:ready}:null,error:null})}};
-   return {maybeSingle:async()=>({data:published?{questions:[{question:'Where?'}],vocabulary:[],writing_prompt:'',speaking_prompt:'',published_at:'2026-11-13T00:00:00Z',approval_id:null,approval_hash:null}:null,error:null})};
-  }}},insert(){writes++;throw Error('WRITE')},update(){writes++;throw Error('WRITE')},delete(){writes++;throw Error('WRITE')}}},
-  storage:{from(){return {createSignedUrl:async()=>{signs++;return {data:sign?{signedUrl:'https://project.supabase.co/storage/v1/object/sign/cq-v4-originals/'+owner+'/'+chapter+'.pdf?token=sample'}:null,error:sign?null:{message:'failed'}}}}}}
- }:{
-  auth:{getUser:async()=>({data:{user:user?{id:user}:null},error:null})},
-  rpc:async()=>({data:isAdmin,error:null})
+ const mockClient=(_url,key)=>{
+  if(key!=='service-secret')return {
+   auth:{getUser:async()=>({data:{user:user?{id:user}:null},error:null})},
+   rpc:async()=>({data:isAdmin,error:null})
+  };
+  return {
+   from(table){
+    const record=table==='cq_v4_pdf_chapters'
+     ? (owner?{chapter_id:chapter,title:'The Dark Woods',storage_path:owner+'/'+chapter+'.pdf',pdf_ready:ready}:null)
+     : (published?{questions:[{question:'Where?'}],vocabulary:[],writing_prompt:'',speaking_prompt:'',published_at:'2026-11-13T00:00:00Z',approval_id:null,approval_hash:null}:null);
+    return {
+     select(){return {
+      eq(){return {
+       eq(_field,uid){return {maybeSingle:async()=>({data:uid===owner?record:null,error:null})}},
+       maybeSingle:async()=>({data:record,error:null})
+      }}
+     }},
+     insert(){writes++;throw Error('WRITE')},
+     update(){writes++;throw Error('WRITE')},
+     delete(){writes++;throw Error('WRITE')
+     }
+    };
+   },
+   storage:{from(){return {createSignedUrl:async()=>{
+    signs++;
+    return {data:sign?{signedUrl:'https://project.supabase.co/storage/v1/object/sign/cq-v4-originals/'+owner+'/'+chapter+'.pdf?token=sample'}:null,error:sign?null:{message:'failed'}};
+   }}}}
+  };
  };
  const ctx={Deno:{env:{get:key=>({SUPABASE_URL:'https://project.supabase.co',SUPABASE_ANON_KEY:'anon',SUPABASE_SERVICE_ROLE_KEY:'service-secret'})[key]},serve:fn=>{handler=fn}},createClient:mockClient,Response,URL,Date,JSON,Number,String,Error,RegExp};
  vm.runInNewContext(source,ctx);
