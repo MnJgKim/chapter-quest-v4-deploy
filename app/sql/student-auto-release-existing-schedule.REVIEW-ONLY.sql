@@ -164,6 +164,7 @@ begin
   select 1 from public.cq_v4_pdf_enrollments e
   join public.cq_v4_pdf_chapters c on c.parent_user_id=e.parent_user_id
   join public.cq_v4_activities act on act.chapter_uuid=c.chapter_id and act.published_at is not null
+  join public.cq_v4_pdf_assignments a on a.chapter_id=c.chapter_id and a.student_user_id=e.student_user_id
   where e.parent_user_id=v_parent and e.student_user_id=p_student_user_id
     and c.chapter_id=p_chapter_id and c.pdf_ready=true
  ) then raise exception 'Approved PDF and enrolled student required' using errcode='42501';end if;
