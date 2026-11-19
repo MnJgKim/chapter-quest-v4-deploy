@@ -60,7 +60,7 @@ CREATE OR REPLACE FUNCTION public.cq_v4_parent_reread_inbox()
 RETURNS TABLE(notice_id uuid,student_user_id uuid,chapter_uuid uuid,correct_mc integer,total_mc integer,submitted_at timestamptz,acknowledged_at timestamptz)
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path TO ''
 AS $$
- SELECT s.chapter_uuid AS notice_id,s.child_user_id,s.chapter_uuid,g.correct_mc,g.total_mc,s.submitted_at,ack.acknowledged_at
+ SELECT md5(s.child_user_id::text||':'||s.chapter_uuid::text)::uuid AS notice_id,s.child_user_id,s.chapter_uuid,g.correct_mc,g.total_mc,s.submitted_at,ack.acknowledged_at
  FROM public.cq_v4_student_submissions s
  JOIN public.cq_v4_pdf_chapters c ON c.chapter_id=s.chapter_uuid AND c.parent_user_id=(SELECT auth.uid())
  JOIN public.cq_v4_pdf_enrollments e ON e.parent_user_id=c.parent_user_id AND e.student_user_id=s.child_user_id
