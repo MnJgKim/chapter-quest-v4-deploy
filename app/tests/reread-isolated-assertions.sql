@@ -76,6 +76,16 @@ BEGIN
  THEN RAISE EXCEPTION 'Unreleased feedback leaked'; END IF;
 END;$tag$;
 RESET ROLE;
+SET ROLE authenticated;
+-- Parent notices must also remain hidden until feedback is released.
+SELECT set_config('test.uid','00000000-0000-0000-0000-000000000001',false);
+DO $parent_unreleased$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.cq_v4_parent_reread_inbox()
+           WHERE chapter_uuid='00000000-0000-0000-0000-000000000101')
+ THEN RAISE EXCEPTION 'Parent inbox leaked unreleased feedback'; END IF;
+END;$parent_unreleased$;
+RESET ROLE;
 UPDATE public.cq_v4_student_submissions SET feedback_released=true
 WHERE chapter_uuid='00000000-0000-0000-0000-000000000101';
 
