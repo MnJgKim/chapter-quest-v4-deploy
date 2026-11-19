@@ -42,7 +42,7 @@ BEGIN
     v_r.speaking_prompt IS DISTINCT FROM v_a.speaking_prompt OR
     jsonb_typeof(v_r.answer_key)<>'array' OR
     jsonb_array_length(v_r.answer_key)<>10 OR
-    EXISTS(SELECT 1 FROM jsonb_array_elements(v_r.answer_key) AS ans WHERE ans='null'::jsonb) THEN
+    EXISTS(SELECT 1 FROM jsonb_array_elements(v_r.answer_key) AS a(value) WHERE a.value='null'::jsonb) THEN
   RAISE EXCEPTION 'Approval content or answer key does not match published chapter' USING ERRCODE='23505';
  END IF;
  v_expected_hash:=md5(jsonb_build_array(v_r.book_local_id,v_r.chapter_local_id,v_r.title,
