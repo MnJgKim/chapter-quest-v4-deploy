@@ -53,3 +53,7 @@ INSERT INTO public.cq_v4_activities VALUES ('00000000-0000-0000-0000-00000000010
 INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers,feedback_released)
 VALUES ('00000000-0000-0000-0000-000000000106','00000000-0000-0000-0000-000000000011',
  jsonb_build_object('answers',(SELECT jsonb_agg(CASE WHEN n<=7 THEN '0' ELSE '1' END ORDER BY n) FROM generate_series(1,10) AS n)),true);
+
+-- Immutable snapshot sentinel: acknowledgements and reread queries must never touch it.
+CREATE TABLE public.cq_v4_snapshots(chapter_uuid uuid,child_user_id uuid,snapshot_payload jsonb,PRIMARY KEY(chapter_uuid,child_user_id));
+INSERT INTO public.cq_v4_snapshots VALUES ('00000000-0000-0000-0000-000000000101','00000000-0000-0000-0000-000000000011','{"immutable":"original"}');
