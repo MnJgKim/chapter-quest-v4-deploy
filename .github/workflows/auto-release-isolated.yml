@@ -6,6 +6,7 @@ on:
     paths:
       - 'app/sql/student-*.REVIEW-ONLY.sql'
       - 'app/tests/auto-release-isolated-*.sql'
+      - 'app/tests/auto-release-isolated-*.sh'
       - '.github/workflows/auto-release-isolated.yml'
   workflow_dispatch:
 jobs:
@@ -53,3 +54,5 @@ jobs:
           set -o pipefail
           psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-privileges.sql 2>&1 | tee /tmp/auto-release-privileges.log
           grep -q AUTO_RELEASE_PRIVILEGE_ASSERTIONS_PASSED /tmp/auto-release-privileges.log
+      - name: Verify concurrent student lock across independent connections
+        run: bash app/tests/auto-release-isolated-concurrency.sh
