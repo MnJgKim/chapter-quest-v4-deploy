@@ -89,5 +89,22 @@ END;$parent_unreleased$;
 RESET ROLE;
 UPDATE public.cq_v4_student_submissions SET feedback_released=true
 WHERE chapter_uuid='00000000-0000-0000-0000-000000000101';
+-- Releasing feedback must restore both the parent's notice and the student's suggestion.
+SET ROLE authenticated;
+SELECT set_config('test.uid','00000000-0000-0000-0000-000000000001',false);
+DO $released_parent$
+BEGIN
+ IF (SELECT count(*) FROM public.cq_v4_parent_reread_inbox()
+     WHERE chapter_uuid='00000000-0000-0000-0000-000000000101') <> 1
+ THEN RAISE EXCEPTION 'Parent reread notice not restored after feedback release'; END IF;
+END;$released_parent$;
+SELECT set_config('test.uid','00000000-0000-0000-0000-000000000011',false);
+DO $released_student$
+BEGIN
+ IF NOT public.cq_v4_my_released_reread_suggestion('00000000-0000-0000-0000-000000000101')
+ THEN RAISE EXCEPTION 'Student reread suggestion not restored after feedback release'; END IF;
+END;$released_student$;
+RESET ROLE;
+
 
 SELECT 'REREAD_ISOLATED_ASSERTIONS_PASSED' AS result;
