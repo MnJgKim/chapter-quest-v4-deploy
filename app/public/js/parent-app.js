@@ -454,6 +454,7 @@
    const currentBook=selectedBook,currentChapter=selectedChapter,c=chapter(),owner=cloudIdentity();
    if(!c||c.id!==button.dataset.c){publishStatus('현재 챕터를 다시 선택하세요.');return;}
    const willQueue=button.dataset.recurringQueue==='true';
+   if(willQueue&&recurringBackendMissing){publishStatus('자동 공개 대기열 서버 기능 확인 전에는 등록할 수 없습니다.');return;}
    const useExisting=willQueue&&button.dataset.existingPublication==='true';
    const chapterNumber=willQueue?document.getElementById('cqRecurringChapterNumber')?.valueAsNumber:null;
    const recurringBookTitle=willQueue?String(book()?.title||'').trim():null;
