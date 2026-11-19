@@ -48,3 +48,8 @@ jobs:
           set -o pipefail
           psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-seojin-and-hide.sql 2>&1 | tee /tmp/auto-release-seojin.log
           grep -q AUTO_RELEASE_SEOJIN_HIDE_ROLLOVER_ASSERTIONS_PASSED /tmp/auto-release-seojin.log
+      - name: Check isolated RPC privileges and RLS
+        run: |
+          set -o pipefail
+          psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-privileges.sql 2>&1 | tee /tmp/auto-release-privileges.log
+          grep -q AUTO_RELEASE_PRIVILEGE_ASSERTIONS_PASSED /tmp/auto-release-privileges.log
