@@ -45,3 +45,9 @@ test('reread completion guards double-click and preserves retry after RPC failur
  assert.match(app,/if\(!confirmed\?\.required\|\|!confirmed\.completed\)throw Error/);
  assert.match(app,/저장되고 재확인되었습니다/);
 });
+
+test('completion feedback refresh waits for shared busy guard to clear',()=>{
+ assert.match(app,/if\(busy\)return;/);
+ assert.match(app,/if\(refresh\)queueMicrotask\(\(\)=>\{if\(refresh\.isConnected\)refresh\.click\(\);\}\)/);
+ assert.doesNotMatch(app,/if\(refresh\)refresh\.click\(\);/);
+});
