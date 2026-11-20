@@ -92,6 +92,33 @@ begin
      raise exception 'Invalid question kind' using errcode='22023';
    end if;
  end loop;
+ -- Chapter 2 minimal-correction scope: preserve all ten published questions,
+ -- vocabulary and prompts. The seventh MC key must be Red (zero-based 1).
+ -- Existing six approved keys must remain unchanged.
+ if p_chapter_uuid='8fe27ea2-b1ce-4404-a5bf-75b5a049a38a'::uuid then
+   if jsonb_array_length(v_new.questions)<>10
+      or v_new.questions is distinct from v_old.questions
+      or v_new.vocabulary is distinct from v_old.vocabulary
+      or v_new.writing_prompt is distinct from v_old.writing_prompt
+      or v_new.speaking_prompt is distinct from v_old.speaking_prompt
+      or v_new.answer_key->6 is distinct from '1'::jsonb
+      or exists(
+        select 1 from public.cq_v4_approval_requests prior
+        where prior.id=p_old_approval_id
+          and (
+            jsonb_array_length(prior.answer_key)<>6
+            or v_new.answer_key->0 is distinct from prior.answer_key->0
+            or v_new.answer_key->1 is distinct from prior.answer_key->1
+            or v_new.answer_key->2 is distinct from prior.answer_key->2
+            or v_new.answer_key->3 is distinct from prior.answer_key->3
+            or v_new.answer_key->4 is distinct from prior.answer_key->4
+            or v_new.answer_key->5 is distinct from prior.answer_key->5
+          )
+      ) then
+     raise exception 'Chapter 2 correction must preserve all 10 questions and prior six keys'
+       using errcode='23514';
+   end if;
+ end if;
  -- Existing approval row remains unchanged; the new approval becomes bound.
  update public.cq_v4_approval_requests set chapter_uuid=p_chapter_uuid
   where id=p_new_approval_id;
