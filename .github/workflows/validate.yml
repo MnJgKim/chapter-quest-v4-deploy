@@ -25,6 +25,14 @@ jobs:
       - run: npm run build
         env:
           WRANGLER_SEND_METRICS: 'false'
+      - name: Stage Worker dry-run (never deploy)
+        run: node app/tools/deploy-preflight.mjs --target stage
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+      - name: Production Worker dry-run (never deploy)
+        run: node app/tools/deploy-preflight.mjs --target production
+        env:
+          WRANGLER_SEND_METRICS: 'false'
       - run: pip install -r app/qa-requirements.txt
       - run: python -m playwright install --with-deps chromium
       - run: npm run test:browser
