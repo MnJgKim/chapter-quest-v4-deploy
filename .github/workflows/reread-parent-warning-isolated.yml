@@ -11,6 +11,7 @@ on:
       - 'app/public/js/student-app.js'
       - 'app/sql/development-reread-progress-not-for-production.sql'
       - 'app/tests/reread-student-flow.test.cjs'
+      - 'app/tests/isolated-postgres-reread-submission.sql'
       - 'app/public/js/student-app.js'
       - 'app/sql/development-reread-progress-not-for-production.sql'
       - 'app/tests/reread-student-integration.test.cjs'
@@ -43,10 +44,19 @@ jobs:
         run: node app/tests/reread-student-integration.test.cjs
       - name: Student submission and reread flow static checks
         run: node app/tests/reread-student-flow.test.cjs
+      - name: PostgreSQL student submission reread trigger and authorization
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -X -h 127.0.0.1 -U postgres -d reread_test -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-reread-submission.sql 2>&1 | tee reread-student.log
+          grep -q 'REREAD_STUDENT_POSTGRES_ASSERTIONS_PASSED' reread-student.log
+          PGPASSWORD=postgres createdb -h 127.0.0.1 -U postgres reread_parent_test
       - name: PostgreSQL parent lesson authorization and approval consistency
         env:
           PGPASSWORD: postgres
         run: |
           set -euo pipefail
-          psql -X -h 127.0.0.1 -U postgres -d reread_test -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-parent-lesson.sql 2>&1 | tee reread-parent-lesson.log
+          psql -X -h 127.0.0.1 -U postgres -d reread_parent_test -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-parent-lesson.sql 2>&1 | tee reread-parent-lesson.log
           grep -q 'REREAD_PARENT_LESSON_POSTGRES_ASSERTIONS_PASSED' reread-parent-lesson.log
+
