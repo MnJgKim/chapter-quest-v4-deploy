@@ -19,3 +19,8 @@ test('parent feedback entry and release are blocked until reread completion',()=
  assert.doesNotMatch(rpc,/if p_release and exists\(/);
  assert.match(rpc,/raise exception 'Reread must be completed before parent feedback'/);
 });
+
+test('zero MC questions cannot bypass reread by producing a false passing result',()=>{
+ assert.match(sql,/if v_total=0 then\s*raise exception 'No objectively scorable MC questions'/);
+ assert.match(sql,/v_required:=\(v_correct\*10<v_total\*7\)/);
+});
