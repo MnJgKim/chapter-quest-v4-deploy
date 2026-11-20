@@ -67,6 +67,18 @@
       if(!Array.isArray(rows)||rows.length>1||rows.some(row=>!row||row.chapter_uuid!==chapterUuid||typeof row.submitted_at!=='string'||!Number.isFinite(Date.parse(row.submitted_at))||typeof row.feedback_released!=='boolean'||(row.feedback!==null&&typeof row.feedback!=='string')))throw Error('제출 상태 응답을 확인할 수 없습니다. 기존 답안·녹음을 보존하고 다시 시도하세요.');
       return rows.map(row=>({chapter_uuid:row.chapter_uuid,submitted_at:row.submitted_at,feedback_released:row.feedback_released,feedback:row.feedback_released?row.feedback:null}));
     }
+    async function rereadStatus(chapterUuid,options={}){
+      const rows=await rpc('cq_v4_my_reread_status',{p_chapter_uuid:requireChapterUuid(chapterUuid)},options);
+      if(!Array.isArray(rows)||rows.length>1)throw Error('재독서 상태 응답 형식이 올바르지 않습니다.');
+      if(!rows.length)return null; // historical submission: no reread record
+      if(typeof rows[0].required!=='boolean'||typeof rows[0].completed!=='boolean')throw Error('재독서 상태가 올바르지 않습니다.');
+      return {required:rows[0].required,completed:rows[0].completed};
+    }
+    async function completeReread(chapterUuid,options={}){
+      const result=await rpc('cq_v4_complete_reread',{p_chapter_uuid:requireChapterUuid(chapterUuid)},options);
+      if(result!==true)throw Error('재독서 완료 저장을 확인할 수 없습니다.');
+      return true;
+    }
     async function releasedRereadSuggestion(chapterUuid,options={}){
       const value=await rpc('cq_v4_my_released_reread_suggestion',{p_chapter:requireChapterUuid(chapterUuid)},options);
       if(typeof value!=='boolean')throw Error('재독서 안내 응답 형식이 올바르지 않습니다.');
@@ -85,7 +97,9 @@
       chapterActivities,
       submit,
       submission,
-      releasedRereadSuggestion
+      releasedRereadSuggestion,
+      rereadStatus,
+      completeReread
     });
   }
   root.CQStudentAPI=Object.freeze({createStudentAPI});
