@@ -28,7 +28,10 @@
     method:'POST',headers:{apikey:project.anonKey,'Content-Type':'application/json'},
     body:JSON.stringify({refresh_token:saved.refreshToken})
    });
-   if(!response.ok)throw Error('saved-session-expired');
+   if(!response.ok){
+    if([400,401,403].includes(response.status))throw Error('saved-session-expired');
+    throw Error('saved-session-temporary');
+   }
    const data=await response.json();
    if(!data.user?.id||data.user.id!==saved.uid||!data.access_token||!data.refresh_token)throw Error('saved-session-mismatch');
    if(generation!==childGeneration||session||mode!=='student'||!sameProject(project,window.CQProject.read()))return;
@@ -41,7 +44,7 @@
    // A transport failure before authentication must not permanently consume the restore attempt.
    // Retry only on a later online/visibility/page event, never in a tight loop.
    // Once a session exists, refresh the lesson data separately rather than rotating the token again.
-   if(!session&&err instanceof TypeError)childRestoreAttempted=false;
+   if(!session&&(err instanceof TypeError||err.message==='saved-session-temporary'))childRestoreAttempted=false;
    // Do not erase the original refresh token on network failure: the learner may be offline.
    if(err.message==='saved-session-expired'||err.message==='saved-session-mismatch')forgetDedicatedChild();
    if(mode==='student'&&session&&generation===childGeneration){
