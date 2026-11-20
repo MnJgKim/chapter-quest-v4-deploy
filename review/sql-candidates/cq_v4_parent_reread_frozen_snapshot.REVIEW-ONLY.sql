@@ -38,7 +38,7 @@ BEGIN
  IF jsonb_typeof(v_q)<>'array' OR jsonb_typeof(v_key)<>'array' OR jsonb_typeof(v_ans)<>'array'
  OR jsonb_array_length(v_q)<>jsonb_array_length(v_key) OR jsonb_array_length(v_q)<>jsonb_array_length(v_ans)
  THEN RAISE EXCEPTION 'Invalid grading snapshot' USING ERRCODE='22023';END IF;
- IF jsonb_array_length(v_q)=0 THEN RETURN QUERY SELECT 0,0,false;RETURN;END IF;
+ IF jsonb_array_length(v_q)=0 THEN RAISE EXCEPTION 'No scorable questions in frozen snapshot' USING ERRCODE='22023';END IF;
  FOR v_i IN 0..jsonb_array_length(v_q)-1 LOOP
   IF v_q->v_i->>'kind'='mc' THEN
    IF jsonb_typeof(v_q->v_i->'options')<>'array' OR jsonb_array_length(v_q->v_i->'options')<2
@@ -53,7 +53,7 @@ BEGIN
    IF (v_ans->>v_i)::numeric=v_option THEN v_correct:=v_correct+1;END IF;
   END IF;
  END LOOP;
- IF v_total=0 THEN RETURN QUERY SELECT 0,0,false;RETURN;END IF;
+ IF v_total=0 THEN RAISE EXCEPTION 'No objectively scorable MC questions in frozen snapshot' USING ERRCODE='22023';END IF;
  IF v_correct*10<v_total*7 THEN
   INSERT INTO public.cq_v4_reread_notices(parent_user_id,student_user_id,chapter_uuid,approval_snapshot_id,correct_mc,total_mc,submitted_at)
   VALUES(v_parent,p_student,p_chapter,v_snapshot,v_correct,v_total,v_submitted)
