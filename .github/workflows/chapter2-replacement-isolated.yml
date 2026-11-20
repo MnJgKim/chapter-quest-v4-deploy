@@ -30,5 +30,6 @@ jobs:
         env:
           PGPASSWORD: postgres
         run: |
-          psql -h 127.0.0.1 -U postgres -d chapter2_test -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-chapter2-replacement.sql | tee chapter2-test.log
-          grep -q 'CHAPTER2_POSTGRES_REPLACEMENT_ASSERTIONS_PASSED' chapter2-test.log || echo 'Check NOTICE on stderr in job logs'
+          set -euo pipefail
+          psql -h 127.0.0.1 -U postgres -d chapter2_test -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-chapter2-replacement.sql 2>&1 | tee chapter2-test.log
+          grep -q 'CHAPTER2_POSTGRES_REPLACEMENT_ASSERTIONS_PASSED' chapter2-test.log
