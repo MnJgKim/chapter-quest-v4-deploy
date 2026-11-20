@@ -403,7 +403,7 @@
   }
   if(total===0)return null;
   const percent=Math.round(100*correct/total);
-  return {correct,total,percent,needsReread:correct*10<total*7};
+  return {correct,total,percent,needsReread:correct*5<total*3};
  }
  function resultDetails(row){
   const context=row.lessonContext,questions=Array.isArray(context?.questions)?context.questions:[],answers=Array.isArray(row.answers?.answers)?row.answers.answers:[];
