@@ -40,7 +40,11 @@
   }catch(err){
    // Do not erase the original refresh token on network failure: the learner may be offline.
    if(err.message==='saved-session-expired'||err.message==='saved-session-mismatch')forgetDedicatedChild();
-   if(!session&&mode==='student')status('자동 로그인에 실패했습니다. 기존 학생 이메일로 로그인하세요. 학습 답안은 보존됩니다.');
+   if(mode==='student'&&session&&generation===childGeneration){
+    // A valid restored session must not appear as an empty schedule when the
+    // released-chapter request failed before the schedule RPC was attempted.
+    draw();status('자동 로그인은 유지됐지만 학습 자료·일정 조회에 실패했습니다. 계정 관리에서 공개된 챕터 새로고침을 눌러 다시 조회하세요. 기존 답안은 보존됩니다.');
+   }else if(!session&&mode==='student')status('자동 로그인에 실패했습니다. 기존 학생 이메일로 로그인하세요. 학습 답안은 보존됩니다.');
   }
  }
  async function refreshChildDisplayName(){
