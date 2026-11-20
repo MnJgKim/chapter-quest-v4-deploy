@@ -1,6 +1,8 @@
 # Universal submit-time reread contract (development only)
 
 ## Product requirement (2026-11-20 clarification)
+- **All published questions must be answered before submission**, even if the child guesses. A blank, missing, null or invalid choice is a student-incomplete submission and must be rejected before grading. Reading completion, essay, speaking script and recording are also required.
+- **Missing server answer key is a different condition**: the child may have answered every question, but the system cannot calculate a trustworthy score. Surface a distinct system/data error; never conflate this with an unanswered student question.
 - Applies to **all existing and future PDF chapters**, including currently hidden Magic Tree House Book 2 chapters.
 - **No full-server question/answer audit is a release prerequisite.** Do not pre-score hidden chapters.
 - At the moment each student submits a lesson, score the student's MC answers against the **authoritative, matching, published question+answer version for that chapter**. Strictly below 70% requires rereading; 70% or more does not.
