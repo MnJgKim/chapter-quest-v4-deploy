@@ -622,13 +622,20 @@ function seoulLessonDate(){
    if(b.dataset.child==='reread-complete'){
     const c=chapters.find(x=>x.chapter_uuid===b.dataset.uuid);
     if(!c)throw Error('배정된 챕터가 아닙니다.');
+    if(b.disabled)return; // Prevent duplicate requests while a completion is in flight.
     const owner=childContext(),api=childApi;
-    await api.completeReread(c.chapter_uuid);
-    assertChildContext(owner);if(childApi!==api)return;
-    status('재독서 완료가 서버에 저장되었습니다. 오늘의 학습을 마쳤습니다.');
-    const refresh=document.querySelector('[data-child="feedback"][data-uuid="'+c.chapter_uuid+'"]');
-    if(refresh)refresh.click();
-    return;
+    b.disabled=true;
+    try{
+      await api.completeReread(c.chapter_uuid);
+      assertChildContext(owner);if(childApi!==api)return;
+      status('재독서 완료가 서버에 저장되었습니다. 완료 상태를 다시 확인합니다.');
+      const refresh=document.querySelector('[data-child="feedback"][data-uuid="'+c.chapter_uuid+'"]');
+      if(refresh)refresh.click();
+      return;
+    }finally{
+      // A rejected RPC must leave the action retryable; a successful refresh replaces this button.
+      if(b.isConnected)b.disabled=false;
+    }
    }
    if(b.dataset.child==='view'||b.dataset.child==='feedback'){
     const c=chapters.find(x=>x.chapter_uuid===b.dataset.uuid);
