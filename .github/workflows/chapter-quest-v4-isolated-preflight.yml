@@ -121,6 +121,8 @@ jobs:
           PGDATABASE=cq_v4_publish_review psql -v ON_ERROR_STOP=1 -f app/tests/isolated-publish-rpc-review.sql
       - name: Verify reviewed publication RPC contract
         run: node --test app/tests/reread-publish-rpc-contract.test.cjs
+      - name: Verify full V3B install bundle and least privilege in disposable PostgreSQL
+        run: bash app/tests/isolated-v3b-install-bundle.sh
       - name: Verify V3B production-compatible minimal reread in isolated PostgreSQL
         run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-v3b-minimal-reread.sql
       - name: Verify atomic submission and immutable snapshot against isolated PostgreSQL
