@@ -377,18 +377,18 @@
   const owner=cloudIdentity(),contexts=new Map();
   let serverContextUnavailable=false;
   for(const uuid of new Set(rows.map(r=>r.chapter_uuid))){
-   if(serverContextUnavailable){contexts.set(uuid,localLessonContext(uuid));continue;}
+   if(serverContextUnavailable){contexts.set(uuid,null);continue;}
    try{const result=await parentRpc('cq_v4_parent_lesson',{p_chapter_uuid:uuid});contexts.set(uuid,Array.isArray(result)?result[0]:null);}
    catch(error){
     if(cloudIdentity()!==owner)throw error;
     // Older hosted projects do not have this optional parent-only context RPC.
     // Avoid repeated missing-RPC calls while preserving submissions and feedback.
     if(/could not find the function|function .* does not exist|PGRST202/i.test(String(error?.message||'')))serverContextUnavailable=true;
-    contexts.set(uuid,localLessonContext(uuid));
+    contexts.set(uuid,null);
    }
   }
   if(cloudIdentity()!==owner)throw Error('부모 계정이 변경되었습니다.');
-  return rows.map(row=>({...row,lessonContext:contexts.get(row.chapter_uuid)||localLessonContext(row.chapter_uuid)}));
+  return rows.map(row=>({...row,lessonContext:contexts.get(row.chapter_uuid)||null}));
  }
  // Parent-only advisory: score ONLY objective multiple-choice answers with a valid answer key.
  // This is not a server grade, student-visible feedback, or a delivered push notification.
@@ -412,7 +412,7 @@
   const rereadNotice=advisory?.needsReread?'<p role="status"><strong>재독서 권장 · 부모 확인 필요</strong> — 객관식 '+advisory.correct+'/'+advisory.total+'개 정답 ('+advisory.percent+'%). 70% 미만입니다. 서술형·독후감·말하기는 채점하지 않았습니다. 이 알림은 부모 화면에만 표시되며 학생에게 자동 전송되지 않습니다.</p>':advisory?'<p>객관식 참고 정답률: '+advisory.correct+'/'+advisory.total+' ('+advisory.percent+'%). 서술형·독후감·말하기 제외.</p>':'';
   const display=(q,value)=>value===undefined||value===null||value===''?'미응답':q.kind==='mc'&&Array.isArray(q.options)?q.options[Number(value)]??'미응답':String(value??'미응답');
   const questionsHtml=questions.map((q,i)=>q?`<li><b>${escapeHtml(q.text||'문제')}</b><p>학생 답변: ${escapeHtml(display(q,answers[i]))}</p><details><summary>기준 답안</summary><p>${escapeHtml(display(q,context.answer_key?.[i]))}</p></details></li>`:'').join('');
-  return `<div class="submitted-lesson">${rereadNotice}${questionsHtml?'<ol>'+questionsHtml+'</ol>':'<p class="muted">문제·기준 답안을 불러오지 못했습니다. 부모 기기의 학습 자료를 확인하세요.</p>'}<h4>영어 독후감</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.essay||'')}</p><h4>말하기 대본</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.speaking||'')}</p><p>단어 복습 체크: ${Array.isArray(row.answers?.wordsReviewed)?row.answers.wordsReviewed.length:0}개</p></div>`;
+  return `<div class="submitted-lesson">${rereadNotice}${questionsHtml?'<ol>'+questionsHtml+'</ol>':'<p class="muted">문제·기준 답안을 서버에서 확인하지 못했습니다. 부모 기기의 자료로 채점하지 않습니다.</p>'}<h4>영어 독후감</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.essay||'')}</p><h4>말하기 대본</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.speaking||'')}</p><p>단어 복습 체크: ${Array.isArray(row.answers?.wordsReviewed)?row.answers.wordsReviewed.length:0}개</p></div>`;
  }
  const rereadPanel=()=>`<section class="card" id="cqParentReread"><h2>📖 재독서 알림함 (서버 검증)</h2><button data-parent-reread="progress" ${session&&parentUnlocked?'':'disabled'}>재독서 필요·완료 조회</button><div>${rereadProgressOwner===cloudIdentity()?rereadProgressRows.map(n=>`<p>학생 ${escapeHtml(String(n.student_user_id).slice(-8))} · 챕터 ${escapeHtml(String(n.chapter_uuid).slice(-8))} — ${n.required?(n.completed_at?'재독서 완료':'재독서 필요 · 완료 대기'):'재독서 불필요'}</p>`).join(''):'<p class="muted">재독서 진행 상태를 아직 조회하지 않았습니다.</p>'}</div><p class="muted">부모 계정 전용입니다. 서버 알림 RPC가 설치되지 않은 환경에서는 사용할 수 없습니다. 알림은 학생에게 자동 전송되지 않습니다.</p><button data-parent-reread="refresh" ${session&&parentUnlocked?'':'disabled'}>알림 조회</button><div>${rereadAvailable&&rereadOwner===cloudIdentity()?rereadNotices.map(n=>`<div class="book"><b>학생 ${escapeHtml(String(n.student_user_id||'').slice(-8))} · 챕터 ${escapeHtml(String(n.chapter_uuid||'').slice(-8))}</b><p>객관식 ${escapeHtml(n.correct_mc)}/${escapeHtml(n.total_mc)} · 제출 ${escapeHtml(n.submitted_at||'')}</p><p>${n.acknowledged_at?'확인 완료':'부모 확인 대기'}</p>${n.acknowledged_at?'':`<button data-parent-reread="ack" data-notice="${escapeHtml(n.notice_id)}">확인 완료로 표시</button>`}</div>`).join(''):'<p class="muted">서버 알림을 조회하지 않았거나 기능이 비활성화되었습니다.</p>'}</div><p id="cqRereadStatus" role="status" class="status"></p></section>`;
  const rereadStatus=t=>{const el=document.getElementById('cqRereadStatus');if(el)el.textContent=t};
