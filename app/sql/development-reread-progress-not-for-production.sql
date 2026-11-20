@@ -1,6 +1,6 @@
 -- DEVELOPMENT ONLY. Do not apply to production without separate approval.
 -- Stores reread completion separately from immutable submissions/snapshots.
--- Server scoring and threshold integration are intentionally not enabled by this migration.
+-- Draft includes scoring and feedback gating; NOT approved for production deployment.
 create table if not exists public.cq_v4_reread_progress (
   chapter_uuid uuid not null,
   child_user_id uuid not null,
@@ -115,8 +115,54 @@ drop trigger if exists cq_v4_reread_after_submit on public.cq_v4_student_submiss
 create trigger cq_v4_reread_after_submit
 after insert on public.cq_v4_student_submissions
 for each row execute function public.cq_v4_reread_on_submission();
--- IMPORTANT: the feedback-release RPC must separately enforce:
--- IF EXISTS (SELECT 1 FROM cq_v4_reread_progress WHERE required
--- AND completed_at IS NULL AND chapter_uuid=p_chapter_uuid
--- AND child_user_id=p_child_user_id) AND p_release THEN RAISE EXCEPTION ...;
--- Do not apply this file until that guard, parent inbox, and UI are tested.
+-- Parent feedback gate. Existing historical submissions have no progress row and
+-- remain unaffected. Preserve the original authorization and validation checks.
+create or replace function public.cq_v4_release_feedback(
+  p_child_user_id uuid, p_chapter_uuid uuid, p_feedback text, p_release boolean
+) returns boolean
+language plpgsql security definer set search_path=''
+as $function$
+declare v_count integer;
+begin
+ if not public.cq_is_admin() then
+   raise exception 'Parent authorization required' using errcode='42501';
+ end if;
+ if auth.uid() is null then
+   raise exception 'Login required' using errcode='28000';
+ end if;
+ if p_feedback is null or pg_catalog.octet_length(p_feedback)>20000 then
+   raise exception 'Invalid feedback' using errcode='22023';
+ end if;
+ if p_release is null or (p_release and pg_catalog.length(pg_catalog.btrim(p_feedback))=0) then
+   raise exception 'Feedback required for release' using errcode='22023';
+ end if;
+ -- Restrict only newly scored submissions that require rereading.
+ if p_release and exists(
+   select 1 from public.cq_v4_reread_progress r
+    where r.chapter_uuid=p_chapter_uuid
+      and r.child_user_id=p_child_user_id
+      and r.required=true
+      and r.completed_at is null
+ ) then
+   raise exception 'Reread must be completed before feedback release' using errcode='23514';
+ end if;
+ update public.cq_v4_student_submissions s
+    set feedback=p_feedback, feedback_released=p_release
+   from public.cq_v4_pdf_chapters c
+   join public.cq_v4_pdf_assignments a on a.chapter_id=c.chapter_id
+   join public.cq_v4_pdf_enrollments e
+     on e.parent_user_id=c.parent_user_id and e.student_user_id=a.student_user_id
+  where s.chapter_uuid=p_chapter_uuid and s.child_user_id=p_child_user_id
+    and c.chapter_id=s.chapter_uuid and c.parent_user_id=auth.uid()
+    and a.student_user_id=s.child_user_id;
+ get diagnostics v_count = row_count;
+ if v_count<>1 then
+   raise exception 'Submission not found or access denied' using errcode='42501';
+ end if;
+ return true;
+end;
+$function$;
+-- No changes to existing function EXECUTE grants.
+-- DO NOT DEPLOY until isolated integration tests cover:
+-- approved key validity, 70% threshold, completion, parent feedback gate,
+-- historical submissions, recording uploads and submission atomicity.
