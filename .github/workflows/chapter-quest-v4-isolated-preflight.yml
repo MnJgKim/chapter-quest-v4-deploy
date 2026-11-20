@@ -105,6 +105,10 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -f app/sql/approved-release-rpc-storage-overlay-v1.REVIEW-ONLY.sql
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-approved-release-rpc-storage.sql
+      - name: Execute reviewed publication RPC in disposable PostgreSQL 16
+        run: |
+          createdb cq_v4_publish_review
+          PGDATABASE=cq_v4_publish_review psql -v ON_ERROR_STOP=1 -f app/tests/isolated-publish-rpc-review.sql
       - name: Verify reviewed publication RPC contract
         run: node --test app/tests/reread-publish-rpc-contract.test.cjs
       - name: Verify atomic submission and immutable snapshot against isolated PostgreSQL
