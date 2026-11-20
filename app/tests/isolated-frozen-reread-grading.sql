@@ -6,6 +6,8 @@ ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_hash text;
 CREATE TABLE IF NOT EXISTS public.cq_v4_approval_requests(id uuid PRIMARY KEY,parent_user_id uuid,chapter_uuid uuid,answer_key jsonb,content_hash text,questions jsonb);
 \ir ../../review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql
 \ir ../../review/sql-candidates/cq_v4_parent_reread_frozen_snapshot.REVIEW-ONLY.sql
+CREATE TABLE public.cq_v4_reread_progress(chapter_uuid uuid NOT NULL,child_user_id uuid NOT NULL,required boolean NOT NULL,completed_at timestamptz,PRIMARY KEY(chapter_uuid,child_user_id));
+\ir ../../review/sql-candidates/cq_v4_frozen_reread_atomic.REVIEW-ONLY.sql
 DO $$
 DECLARE p uuid:='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa';s uuid:='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb';t uuid:='eeeeeeee-eeee-4eee-eeee-eeeeeeeeeeee';
  c uuid:='cccccccc-cccc-4ccc-cccc-cccccccccccc';d uuid:='cccccccc-cccc-4ccc-cccc-cccccccccccd';a uuid:='dddddddd-dddd-4ddd-dddd-dddddddddddd';v integer;
@@ -26,11 +28,15 @@ BEGIN
  (d,t,'{"answers":["0","0","0","0","0","0","0","1","1","1"]}'::jsonb);
  PERFORM set_config('request.jwt.claim.sub',s::text,true);
  IF NOT public.cq_v4_capture_grading_snapshot_internal(s,c) THEN RAISE EXCEPTION 'First capture failed';END IF;
+ IF NOT public.cq_v4_record_frozen_reread_internal(s,c) THEN RAISE EXCEPTION 'Frozen six reread record failed';END IF;
+ IF (SELECT required FROM public.cq_v4_reread_progress WHERE chapter_uuid=c AND child_user_id=s) IS DISTINCT FROM true THEN RAISE EXCEPTION 'Six of ten should require reread';END IF;
  IF public.cq_v4_capture_grading_snapshot_internal(s,c) THEN RAISE EXCEPTION 'Duplicate capture overwrote row';END IF;
  BEGIN PERFORM public.cq_v4_capture_grading_snapshot_internal(t,d);RAISE EXCEPTION 'Other student capture succeeded';
  EXCEPTION WHEN insufficient_privilege THEN NULL;END;
  PERFORM set_config('request.jwt.claim.sub',t::text,true);
  IF NOT public.cq_v4_capture_grading_snapshot_internal(t,d) THEN RAISE EXCEPTION 'Second capture failed';END IF;
+ IF NOT public.cq_v4_record_frozen_reread_internal(t,d) THEN RAISE EXCEPTION 'Frozen seven reread record failed';END IF;
+ IF (SELECT required FROM public.cq_v4_reread_progress WHERE chapter_uuid=d AND child_user_id=t) IS DISTINCT FROM false THEN RAISE EXCEPTION 'Seven of ten should not require reread';END IF;
  UPDATE public.cq_v4_activities SET approval_hash='republished',questions='[]'::jsonb;
  UPDATE public.cq_v4_approval_requests SET answer_key='[]'::jsonb,content_hash='republished';
  -- Legacy submission with no immutable snapshot must fail closed.
