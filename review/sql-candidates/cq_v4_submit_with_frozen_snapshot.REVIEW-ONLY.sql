@@ -1,7 +1,8 @@
 -- REVIEW ONLY / isolated PostgreSQL only. Never apply to production without approval.
 -- Install AFTER approved-weekday-release-gate-v1, the original v3 RPC/storage file,
 -- and review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql.
--- NOT DEPLOYABLE: capture requires an approved immutable answer key at submit time.
+-- NOT DEPLOYABLE: requires the reviewed reread progress table and frozen grading helper;
+-- disable legacy cq_v4_reread_after_submit trigger before enabling this RPC.
 -- Preserve the original immutable submission/idempotency behavior and historical reads.
 CREATE OR REPLACE FUNCTION public.cq_v4_submit_answers(p_chapter_uuid uuid, p_answers jsonb)
  RETURNS TABLE(chapter_uuid uuid, submitted_at timestamp with time zone)
@@ -92,6 +93,11 @@ BEGIN
  -- Pre-existing submissions exit through the earlier immutable idempotency branch.
  IF NOT public.cq_v4_capture_grading_snapshot_internal(v_uid,p_chapter_uuid) THEN
    RAISE EXCEPTION 'Submission snapshot already exists' USING ERRCODE='23505';
+ END IF;
+ -- Record the reread decision from the captured immutable answer key in this
+ -- same submission transaction; any error rolls back submission and snapshot.
+ IF NOT public.cq_v4_record_frozen_reread_internal(v_uid,p_chapter_uuid) THEN
+   RAISE EXCEPTION 'Frozen reread decision failed' USING ERRCODE='22023';
  END IF;
  -- Existing submission is immutable. The caller can fetch the authoritative record.
  RETURN QUERY SELECT s.chapter_uuid,s.submitted_at FROM public.cq_v4_student_submissions s
