@@ -49,7 +49,7 @@ END $reread_validation$;
 \ir ../sql/development-reread-progress-not-for-production.sql
 SELECT set_config('cq.test_uid','22222222-2222-2222-2222-222222222222',false);
 INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','{"answers":["1","1","1","1","1","1","0","0","0","0"]}'::jsonb);
-DO $ DECLARE v_rejected boolean; BEGIN
+DO $reread_submission$ DECLARE v_rejected boolean; BEGIN
  IF (SELECT required FROM public.cq_v4_reread_progress) IS DISTINCT FROM true THEN RAISE EXCEPTION '60 percent must require reread'; END IF;
  IF (SELECT count(*) FROM public.cq_v4_my_reread_status('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'))<>1 THEN RAISE EXCEPTION 'student status missing'; END IF;
  PERFORM set_config('cq.test_uid','33333333-3333-3333-3333-333333333333',true);
@@ -79,4 +79,4 @@ DO $ DECLARE v_rejected boolean; BEGIN
  IF EXISTS (SELECT 1 FROM public.cq_v4_student_submissions) OR EXISTS (SELECT 1 FROM public.cq_v4_reread_progress) THEN RAISE EXCEPTION 'failed score left partial submission'; END IF;
  UPDATE public.cq_v4_approval_requests SET answer_key='[1,1,1,1,1,1,1,1,1,1]'::jsonb WHERE id='cccccccc-cccc-cccc-cccc-cccccccccccc';
  RAISE NOTICE 'REREAD_STUDENT_POSTGRES_ASSERTIONS_PASSED';
-END $$;
+END $reread_submission$;
