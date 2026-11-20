@@ -1,0 +1,12 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {checkFirstLessonReadiness as check} from './first-lesson-readiness.mjs';
+const full={student:'서우',lessonDate:'2026-11-23',assigned:true,pdfReady:true,activityPublished:true,releasedAt:'2026-11-22T00:00:00Z',chapterId:'chapter-1',studentApproved:true,studentEnrolled:true};
+test('all local flags cannot claim live readiness',()=>{const r=check(full);assert.equal(r.prerequisitesSatisfied,true);assert.equal(r.readyForLiveLesson,false);assert.equal(r.hostedReleaseVerified,false)});
+test('missing PDF blocks prerequisite',()=>assert.ok(check({...full,pdfReady:false}).failures.includes('original-pdf')));
+test('missing published questions blocks prerequisite',()=>assert.ok(check({...full,activityPublished:false}).failures.includes('published-questions')));
+test('missing parent approval blocks prerequisite',()=>assert.ok(check({...full,studentApproved:false}).failures.includes('parent-approval')));
+test('wrong first lesson date is flagged',()=>assert.ok(check({...full,lessonDate:'2026-11-24'}).failures.includes('first-lesson-date')));
+test('Seojin first lesson date is Tuesday',()=>assert.equal(check({...full,student:'서진',lessonDate:'2026-11-24'}).firstLessonDate,'2026-11-24'));
+test('missing release authorization blocks prerequisite',()=>assert.ok(check({...full,releasedAt:null}).failures.includes('release-approval')));
+test('no writes and no inferred students',()=>{assert.equal(check(full).writesPerformed,0);assert.throws(()=>check({...full,student:'시우'}),/Unknown student/)});

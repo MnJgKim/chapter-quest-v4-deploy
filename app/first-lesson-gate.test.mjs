@@ -1,0 +1,18 @@
+import test from 'node:test';import assert from 'node:assert/strict';import {evaluateFirstLesson as check} from './first-lesson-gate.mjs';
+const id='11111111-1111-4111-8111-111111111111', chapter='22222222-2222-4222-8222-222222222222';
+const identity={name:'서우',studentUserId:id,approved:true,enrolled:true};
+const row={lessonDate:'2026-11-23',studentUserId:id,chapterId:chapter,pdfReady:true,pdfVerified:true,activityPublished:true,assigned:true,released:true};
+const run=(extra={})=>check({student:'서우',identity,lessons:[row],...extra});
+test('all data checks cannot imply device validation',()=>{const r=run();assert.equal(r.dataPrerequisitesMet,true);assert.equal(r.liveReady,false);assert.equal(r.writesPerformed,0)});
+test('unknown approved identity fails closed',()=>assert.ok(run({identity:null}).blockers.includes('approved-identity-unverified')));
+test('name mismatch fails closed',()=>assert.ok(run({identity:{...identity,name:'서진'}}).blockers.includes('approved-identity-unverified')));
+test('ownership mismatch fails closed',()=>assert.ok(run({lessons:[{...row,studentUserId:chapter}]}).blockers.includes('student-ownership-mismatch')));
+test('missing first lesson fails closed',()=>assert.ok(run({lessons:[]}).blockers.includes('first-lesson-missing')));
+test('duplicate first lesson fails closed',()=>assert.ok(run({lessons:[row,row]}).blockers.includes('duplicate-first-lesson')));
+test('unverified PDF fails closed',()=>assert.ok(run({lessons:[{...row,pdfVerified:false}]}).blockers.includes('pdf-unverified')));
+test('unpublished activity fails closed',()=>assert.ok(run({lessons:[{...row,activityPublished:false}]}).blockers.includes('activity-unpublished')));
+test('off-day existing lesson fails closed',()=>assert.ok(run({lessons:[row,{...row,lessonDate:'2026-11-24'}]}).blockers.includes('off-day-existing')));
+test('Seojin first Tuesday absent fails closed',()=>{const r=check({student:'서진',identity:{...identity,name:'서진'},lessons:[]});assert.equal(r.firstLessonDate,'2026-11-24');assert.ok(r.blockers.includes('first-lesson-missing'))});
+
+test('invalid calendar day rejected',()=>assert.throws(()=>run({lessons:[{...row,lessonDate:'2026-11-31'}]}),/Invalid lesson date/));
+test('other student lesson cannot be mixed in same roster',()=>assert.ok(run({lessons:[row,{...row,studentUserId:chapter,lessonDate:'2026-11-25'}]}).blockers.includes('student-ownership-mismatch')));

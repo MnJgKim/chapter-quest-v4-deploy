@@ -1,0 +1,58 @@
+name: Auto release isolated PostgreSQL
+on:
+  push:
+    branches:
+      - work/hosted-readonly-preflight-20261117
+    paths:
+      - 'app/sql/student-*.REVIEW-ONLY.sql'
+      - 'app/tests/auto-release-isolated-*.sql'
+      - 'app/tests/auto-release-isolated-*.sh'
+      - '.github/workflows/auto-release-isolated.yml'
+  workflow_dispatch:
+jobs:
+  auto-release-isolated:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chapter_quest_isolated
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: 5432
+      PGUSER: postgres
+      PGPASSWORD: postgres
+      PGDATABASE: chapter_quest_isolated
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run auto-release static regression tests
+        run: node --test app/tests/student-auto-release-prerequisite.test.mjs
+      - name: Apply isolated fixtures
+        run: psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-fixtures.sql
+      - name: Install both components in one atomic transaction
+        run: psql -v ON_ERROR_STOP=1 -f app/sql/student-auto-release-atomic-install.REVIEW-ONLY.sql
+      - name: Run isolated assertions
+        run: |
+          set -o pipefail
+          psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-assertions.sql 2>&1 | tee /tmp/auto-release-results.log
+          grep -q AUTO_RELEASE_ISOLATED_ASSERTIONS_PASSED /tmp/auto-release-results.log
+      - name: Run Seojin weekday and parent hide assertions
+        run: |
+          set -o pipefail
+          psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-seojin-and-hide.sql 2>&1 | tee /tmp/auto-release-seojin.log
+          grep -q AUTO_RELEASE_SEOJIN_HIDE_ROLLOVER_ASSERTIONS_PASSED /tmp/auto-release-seojin.log
+      - name: Check isolated RPC privileges and RLS
+        run: |
+          set -o pipefail
+          psql -v ON_ERROR_STOP=1 -f app/tests/auto-release-isolated-privileges.sql 2>&1 | tee /tmp/auto-release-privileges.log
+          grep -q AUTO_RELEASE_PRIVILEGE_ASSERTIONS_PASSED /tmp/auto-release-privileges.log
+      - name: Verify concurrent student lock across independent connections
+        run: bash app/tests/auto-release-isolated-concurrency.sh

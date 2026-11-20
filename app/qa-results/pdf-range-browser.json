@@ -1,0 +1,87 @@
+{
+  "scope": "generated four-page PDF; local IndexedDB/UI only; no hosted requests or real Chapter 1 assumptions",
+  "checks": [
+    {
+      "name": "actual chapter bounds start unset and cannot create an unconfirmed lesson",
+      "pass": true
+    },
+    {
+      "name": "parent inspects exact page count, PDF title and stored chapter outline",
+      "pass": true
+    },
+    {
+      "name": "page selection controls fit 360x800",
+      "pass": true
+    },
+    {
+      "name": "page selection controls fit 412x915",
+      "pass": true
+    },
+    {
+      "name": "page selection controls fit 800x1280",
+      "pass": true
+    },
+    {
+      "name": "page selection controls fit 1280x800",
+      "pass": true
+    },
+    {
+      "name": "parent browses original pages and selects the displayed start/end with touch controls",
+      "pass": true
+    },
+    {
+      "name": "derived preview contains only the selected two pages and still requires explicit confirmation",
+      "pass": true
+    },
+    {
+      "name": "changing the range invalidates its preview and confirmation",
+      "pass": true
+    },
+    {
+      "name": "invalid ranges never register learning material",
+      "pass": true
+    },
+    {
+      "name": "prepared lesson source contains only selected text and has no automatic question approval",
+      "pass": true
+    },
+    {
+      "name": "whole original bytes, earlier TXT and source lineage are preserved separately",
+      "pass": true
+    },
+    {
+      "name": "repeating a confirmed range reuses the lesson and preserves reviewed questions",
+      "pass": true
+    },
+    {
+      "name": "parent range lesson editor fits 360x800",
+      "pass": true
+    },
+    {
+      "name": "parent range lesson editor fits 412x915",
+      "pass": true
+    },
+    {
+      "name": "parent range lesson editor fits 800x1280",
+      "pass": true
+    },
+    {
+      "name": "parent range lesson editor fits 1280x800",
+      "pass": true
+    },
+    {
+      "name": "range metadata and selected source persist after reload",
+      "pass": true
+    },
+    {
+      "name": "a file read started on another chapter cannot write into the newly selected chapter",
+      "pass": true
+    },
+    {
+      "name": "no runtime errors, network upload, hosted data changes or AI calls",
+      "pass": true
+    }
+  ],
+  "page_errors": [],
+  "blocked_requests": []
+}

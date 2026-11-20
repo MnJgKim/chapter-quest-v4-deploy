@@ -1,0 +1,11 @@
+{
+  "scope": "fresh root npm installation after moving prior generated node_modules out of the checkout",
+  "npmCi": true,
+  "unitAndCurrentDbTests": true,
+  "deploymentDryRun": true,
+  "registryLockEntriesHaveResolvedIntegrityFor": [
+    "@electric-sql/pglite",
+    "supabase",
+    "wrangler"
+  ]
+}

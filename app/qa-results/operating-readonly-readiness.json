@@ -1,0 +1,32 @@
+{
+  "scope": "SELECT-only metadata; no operating login or mutation",
+  "verifiedPDF": {
+    "title": "Chapter",
+    "bytes": 29306963,
+    "mime": "application/pdf",
+    "objectExists": true,
+    "privateBucket": true,
+    "ownerIsRegisteredParent": true,
+    "published": false,
+    "assignments": 0,
+    "actualChapter1ContentReviewed": false
+  },
+  "linkedAccount": {
+    "enrollmentLinks": 1,
+    "studentAuthExists": true,
+    "studentAnonymous": true,
+    "studentHasEmail": false,
+    "studentHasPhone": false,
+    "parentAuthExists": true,
+    "parentIsRegisteredAdmin": true,
+    "parentHasConfirmedEmail": true,
+    "parentOwnsVerifiedPDF": true,
+    "serverStudentNameSeowooMatches": 0,
+    "approvedSeowooInviteMatches": 0,
+    "confirmedAsSeowoo": false
+  },
+  "productionWrites": false,
+  "operatingAccountsUsedForAuth": false,
+  "cloudflareAuthenticationRequested": false,
+  "paidResourcesCreated": false
+}

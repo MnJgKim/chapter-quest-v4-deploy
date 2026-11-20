@@ -1,0 +1,207 @@
+name: Chapter Quest V4 isolated security preflight
+on:
+  push:
+    branches: [work/hosted-readonly-preflight-20261117]
+    paths:
+      - '.github/workflows/chapter-quest-v4-isolated-preflight.yml'
+      - 'app/tests/**'
+      - 'review/sql-candidates/recurring-publication.ISOLATED-TEST.sql'
+      - 'review/sql-candidates/recurring-pause.ISOLATED-TEST.sql'
+      - 'review/sql-candidates/student-display-names.ISOLATED-TEST.sql'
+      - 'review/recurring-publication-concurrency.sh'
+      - 'app/public/index.html'
+      - 'app/public/js/student-app.js'
+      - 'app/public/js/parent-app.js'
+      - 'app/public/js/student-api.js'
+      - 'app/public/js/pdf-transport.js'
+      - 'app/sql/**'
+      - 'review/student-release-entrypoint.test.mjs'
+      - 'review/sql-candidates/seojin-seven-lessons.ISOLATED-TEST.sql'
+      - 'review/sql-candidates/cq_v4_my_lesson_schedule_release_guard.sql'
+      - 'review/sql-candidates/cq_v4_parent_reread_notices.REVIEW-ONLY.sql'
+      - 'review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql'
+      - 'review/sql-candidates/cq_v4_parent_reread_frozen_snapshot.REVIEW-ONLY.sql'
+      - 'review/sql-candidates/cq_v4_submit_with_frozen_snapshot.REVIEW-ONLY.sql'
+      - 'app/supabase/functions/cq-v4-pdf-link/index.ts'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  static-and-postgres-availability:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: cq_v4_isolated
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: isolated-test-only
+      PGDATABASE: cq_v4_isolated
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Run original repository Node tests
+        run: node --test app/tests/lesson-day-authorization-static.test.mjs
+      - name: Verify newly added submit/makeup lock ordering
+        run: node --test app/tests/makeup-submission-lock.test.mjs
+      - name: Reject malformed SQL dollar quotes before PostgreSQL
+        run: node --test app/tests/sql-dollar-quote-static.test.mjs
+      - name: Verify actual student UI transport authorization sequence
+        run: node --test app/student-api.test.mjs app/student-api-safety.test.mjs app/tests/student-historical-pdf-ui.test.mjs
+      - name: Verify parent objective reread advisory without subjective scoring
+        run: node --test app/tests/parent-objective-reread.test.mjs
+      - name: Verify student reread feedback gate and missing RPC compatibility
+        run: node --check app/public/js/student-api.js && node --check app/public/js/student-app.js && node --test app/tests/student-reread-feedback-ui.test.mjs app/tests/student-legacy-scheduler-fallback.test.mjs app/tests/student-seoul-date-boundary.test.mjs app/tests/student-weekly-submission-history.test.mjs app/tests/student-submitted-pdf-retry.test.mjs
+      - name: Verify parent reread inbox UI and fail-closed RPC handling
+        run: node --check app/public/js/parent-app.js && node --test app/tests/parent-reread-inbox-ui.test.mjs
+      - name: Verify student authorized lesson gateway and PDF signer client
+        run: node --test app/tests/student-approved-lessons.test.mjs
+      - name: Verify PDF signer authorization before service-role signing
+        run: node --test app/tests/pdf-signer-approved-gate-static.test.mjs
+      - name: Check parallel regression shell syntax before database execution
+        run: bash -n app/tests/isolated-atomic-scheduler-concurrency.sh app/tests/isolated-atomic-submit-concurrency.sh
+      - name: Confirm isolated PostgreSQL 16 (no Supabase credentials)
+        run: |
+          psql -v ON_ERROR_STOP=1 -c 'SELECT current_database(), current_user, version();'
+          psql -v ON_ERROR_STOP=1 -c "SELECT count(*) AS production_tables_expected_zero FROM pg_catalog.pg_tables WHERE schemaname = 'public';"
+      - name: Execute security SQL against isolated PostgreSQL only
+        run: |
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-bootstrap.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/lesson-day-authorization-v2.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/lesson-day-rpc-storage-v3.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/makeup-approval-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-security.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-authenticated.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-makeup-audit.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-seoul-boundary.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/student-weekday-policy-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/student-weekday-next-date-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-weekday-policy.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/approved-chapter-queue-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-approved-chapter-queue.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/weekday-approved-candidate-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-weekday-approved-candidate.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/approved-weekday-release-gate-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-approved-weekday-release-gate.sql
+          psql -v ON_ERROR_STOP=1 -f app/sql/atomic-weekday-lesson-scheduler-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-atomic-weekday-scheduler.sql
+      - name: Verify concurrent student/day scheduler transactions in isolated PostgreSQL
+        run: bash app/tests/isolated-atomic-scheduler-concurrency.sh
+      - name: Verify approved release overlay against isolated PostgreSQL
+        run: |
+          psql -v ON_ERROR_STOP=1 -f app/sql/approved-release-rpc-storage-overlay-v1.REVIEW-ONLY.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-approved-release-rpc-storage.sql
+      - name: Verify atomic submission and immutable snapshot against isolated PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-atomic-submission-snapshot.sql
+      - name: Verify weekly schedule release RPC against isolated PostgreSQL
+        run: |
+          psql -v ON_ERROR_STOP=1 -f review/sql-candidates/cq_v4_my_lesson_schedule_release_guard.sql
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-weekly-schedule-release.sql
+      - name: Verify immutable submission-time grading snapshot candidate in isolated PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-immutable-grading-snapshot.sql
+      - name: Verify frozen reread scoring survives republish and enforces parent-only access
+        run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-frozen-reread-grading.sql
+      - name: Verify parent reread RPC compiles and rejects anonymous in isolated PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-parent-reread-notices.sql
+      - name: Verify two concurrent parent notice RPC transactions in isolated PostgreSQL
+        run: bash app/tests/isolated-parent-reread-concurrency.sh
+      - name: Verify two concurrent atomic submissions preserve one frozen answer
+        run: bash app/tests/isolated-atomic-submit-concurrency.sh
+      - name: Verify student automatic release with the hosted date gate
+        run: |
+          node --test app/tests/student-auto-release-static.test.mjs
+          bash app/tests/isolated-student-release-write-lock.sh
+          psql -v ON_ERROR_STOP=1 -f app/tests/isolated-student-auto-release.sql
+          psql -v ON_ERROR_STOP=1 -f app/server-review/release-auth-candidate.sql
+          bash app/tests/isolated-student-auto-release-concurrency.sh
+      - name: Publish isolated PostgreSQL verification summary
+        if: success()
+        run: |
+          {
+            echo '## Chapter Quest V4 isolated PostgreSQL 16'
+            echo 'Result: all preceding isolated SQL and parallel regression steps exited successfully.'
+            echo 'Verified markers are emitted by their respective psql/bash test steps.'
+            echo 'This is not verification of production Supabase, Cloudflare, or student devices.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Publish isolated PostgreSQL failure summary
+        if: failure()
+        run: |
+          {
+            echo '## Chapter Quest V4 isolated PostgreSQL 16'
+            echo 'Result: one or more prior steps failed. Do not treat assertion markers as passed.'
+            echo 'Open the first failed step in this workflow run to obtain the PostgreSQL error and exit code.'
+            echo 'No production Supabase or Cloudflare service was used by this workflow.'
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Record remaining SQL integration prerequisites
+        run: |
+          echo 'Isolated bootstrap and SQL assertions ran; real Supabase Auth/Storage, JWT issuance, Edge signing and production concurrency remain unverified.'
+          echo 'Never point this workflow at production Supabase.'
+  first-lesson-release:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: cq_v4_first_lesson_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: isolated-test-only
+      PGDATABASE: cq_v4_first_lesson_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Verify the versioned student entry point
+        run: node --test review/student-release-entrypoint.test.mjs
+      - name: Verify first lesson midnight in a fresh PostgreSQL cluster
+        run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/seojin-seven-lessons.ISOLATED-TEST.sql
+      - name: Verify display names and targeted rollback
+        run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/student-display-names.ISOLATED-TEST.sql
+
+  recurring-approved-publication:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: cq_v4_recurring_test
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      PGHOST: localhost
+      PGUSER: postgres
+      PGPASSWORD: isolated-test-only
+      PGDATABASE: cq_v4_recurring_test
+    steps:
+      - uses: actions/checkout@v4
+      - run: node --check app/public/js/parent-app.js
+      - run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/recurring-publication.ISOLATED-TEST.sql
+      - run: bash review/recurring-publication-concurrency.sh
+      - run: psql -v ON_ERROR_STOP=1 -f review/sql-candidates/recurring-pause.ISOLATED-TEST.sql

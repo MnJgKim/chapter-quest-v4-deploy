@@ -1,0 +1,485 @@
+{
+  "buckets": [
+    {
+      "id": "cq-v4-originals",
+      "public": false,
+      "file_size_limit": 52428800,
+      "allowed_mime_types": [
+        "application/pdf"
+      ]
+    },
+    {
+      "id": "cq-v4-speaking",
+      "public": false,
+      "file_size_limit": 10485760,
+      "allowed_mime_types": [
+        "audio/webm",
+        "audio/mp4",
+        "audio/ogg",
+        "video/webm",
+        "video/mp4",
+        "application/ogg"
+      ]
+    }
+  ],
+  "policies": [
+    {
+      "cmd": "SELECT",
+      "qual": "(user_id = ( SELECT auth.uid() AS uid))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_admins",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_admins_select_self",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "( SELECT cq_is_admin() AS cq_is_admin)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_students",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_students_admin_all",
+      "schemaname": "public",
+      "with_check": "( SELECT cq_is_admin() AS cq_is_admin)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "cq_is_student(id)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_students",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_students_student_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "( SELECT cq_is_admin() AS cq_is_admin)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_student_devices",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_devices_admin_all",
+      "schemaname": "public",
+      "with_check": "( SELECT cq_is_admin() AS cq_is_admin)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((auth_user_id = ( SELECT auth.uid() AS uid)) AND (revoked_at IS NULL))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_student_devices",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_devices_student_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "( SELECT cq_is_admin() AS cq_is_admin)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_books",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_books_admin_all",
+      "schemaname": "public",
+      "with_check": "( SELECT cq_is_admin() AS cq_is_admin)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(EXISTS ( SELECT 1\n   FROM (cq_chapters c\n     JOIN cq_assignments a ON ((a.chapter_id = c.id)))\n  WHERE ((c.book_id = cq_books.id) AND cq_is_student(a.student_id))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_books",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_books_student_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "( SELECT cq_is_admin() AS cq_is_admin)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_chapters",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_chapters_admin_all",
+      "schemaname": "public",
+      "with_check": "( SELECT cq_is_admin() AS cq_is_admin)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(EXISTS ( SELECT 1\n   FROM cq_assignments a\n  WHERE ((a.chapter_id = cq_chapters.id) AND cq_is_student(a.student_id))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_chapters",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_chapters_student_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "( SELECT cq_is_admin() AS cq_is_admin)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_assignments",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_assignments_admin_all",
+      "schemaname": "public",
+      "with_check": "( SELECT cq_is_admin() AS cq_is_admin)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "cq_is_student(student_id)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_assignments",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_assignments_student_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "( SELECT cq_is_admin() AS cq_is_admin)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_submissions",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_submissions_admin_all",
+      "schemaname": "public",
+      "with_check": "( SELECT cq_is_admin() AS cq_is_admin)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(EXISTS ( SELECT 1\n   FROM cq_assignments a\n  WHERE ((a.id = cq_submissions.assignment_id) AND cq_is_student(a.student_id))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_submissions",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_submissions_student_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "ALL",
+      "qual": "( SELECT cq_is_admin() AS cq_is_admin)",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_feedback",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_feedback_admin_all",
+      "schemaname": "public",
+      "with_check": "( SELECT cq_is_admin() AS cq_is_admin)"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(EXISTS ( SELECT 1\n   FROM (cq_submissions s\n     JOIN cq_assignments a ON ((a.id = s.assignment_id)))\n  WHERE ((s.id = cq_feedback.submission_id) AND (s.submitted IS TRUE) AND cq_is_student(a.student_id))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_feedback",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_feedback_student_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_submissions",
+      "permissive": "PERMISSIVE",
+      "policyname": " cq_submissions_student_insert",
+      "schemaname": "public",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM cq_assignments a\n  WHERE ((a.id = cq_submissions.assignment_id) AND cq_is_student(a.student_id))))"
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "(EXISTS ( SELECT 1\n   FROM cq_assignments a\n  WHERE ((a.id = cq_submissions.assignment_id) AND cq_is_student(a.student_id))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_submissions",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_submissions_student_update",
+      "schemaname": "public",
+      "with_check": "(EXISTS ( SELECT 1\n   FROM cq_assignments a\n  WHERE ((a.id = cq_submissions.assignment_id) AND cq_is_student(a.student_id))))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(owner_id = ( SELECT auth.uid() AS uid))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_v4_snapshots",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_v4_snapshots_select",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_v4_snapshots",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_v4_snapshots_insert",
+      "schemaname": "public",
+      "with_check": "(owner_id = ( SELECT auth.uid() AS uid))"
+    },
+    {
+      "cmd": "UPDATE",
+      "qual": "(owner_id = ( SELECT auth.uid() AS uid))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_v4_snapshots",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_v4_snapshots_update",
+      "schemaname": "public",
+      "with_check": "(owner_id = ( SELECT auth.uid() AS uid))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((parent_user_id = ( SELECT auth.uid() AS uid)) OR (student_user_id = ( SELECT auth.uid() AS uid)))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_v4_pdf_enrollments",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_v4_enroll_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(parent_user_id = ( SELECT auth.uid() AS uid))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_v4_pdf_chapters",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_v4_chapter_parent_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((EXISTS ( SELECT 1\n   FROM cq_v4_pdf_assignments a\n  WHERE ((a.chapter_id = cq_v4_pdf_chapters.chapter_id) AND (a.student_user_id = ( SELECT auth.uid() AS uid))))) AND (EXISTS ( SELECT 1\n   FROM cq_v4_pdf_enrollments e\n  WHERE ((e.parent_user_id = cq_v4_pdf_chapters.parent_user_id) AND (e.student_user_id = ( SELECT auth.uid() AS uid))))) AND (pdf_ready = true))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_v4_pdf_chapters",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_v4_chapter_student_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "(student_user_id = ( SELECT auth.uid() AS uid))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "cq_v4_pdf_assignments",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_v4_assignment_student_read",
+      "schemaname": "public",
+      "with_check": null
+    },
+    {
+      "cmd": "INSERT",
+      "qual": null,
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_v4_speaking_insert_assigned_v1",
+      "schemaname": "storage",
+      "with_check": "((bucket_id = 'cq-v4-speaking'::text) AND (name ~ (('^'::text || (( SELECT auth.uid() AS uid))::text) || '/[0-9a-f-]{36}\\.(webm|mp4|ogg)$'::text)) AND (EXISTS ( SELECT 1\n   FROM ((cq_v4_pdf_chapters c\n     JOIN cq_v4_pdf_assignments a ON ((a.chapter_id = c.chapter_id)))\n     JOIN cq_v4_pdf_enrollments e ON (((e.parent_user_id = c.parent_user_id) AND (e.student_user_id = a.student_user_id))))\n  WHERE ((a.student_user_id = ( SELECT auth.uid() AS uid)) AND (c.pdf_ready IS TRUE) AND (((objects.name = ((((( SELECT auth.uid() AS uid))::text || '/'::text) || (c.chapter_id)::text) || '.webm'::text)) OR (objects.name = ((((( SELECT auth.uid() AS uid))::text || '/'::text) || (c.chapter_id)::text) || '.mp4'::text))) OR (objects.name = ((((( SELECT auth.uid() AS uid))::text || '/'::text) || (c.chapter_id)::text) || '.ogg'::text)))))))"
+    },
+    {
+      "cmd": "SELECT",
+      "qual": "((bucket_id = 'cq-v4-speaking'::text) AND (EXISTS ( SELECT 1\n   FROM ((cq_v4_pdf_chapters c\n     JOIN cq_v4_pdf_assignments a ON ((a.chapter_id = c.chapter_id)))\n     JOIN cq_v4_pdf_enrollments e ON (((e.parent_user_id = c.parent_user_id) AND (e.student_user_id = a.student_user_id))))\n  WHERE ((((objects.name = ((((a.student_user_id)::text || '/'::text) || (c.chapter_id)::text) || '.webm'::text)) OR (objects.name = ((((a.student_user_id)::text || '/'::text) || (c.chapter_id)::text) || '.mp4'::text))) OR (objects.name = ((((a.student_user_id)::text || '/'::text) || (c.chapter_id)::text) || '.ogg'::text))) AND ((a.student_user_id = ( SELECT auth.uid() AS uid)) OR (c.parent_user_id = ( SELECT auth.uid() AS uid)))))))",
+      "roles": [
+        "authenticated"
+      ],
+      "tablename": "objects",
+      "permissive": "PERMISSIVE",
+      "policyname": "cq_v4_speaking_read_assigned_v1",
+      "schemaname": "storage",
+      "with_check": null
+    }
+  ],
+  "functions": [
+    {
+      "args": "",
+      "name": "cq_is_admin",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_is_admin()\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  SELECT EXISTS (\n    SELECT 1\n    FROM public.cq_admins a\n    WHERE a.user_id = (SELECT auth.uid())\n  );\n$function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_chapter uuid, p_student uuid",
+      "name": "cq_v4_can_read_assignment",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_can_read_assignment(p_chapter uuid, p_student uuid)\n RETURNS boolean\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  select p_student = (select auth.uid()) and exists (\n    select 1 from public.cq_v4_pdf_chapters c\n    join public.cq_v4_pdf_enrollments e\n      on e.parent_user_id = c.parent_user_id\n     and e.student_user_id = p_student\n    where c.chapter_id = p_chapter and c.pdf_ready = true\n  );\n$function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "",
+      "name": "cq_v4_sync_legacy_device",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_sync_legacy_device()\n RETURNS trigger\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\ndeclare v_old_parent uuid;\nbegin\n  if TG_OP = 'DELETE' then\n    delete from public.cq_v4_pdf_enrollments\n    where student_user_id = OLD.auth_user_id;\n    return OLD;\n  end if;\n  -- Revoke old mapping whenever the device's identity, approval or status changes.\n  delete from public.cq_v4_pdf_enrollments\n  where student_user_id = NEW.auth_user_id;\n  if TG_OP = 'UPDATE' and OLD.auth_user_id is distinct from NEW.auth_user_id then\n    delete from public.cq_v4_pdf_enrollments\n    where student_user_id = OLD.auth_user_id;\n  end if;\n  if NEW.revoked_at is null and exists (\n    select 1 from public.cq_admins a where a.user_id = NEW.approved_by\n  ) and NEW.approved_by <> NEW.auth_user_id then\n    insert into public.cq_v4_pdf_enrollments(parent_user_id, student_user_id)\n    values (NEW.approved_by, NEW.auth_user_id)\n    on conflict (parent_user_id, student_user_id) do nothing;\n  end if;\n  return NEW;\nend;\n$function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": false
+    },
+    {
+      "args": "p_chapter_uuid uuid",
+      "name": "cq_v4_my_chapter_activities",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_my_chapter_activities(p_chapter_uuid uuid)\n RETURNS TABLE(vocabulary jsonb, writing_prompt text, speaking_prompt text)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n SELECT act.vocabulary,act.writing_prompt,act.speaking_prompt\n FROM public.cq_v4_activities act\n JOIN public.cq_v4_pdf_chapters c ON c.chapter_id=act.chapter_uuid\n JOIN public.cq_v4_pdf_assignments a ON a.chapter_id=c.chapter_id\n JOIN public.cq_v4_pdf_enrollments e ON e.parent_user_id=c.parent_user_id AND e.student_user_id=a.student_user_id\n WHERE act.chapter_uuid=p_chapter_uuid AND a.student_user_id=(SELECT auth.uid())\n   AND act.published_at IS NOT NULL AND c.pdf_ready IS TRUE;\n$function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_chapter_uuid uuid",
+      "name": "cq_v4_my_submission",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_my_submission(p_chapter_uuid uuid)\n RETURNS TABLE(chapter_uuid uuid, submitted_at timestamp with time zone, feedback text, feedback_released boolean)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n SELECT s.chapter_uuid,s.submitted_at,\n   CASE WHEN s.feedback_released THEN s.feedback ELSE NULL END,\n   s.feedback_released\n FROM public.cq_v4_student_submissions s\n JOIN public.cq_v4_pdf_chapters c ON c.chapter_id=s.chapter_uuid\n JOIN public.cq_v4_pdf_assignments a ON a.chapter_id=c.chapter_id AND a.student_user_id=s.child_user_id\n JOIN public.cq_v4_pdf_enrollments e ON e.parent_user_id=c.parent_user_id AND e.student_user_id=s.child_user_id\n WHERE s.chapter_uuid=p_chapter_uuid AND s.child_user_id=(SELECT auth.uid());\n$function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "",
+      "name": "cq_v4_my_chapters",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_my_chapters()\n RETURNS TABLE(chapter_uuid uuid, chapter_title text, questions jsonb)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n SELECT c.chapter_id, c.title, act.questions\n FROM public.cq_v4_pdf_chapters c\n JOIN public.cq_v4_pdf_assignments a ON a.chapter_id=c.chapter_id\n JOIN public.cq_v4_pdf_enrollments e ON e.parent_user_id=c.parent_user_id AND e.student_user_id=a.student_user_id\n JOIN public.cq_v4_activities act ON act.chapter_uuid=c.chapter_id AND act.published_at IS NOT NULL\n WHERE a.student_user_id=(SELECT auth.uid()) AND c.pdf_ready IS TRUE\n ORDER BY c.created_at,c.chapter_id;\n$function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_chapter_uuid uuid, p_answers jsonb",
+      "name": "cq_v4_submit_answers",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_submit_answers(p_chapter_uuid uuid, p_answers jsonb)\n RETURNS TABLE(chapter_uuid uuid, submitted_at timestamp with time zone)\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE v_uid uuid := auth.uid();\nBEGIN\n IF v_uid IS NULL THEN RAISE EXCEPTION 'Login required' USING ERRCODE='28000'; END IF;\n IF p_answers IS NULL OR jsonb_typeof(p_answers)<>'object' OR pg_catalog.octet_length(p_answers::text)>65536 THEN\n   RAISE EXCEPTION 'Invalid answers' USING ERRCODE='22023'; END IF;\n -- Enforce the exact client payload contract; never trust hasAudio alone.\n IF p_answers->>'readComplete' IS DISTINCT FROM 'true'\n    OR jsonb_typeof(p_answers->'answers') IS DISTINCT FROM 'array'\n    OR jsonb_array_length(p_answers->'answers')=0\n    OR pg_catalog.length(pg_catalog.btrim(COALESCE(p_answers->>'essay','')))=0\n    OR pg_catalog.length(pg_catalog.btrim(COALESCE(p_answers->>'speaking','')))=0\n    OR p_answers->>'hasAudio' IS DISTINCT FROM 'true' THEN\n   RAISE EXCEPTION 'Incomplete submission' USING ERRCODE='22023';\n END IF;\n -- Authorize the assigned, published chapter before any privileged storage lookup.\n IF NOT EXISTS (\n  SELECT 1 FROM public.cq_v4_pdf_chapters c\n  JOIN public.cq_v4_pdf_assignments a ON a.chapter_id=c.chapter_id\n  JOIN public.cq_v4_pdf_enrollments e ON e.parent_user_id=c.parent_user_id AND e.student_user_id=a.student_user_id\n  JOIN public.cq_v4_activities act ON act.chapter_uuid=c.chapter_id AND act.published_at IS NOT NULL\n  WHERE c.chapter_id=p_chapter_uuid AND a.student_user_id=v_uid AND c.pdf_ready IS TRUE\n ) THEN RAISE EXCEPTION 'Assignment unavailable' USING ERRCODE='42501'; END IF;\n -- Only an authorized student may probe the recording for this chapter.\n IF NOT EXISTS (\n    SELECT 1 FROM storage.objects o\n    WHERE o.bucket_id='cq-v4-speaking'\n      AND o.name IN (\n        v_uid::text || '/' || p_chapter_uuid::text || '.webm',\n        v_uid::text || '/' || p_chapter_uuid::text || '.mp4',\n        v_uid::text || '/' || p_chapter_uuid::text || '.ogg'\n      )\n ) THEN\n    RAISE EXCEPTION 'Speaking recording not uploaded' USING ERRCODE='22023';\n END IF;\n INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers)\n VALUES(p_chapter_uuid,v_uid,p_answers)\n ON CONFLICT DO NOTHING;\n -- Existing submission is immutable. The caller can fetch the authoritative record.\n RETURN QUERY SELECT s.chapter_uuid,s.submitted_at FROM public.cq_v4_student_submissions s\n WHERE s.chapter_uuid=p_chapter_uuid AND s.child_user_id=v_uid;\nEND; $function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_request_key uuid, p_book_id text, p_chapter_id text, p_title text, p_source text, p_questions jsonb, p_answer_key jsonb, p_vocabulary jsonb, p_writing_prompt text, p_speaking_prompt text",
+      "name": "cq_v4_register_approval_once",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_register_approval_once(p_request_key uuid, p_book_id text, p_chapter_id text, p_title text, p_source text, p_questions jsonb, p_answer_key jsonb, p_vocabulary jsonb, p_writing_prompt text, p_speaking_prompt text)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE v_uid uuid := auth.uid(); v_hash text; v_id uuid; v_saved_hash text;\nBEGIN\n IF NOT public.cq_is_admin() THEN RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501'; END IF;\n IF v_uid IS NULL THEN RAISE EXCEPTION 'Login required' USING ERRCODE='28000'; END IF;\n IF p_request_key IS NULL OR pg_catalog.length(pg_catalog.btrim(coalesce(p_title,'')))=0\n OR pg_catalog.length(p_title)>200 OR pg_catalog.length(pg_catalog.btrim(coalesce(p_source,'')))=0\n OR p_questions IS NULL OR jsonb_typeof(p_questions)<>'array' OR jsonb_array_length(p_questions)=0\n OR p_answer_key IS NULL OR jsonb_typeof(p_answer_key)<>'array'\n OR jsonb_array_length(p_questions)<>jsonb_array_length(p_answer_key)\n OR p_vocabulary IS NULL OR jsonb_typeof(p_vocabulary)<>'array'\n OR p_book_id IS NULL OR p_chapter_id IS NULL\n OR pg_catalog.octet_length(p_source)>1048576 THEN\n RAISE EXCEPTION 'Invalid publication payload' USING ERRCODE='22023'; END IF;\n v_hash:=pg_catalog.md5(pg_catalog.jsonb_build_array(p_book_id,p_chapter_id,p_title,p_source,p_questions,p_answer_key,p_vocabulary,p_writing_prompt,p_speaking_prompt)::text);\n INSERT INTO public.cq_v4_approval_requests(parent_user_id,request_key,book_local_id,chapter_local_id,title,source_text,questions,answer_key,vocabulary,writing_prompt,speaking_prompt,content_hash)\n VALUES(v_uid,p_request_key,p_book_id,p_chapter_id,p_title,p_source,p_questions,p_answer_key,p_vocabulary,coalesce(p_writing_prompt,''),coalesce(p_speaking_prompt,''),v_hash)\n ON CONFLICT(parent_user_id,request_key) DO NOTHING;\n SELECT id,content_hash INTO v_id,v_saved_hash FROM public.cq_v4_approval_requests\n WHERE parent_user_id=v_uid AND request_key=p_request_key;\n IF v_saved_hash IS DISTINCT FROM v_hash THEN\n RAISE EXCEPTION 'Approval request key reused for different content' USING ERRCODE='23505'; END IF;\n RETURN v_id;\nEND $function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_approval_id uuid, p_chapter_uuid uuid",
+      "name": "cq_v4_bind_verified_pdf",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_bind_verified_pdf(p_approval_id uuid, p_chapter_uuid uuid)\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE v_uid uuid := auth.uid(); v_existing uuid;\nBEGIN\n IF NOT public.cq_is_admin() THEN RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501'; END IF;\n IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE='28000'; END IF;\n IF p_approval_id IS NULL OR p_chapter_uuid IS NULL THEN RAISE EXCEPTION 'Missing identifier' USING ERRCODE='22023'; END IF;\n IF NOT EXISTS (SELECT 1 FROM public.cq_v4_pdf_chapters c WHERE c.chapter_id=p_chapter_uuid\n     AND c.parent_user_id=v_uid AND c.pdf_ready IS TRUE AND c.pdf_verified_at IS NOT NULL\n     AND NULLIF(pg_catalog.btrim(c.storage_path),'') IS NOT NULL)\n THEN RAISE EXCEPTION 'Verified owned PDF required' USING ERRCODE='42501'; END IF;\n SELECT chapter_uuid INTO v_existing FROM public.cq_v4_approval_requests\n WHERE id=p_approval_id AND parent_user_id=v_uid FOR UPDATE;\n IF NOT FOUND THEN RAISE EXCEPTION 'Approval not owned' USING ERRCODE='42501'; END IF;\n IF v_existing IS NOT NULL AND v_existing<>p_chapter_uuid\n THEN RAISE EXCEPTION 'Approval already bound to another chapter' USING ERRCODE='23505'; END IF;\n IF EXISTS (SELECT 1 FROM public.cq_v4_approval_requests r WHERE r.chapter_uuid=p_chapter_uuid AND r.id<>p_approval_id)\n THEN RAISE EXCEPTION 'Chapter already bound to another approval' USING ERRCODE='23505'; END IF;\n UPDATE public.cq_v4_approval_requests SET chapter_uuid=p_chapter_uuid\n WHERE id=p_approval_id AND parent_user_id=v_uid;\n RETURN p_chapter_uuid;\nEND $function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_approval_id uuid, p_children uuid[]",
+      "name": "cq_v4_publish_approved",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_publish_approved(p_approval_id uuid, p_children uuid[])\n RETURNS uuid\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE v_uid uuid:=auth.uid(); v_r public.cq_v4_approval_requests%ROWTYPE;\n        v_chapter public.cq_v4_pdf_chapters%ROWTYPE; v_current public.cq_v4_activities%ROWTYPE; v_activity_found boolean:=false;\nBEGIN\n IF NOT public.cq_is_admin() THEN RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501'; END IF;\n IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE='28000'; END IF;\n IF p_approval_id IS NULL OR p_children IS NULL OR pg_catalog.cardinality(p_children) NOT BETWEEN 1 AND 30\n OR EXISTS(SELECT 1 FROM pg_catalog.unnest(p_children) AS x(uid) WHERE x.uid IS NULL)\n OR (SELECT pg_catalog.count(DISTINCT uid) FROM pg_catalog.unnest(p_children) AS x(uid))<>pg_catalog.cardinality(p_children)\n THEN RAISE EXCEPTION 'Invalid child list' USING ERRCODE='22023'; END IF;\n SELECT * INTO v_r FROM public.cq_v4_approval_requests\n WHERE id=p_approval_id AND parent_user_id=v_uid FOR UPDATE;\n IF NOT FOUND OR v_r.chapter_uuid IS NULL THEN RAISE EXCEPTION 'Approval and PDF binding required' USING ERRCODE='42501'; END IF;\n SELECT * INTO v_chapter FROM public.cq_v4_pdf_chapters\n WHERE chapter_id=v_r.chapter_uuid AND parent_user_id=v_uid AND pdf_ready IS TRUE\n AND pdf_verified_at IS NOT NULL AND NULLIF(pg_catalog.btrim(storage_path),'') IS NOT NULL;\n IF NOT FOUND THEN RAISE EXCEPTION 'Verified PDF missing' USING ERRCODE='42501'; END IF;\n IF EXISTS(SELECT 1 FROM pg_catalog.unnest(p_children) AS x(uid) WHERE NOT EXISTS(\n SELECT 1 FROM public.cq_v4_pdf_enrollments e WHERE e.parent_user_id=v_uid AND e.student_user_id=x.uid))\n THEN RAISE EXCEPTION 'Student enrollment missing' USING ERRCODE='42501'; END IF;\n SELECT * INTO v_current FROM public.cq_v4_activities WHERE chapter_uuid=v_r.chapter_uuid FOR UPDATE;\n v_activity_found:=FOUND;\n IF v_activity_found AND v_current.published_at IS NOT NULL AND\n (v_current.approval_id IS DISTINCT FROM p_approval_id OR v_current.approval_hash IS DISTINCT FROM v_r.content_hash)\n THEN RAISE EXCEPTION 'Published content is immutable' USING ERRCODE='23505'; END IF;\n IF EXISTS(SELECT 1 FROM public.cq_v4_student_submissions s WHERE s.chapter_uuid=v_r.chapter_uuid)\n AND (NOT v_activity_found OR v_current.approval_hash IS DISTINCT FROM v_r.content_hash)\n THEN RAISE EXCEPTION 'Cannot change content after submissions' USING ERRCODE='23505'; END IF;\n INSERT INTO public.cq_v4_activities(chapter_uuid,questions,vocabulary,writing_prompt,speaking_prompt,published_at,approval_id,approval_hash)\n VALUES(v_r.chapter_uuid,v_r.questions,v_r.vocabulary,v_r.writing_prompt,v_r.speaking_prompt,now(),p_approval_id,v_r.content_hash)\n ON CONFLICT(chapter_uuid) DO UPDATE SET\n questions=EXCLUDED.questions,vocabulary=EXCLUDED.vocabulary,\n writing_prompt=EXCLUDED.writing_prompt,speaking_prompt=EXCLUDED.speaking_prompt,\n published_at=COALESCE(public.cq_v4_activities.published_at,EXCLUDED.published_at),\n approval_id=EXCLUDED.approval_id,approval_hash=EXCLUDED.approval_hash;\n INSERT INTO public.cq_v4_pdf_assignments(chapter_id,student_user_id)\n SELECT v_r.chapter_uuid, x.uid FROM pg_catalog.unnest(p_children) AS x(uid)\n ON CONFLICT DO NOTHING;\n RETURN v_r.chapter_uuid;\nEND $function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_approval_id uuid, p_children uuid[]",
+      "name": "cq_v4_publication_status",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_publication_status(p_approval_id uuid, p_children uuid[])\n RETURNS jsonb\n LANGUAGE plpgsql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE v_uid uuid:=auth.uid(); v_chapter uuid; v_match boolean:=false; v_missing uuid[];\nBEGIN\n IF NOT public.cq_is_admin() THEN RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501'; END IF;\n IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE='28000'; END IF;\n IF p_approval_id IS NULL OR p_children IS NULL OR pg_catalog.cardinality(p_children) NOT BETWEEN 1 AND 30\n OR EXISTS(SELECT 1 FROM pg_catalog.unnest(p_children) AS x(uid) WHERE x.uid IS NULL)\n OR (SELECT pg_catalog.count(DISTINCT uid) FROM pg_catalog.unnest(p_children) AS x(uid))<>pg_catalog.cardinality(p_children)\n THEN RAISE EXCEPTION 'Invalid child list' USING ERRCODE='22023'; END IF;\n SELECT r.chapter_uuid INTO v_chapter FROM public.cq_v4_approval_requests r\n JOIN public.cq_v4_pdf_chapters c ON c.chapter_id=r.chapter_uuid\n JOIN public.cq_v4_activities a ON a.chapter_uuid=c.chapter_id\n WHERE r.id=p_approval_id AND r.parent_user_id=v_uid AND c.parent_user_id=v_uid\n AND c.pdf_ready IS TRUE AND c.pdf_verified_at IS NOT NULL\n AND a.published_at IS NOT NULL AND a.approval_id=r.id AND a.approval_hash=r.content_hash\n AND a.questions=r.questions AND a.vocabulary=r.vocabulary\n AND a.writing_prompt=r.writing_prompt AND a.speaking_prompt=r.speaking_prompt;\n v_match:=FOUND;\n SELECT pg_catalog.array_agg(x.uid ORDER BY x.uid) INTO v_missing\n FROM pg_catalog.unnest(p_children) AS x(uid)\n WHERE NOT v_match OR NOT EXISTS (\n SELECT 1 FROM public.cq_v4_pdf_assignments a\n JOIN public.cq_v4_pdf_enrollments e ON e.student_user_id=a.student_user_id\n WHERE a.chapter_id=v_chapter AND a.student_user_id=x.uid AND e.parent_user_id=v_uid);\n RETURN pg_catalog.jsonb_build_object('content_matches',v_match,'all_assigned',v_missing IS NULL,\n 'missing_children',COALESCE(pg_catalog.to_jsonb(v_missing),'[]'::jsonb),'chapter_uuid',v_chapter);\nEND $function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "",
+      "name": "cq_v4_parent_submissions",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_parent_submissions()\n RETURNS TABLE(child_user_id uuid, chapter_uuid uuid, student_name text, chapter_title text, submitted_at timestamp with time zone, answers jsonb, feedback text, feedback_released boolean)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n  SELECT s.child_user_id, s.chapter_uuid,\n         COALESCE(child_name.student_name, '\uc5f0\uacb0\ub41c \ud559\uc0dd')::text AS student_name,\n         c.title AS chapter_title,\n         s.submitted_at, s.answers, s.feedback, s.feedback_released\n  FROM public.cq_v4_student_submissions s\n  JOIN public.cq_v4_pdf_chapters c ON c.chapter_id=s.chapter_uuid\n  JOIN public.cq_v4_pdf_assignments a\n    ON a.chapter_id=s.chapter_uuid AND a.student_user_id=s.child_user_id\n  JOIN public.cq_v4_pdf_enrollments e\n    ON e.parent_user_id=c.parent_user_id AND e.student_user_id=s.child_user_id\n  LEFT JOIN LATERAL (\n    SELECT i.student_name\n    FROM public.cq_v4_invites i\n    WHERE i.parent_user_id=c.parent_user_id\n      AND i.claimed_by=s.child_user_id\n      AND i.approved_at IS NOT NULL\n      AND i.revoked_at IS NULL\n      AND i.student_name IS NOT NULL\n    ORDER BY i.approved_at DESC, i.created_at DESC\n    LIMIT 1\n  ) child_name ON true\n  WHERE c.parent_user_id=(SELECT auth.uid()) AND public.cq_is_admin()\n  ORDER BY s.submitted_at DESC;\n$function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_child_user_id uuid, p_chapter_uuid uuid, p_feedback text, p_release boolean",
+      "name": "cq_v4_release_feedback",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_release_feedback(p_child_user_id uuid, p_chapter_uuid uuid, p_feedback text, p_release boolean)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE v_count integer;\nBEGIN\n IF NOT public.cq_is_admin() THEN RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501'; END IF;\n IF auth.uid() IS NULL THEN\n   RAISE EXCEPTION 'Login required' USING ERRCODE='28000';\n END IF;\n IF p_feedback IS NULL OR pg_catalog.octet_length(p_feedback)>20000 THEN\n   RAISE EXCEPTION 'Invalid feedback' USING ERRCODE='22023';\n END IF;\n IF p_release IS NULL OR (p_release AND pg_catalog.length(pg_catalog.btrim(p_feedback))=0) THEN\n   RAISE EXCEPTION 'Feedback required for release' USING ERRCODE='22023';\n END IF;\n UPDATE public.cq_v4_student_submissions s\n SET feedback=p_feedback, feedback_released=p_release\n FROM public.cq_v4_pdf_chapters c\n JOIN public.cq_v4_pdf_assignments a ON a.chapter_id=c.chapter_id\n JOIN public.cq_v4_pdf_enrollments e\n   ON e.parent_user_id=c.parent_user_id AND e.student_user_id=a.student_user_id\n WHERE s.chapter_uuid=p_chapter_uuid AND s.child_user_id=p_child_user_id\n   AND c.chapter_id=s.chapter_uuid AND c.parent_user_id=auth.uid()\n   AND a.student_user_id=s.child_user_id;\n GET DIAGNOSTICS v_count = ROW_COUNT;\n IF v_count<>1 THEN RAISE EXCEPTION 'Submission not found or access denied' USING ERRCODE='42501'; END IF;\n RETURN true;\nEND; $function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "",
+      "name": "cq_v4_issue_invite",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_issue_invite()\n RETURNS text\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE v_uid uuid:=auth.uid(); v_token text;\nBEGIN\n IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE='28000'; END IF;\n IF NOT public.cq_is_admin() THEN RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501'; END IF;\n -- Serialize concurrent issuance by this parent so the active-invitation cap is atomic.\n PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::text, 927541));\n IF (SELECT count(*) FROM public.cq_v4_invites\n     WHERE parent_user_id=v_uid AND claimed_by IS NULL AND revoked_at IS NULL AND expires_at>now()) >= 5\n THEN RAISE EXCEPTION 'Too many active invitations' USING ERRCODE='22023'; END IF;\n v_token:=pg_catalog.encode(extensions.gen_random_bytes(24),'hex');\n INSERT INTO public.cq_v4_invites(parent_user_id,token_hash,expires_at)\n VALUES(v_uid,pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(v_token,'UTF8')),'hex'),now()+interval '15 minutes');\n RETURN v_token;\nEND; $function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_token text, p_student_name text",
+      "name": "cq_v4_claim_invite",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_claim_invite(p_token text, p_student_name text)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE v_uid uuid:=auth.uid(); v_rows integer;\nBEGIN\n IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE='28000'; END IF;\n IF public.cq_is_admin() THEN RAISE EXCEPTION 'Parent accounts cannot claim invitations' USING ERRCODE='42501'; END IF;\n -- Bearer-token invitation: student role is NOT inferred from cq_is_student(student_id), which uses legacy student IDs.\n -- The requesting Auth user is not enrolled until the parent explicitly approves.\n IF p_token IS NULL OR p_token !~ '^[0-9a-f]{48}$' OR\n    p_student_name IS NULL OR length(pg_catalog.btrim(p_student_name)) NOT BETWEEN 1 AND 80\n THEN RAISE EXCEPTION 'Invalid invitation or name' USING ERRCODE='22023'; END IF;\n -- Serialize concurrent claims for this user and avoid racing on the partial unique index.\n PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::text, 927543));\n -- An enrolled child must be revoked before they can claim a fresh invitation.\n -- Avoid a unique-index error if this child already has a pending claim.\n IF EXISTS (\n   SELECT 1 FROM public.cq_v4_invites i\n   JOIN public.cq_v4_pdf_enrollments e ON e.parent_user_id=i.parent_user_id\n   WHERE i.token_hash=pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(p_token,'UTF8')),'hex')\n     AND e.student_user_id=v_uid\n ) OR EXISTS (\n   SELECT 1 FROM public.cq_v4_invites i\n   JOIN public.cq_v4_invites pending ON pending.parent_user_id=i.parent_user_id\n   WHERE i.token_hash=pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(p_token,'UTF8')),'hex')\n     AND pending.claimed_by=v_uid AND pending.approved_at IS NULL AND pending.revoked_at IS NULL\n ) THEN RETURN false; END IF;\n -- Concurrent claims for different tokens can race on the one-pending-child unique index.\n -- Catch only unique_violation locally so the RPC returns false rather than a raw DB error.\n BEGIN\n   UPDATE public.cq_v4_invites SET claimed_by=v_uid,student_name=pg_catalog.btrim(p_student_name),claimed_at=now()\n   WHERE token_hash=pg_catalog.encode(pg_catalog.sha256(pg_catalog.convert_to(p_token,'UTF8')),'hex')\n     AND claimed_by IS NULL AND revoked_at IS NULL AND expires_at>now()\n     AND parent_user_id<>v_uid;\n   GET DIAGNOSTICS v_rows=ROW_COUNT;\n EXCEPTION WHEN unique_violation THEN\n   RETURN false;\n END;\n RETURN v_rows=1;\nEND; $function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_child_user_id uuid",
+      "name": "cq_v4_approve_child",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_approve_child(p_child_user_id uuid)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE v_uid uuid:=auth.uid(); v_invite_id uuid;\nBEGIN\n IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE='28000'; END IF;\n IF NOT public.cq_is_admin() THEN RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501'; END IF;\n IF p_child_user_id IS NULL OR p_child_user_id=v_uid THEN RETURN false; END IF;\n -- Serialize concurrent approval and revocation for this exact parent/child pair.\n PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::text || ':' || p_child_user_id::text, 927542));\n SELECT invite_id INTO v_invite_id FROM public.cq_v4_invites\n WHERE parent_user_id=v_uid AND claimed_by=p_child_user_id AND claimed_at IS NOT NULL\n   AND revoked_at IS NULL AND approved_at IS NULL\n ORDER BY claimed_at DESC LIMIT 1 FOR UPDATE;\n IF v_invite_id IS NULL THEN RETURN false; END IF;\n INSERT INTO public.cq_v4_pdf_enrollments(parent_user_id,student_user_id)\n VALUES(v_uid,p_child_user_id) ON CONFLICT DO NOTHING;\n UPDATE public.cq_v4_invites SET approved_at=now(),revoked_at=NULL WHERE invite_id=v_invite_id;\n RETURN true;\nEND; $function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "p_child_user_id uuid",
+      "name": "cq_v4_revoke_child",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_revoke_child(p_child_user_id uuid)\n RETURNS boolean\n LANGUAGE plpgsql\n SECURITY DEFINER\n SET search_path TO ''\nAS $function$\nDECLARE v_uid uuid:=auth.uid(); v_count integer;\nBEGIN\n IF v_uid IS NULL THEN RAISE EXCEPTION 'Authentication required' USING ERRCODE='28000'; END IF;\n IF NOT public.cq_is_admin() THEN RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501'; END IF;\n IF p_child_user_id IS NULL OR p_child_user_id=v_uid THEN RETURN false; END IF;\n -- Serialize concurrent approval and revocation for this exact parent/child pair.\n PERFORM pg_catalog.pg_advisory_xact_lock(pg_catalog.hashtextextended(v_uid::text || ':' || p_child_user_id::text, 927542));\n -- Confirmed FK audit: enrollment references auth.users; no dependent FK targets enrollment.\n -- Revocation intentionally preserves student submissions and other learning records.\n DELETE FROM public.cq_v4_pdf_enrollments\n WHERE parent_user_id=v_uid AND student_user_id=p_child_user_id;\n GET DIAGNOSTICS v_count=ROW_COUNT;\n UPDATE public.cq_v4_invites SET revoked_at=now()\n WHERE parent_user_id=v_uid AND claimed_by=p_child_user_id AND revoked_at IS NULL;\n RETURN v_count>0;\nEND; $function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    },
+    {
+      "args": "",
+      "name": "cq_v4_list_child_access",
+      "definition": "CREATE OR REPLACE FUNCTION public.cq_v4_list_child_access()\n RETURNS TABLE(child_user_id uuid, student_name text, active boolean)\n LANGUAGE sql\n STABLE SECURITY DEFINER\n SET search_path TO ''\nAS $function$\n WITH linked AS (\n   SELECT e.student_user_id AS uid\n   FROM public.cq_v4_pdf_enrollments e\n   WHERE e.parent_user_id=(SELECT auth.uid())\n ), pending AS (\n   SELECT DISTINCT ON (i.claimed_by) i.claimed_by AS uid, i.student_name\n   FROM public.cq_v4_invites i\n   WHERE i.parent_user_id=(SELECT auth.uid()) AND i.claimed_by IS NOT NULL\n     AND i.revoked_at IS NULL AND i.approved_at IS NULL\n   ORDER BY i.claimed_by,i.claimed_at DESC NULLS LAST,i.created_at DESC\n ), names AS (\n   SELECT DISTINCT ON (i.claimed_by) i.claimed_by AS uid, i.student_name\n   FROM public.cq_v4_invites i\n   WHERE i.parent_user_id=(SELECT auth.uid()) AND i.claimed_by IS NOT NULL\n     AND i.student_name IS NOT NULL\n   ORDER BY i.claimed_by,\n     (i.approved_at IS NOT NULL) DESC,\n     i.claimed_at DESC NULLS LAST,i.created_at DESC\n )\n SELECT ids.uid AS child_user_id,\n        COALESCE(n.student_name,'\uc5f0\uacb0\ub41c \ud559\uc0dd')::text AS student_name,\n        (l.uid IS NOT NULL) AS active\n FROM (SELECT uid FROM pending UNION SELECT uid FROM linked) ids\n LEFT JOIN names n ON n.uid=ids.uid\n LEFT JOIN linked l ON l.uid=ids.uid\n WHERE public.cq_is_admin();\n$function$\n",
+      "anon_execute": false,
+      "security_definer": true,
+      "authenticated_execute": true
+    }
+  ]
+}

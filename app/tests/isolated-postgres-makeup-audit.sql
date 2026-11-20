@@ -1,0 +1,84 @@
+-- ISOLATED CI ONLY: test parent-approved makeup audit and immutable completed lessons.
+\set ON_ERROR_STOP on
+BEGIN;
+INSERT INTO public.cq_v4_pdf_chapters VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true,'Chapter 1');
+INSERT INTO public.cq_v4_pdf_enrollments VALUES('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb');
+INSERT INTO public.cq_v4_pdf_assignments VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb');
+INSERT INTO public.cq_v4_activities VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd',now(),'[]');
+INSERT INTO public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date,released_at)
+VALUES('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','dddddddd-dddd-4ddd-dddd-dddddddddddd',(now() AT TIME ZONE 'Asia/Seoul')::date-1,now());
+SET LOCAL ROLE authenticated;
+SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true);
+SELECT public.cq_v4_parent_schedule_lesson('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','dddddddd-dddd-4ddd-dddd-dddddddddddd',(now() AT TIME ZONE 'Asia/Seoul')::date);
+SET LOCAL ROLE postgres;
+DELETE FROM public.cq_v4_pdf_assignments WHERE chapter_id='dddddddd-dddd-4ddd-dddd-dddddddddddd';
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+ BEGIN
+  PERFORM public.cq_v4_parent_schedule_lesson('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','dddddddd-dddd-4ddd-dddd-dddddddddddd',(now() AT TIME ZONE 'Asia/Seoul')::date+1);
+  RAISE EXCEPTION 'Unassigned chapter schedule was allowed';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+END $$;
+SET LOCAL ROLE postgres;
+INSERT INTO public.cq_v4_pdf_assignments VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb');
+DO $$
+BEGIN
+ IF (SELECT count(*) FROM public.cq_v4_makeup_approvals)!=1 THEN RAISE EXCEPTION 'Missing or unexpected makeup audit'; END IF;
+ IF (SELECT lesson_date FROM public.cq_v4_lesson_schedule)!=(now() AT TIME ZONE 'Asia/Seoul')::date THEN RAISE EXCEPTION 'Makeup date unchanged'; END IF;
+END $$;
+-- Second approved chapter must not be manually placed on today's occupied slot.
+SET LOCAL ROLE postgres;
+INSERT INTO public.cq_v4_pdf_chapters VALUES
+ ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true,'Chapter 2');
+INSERT INTO public.cq_v4_pdf_assignments VALUES
+ ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb');
+INSERT INTO public.cq_v4_activities VALUES
+ ('eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',now(),'[]');
+SET LOCAL ROLE authenticated;
+DO $audit$
+BEGIN
+ BEGIN
+  PERFORM public.cq_v4_parent_schedule_lesson('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb',
+    'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee',(now() AT TIME ZONE 'Asia/Seoul')::date);
+  RAISE EXCEPTION 'Second chapter scheduled on occupied day';
+ EXCEPTION WHEN unique_violation THEN NULL;
+ END;
+END $audit$;
+SET LOCAL ROLE postgres;
+DO $audit$
+BEGIN
+ IF EXISTS (SELECT 1 FROM public.cq_v4_lesson_schedule
+   WHERE chapter_id='eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee') THEN
+   RAISE EXCEPTION 'Conflicting chapter schedule was persisted';
+ END IF;
+END $audit$;
+INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES('dddddddd-dddd-4ddd-dddd-dddddddddddd','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','{}');
+SET LOCAL ROLE authenticated;
+DO $$
+BEGIN
+ BEGIN
+  PERFORM public.cq_v4_parent_schedule_lesson('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','dddddddd-dddd-4ddd-dddd-dddddddddddd',(now() AT TIME ZONE 'Asia/Seoul')::date+1);
+  RAISE EXCEPTION 'Completed schedule was changed';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+
+END $$;
+SELECT set_config('request.jwt.claim.sub','cccccccc-cccc-4ccc-cccc-cccccccccccc',true);
+DO $$
+BEGIN
+ BEGIN
+  PERFORM public.cq_v4_parent_schedule_lesson('bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','dddddddd-dddd-4ddd-dddd-dddddddddddd',(now() AT TIME ZONE 'Asia/Seoul')::date+1);
+  RAISE EXCEPTION 'Unauthorized parent changed schedule';
+ EXCEPTION WHEN insufficient_privilege THEN NULL;
+ END;
+END $$;
+SET LOCAL ROLE postgres;
+DO $audit$
+BEGIN
+ IF (SELECT count(*) FROM public.cq_v4_makeup_approvals)!=1 THEN RAISE EXCEPTION 'Audit count changed after rejected requests'; END IF;
+ IF (SELECT lesson_date FROM public.cq_v4_lesson_schedule WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb')!=(now() AT TIME ZONE 'Asia/Seoul')::date THEN RAISE EXCEPTION 'Rejected request changed schedule'; END IF;
+END $audit$;
+ROLLBACK;
+\echo 'MAKEUP_AUDIT_ASSERTIONS_PASSED'

@@ -1,0 +1,125 @@
+{
+  "scope": "real local GoTrue v2.197.0, PostgreSQL 17 and PostgREST v16.5; synthetic users only; storage objects are SQL fixtures; hosted/Edge/Storage API/AI not tested",
+  "checks": [
+    {
+      "name": "three synthetic accounts sign up and log in through real local Auth",
+      "pass": true
+    },
+    {
+      "name": "wrong password is denied by real local Auth",
+      "pass": true
+    },
+    {
+      "name": "Auth verifies the issued student token",
+      "pass": true
+    },
+    {
+      "name": "parent authorization is enforced through JWT and cq_admins",
+      "pass": true
+    },
+    {
+      "name": "anonymous caller cannot list chapters",
+      "pass": true
+    },
+    {
+      "name": "student cannot issue parent invitations",
+      "pass": true
+    },
+    {
+      "name": "real student invitation claim is pending until parent approval",
+      "pass": true
+    },
+    {
+      "name": "parent explicitly approves local student enrollment",
+      "pass": true
+    },
+    {
+      "name": "approval registration is idempotent through real REST",
+      "pass": true
+    },
+    {
+      "name": "reusing request key with different content is denied",
+      "pass": true
+    },
+    {
+      "name": "parent binds verified PDF fixture and publishes to approved student",
+      "pass": true
+    },
+    {
+      "name": "assigned student sees published questions without answer keys",
+      "pass": true
+    },
+    {
+      "name": "unassigned authenticated account sees no chapters",
+      "pass": true
+    },
+    {
+      "name": "direct approval answer-key table access is denied",
+      "pass": true
+    },
+    {
+      "name": "editable user metadata cannot grant parent authorization",
+      "pass": true
+    },
+    {
+      "name": "submission without uploaded storage object is denied",
+      "pass": true
+    },
+    {
+      "name": "authorized student audio-object INSERT passes the copied real RLS policy",
+      "pass": true
+    },
+    {
+      "name": "short answer array is rejected through real REST",
+      "pass": true
+    },
+    {
+      "name": "out-of-range multiple-choice answer is rejected",
+      "pass": true
+    },
+    {
+      "name": "anonymous caller cannot execute the parent answer-key read API",
+      "pass": true
+    },
+    {
+      "name": "real parent JWT can retrieve owned question text and model answers",
+      "pass": true
+    },
+    {
+      "name": "real student JWT cannot retrieve parent model answers",
+      "pass": true
+    },
+    {
+      "name": "unrelated non-parent account cannot read parent lesson context",
+      "pass": true
+    },
+    {
+      "name": "complete authorized student submission succeeds",
+      "pass": true
+    },
+    {
+      "name": "duplicate submission preserves the original essay",
+      "pass": true
+    },
+    {
+      "name": "unreleased parent feedback is hidden",
+      "pass": true
+    },
+    {
+      "name": "released parent feedback is visible only to the assigned student",
+      "pass": true
+    },
+    {
+      "name": "unrelated authenticated account cannot read the submission",
+      "pass": true
+    },
+    {
+      "name": "real Auth refresh token retains the student identity",
+      "pass": true
+    },
+    {
+      "name": "credentials remain only in ignored local runtime, never test report",
+      "pass": true
+    }
+  ]
+}

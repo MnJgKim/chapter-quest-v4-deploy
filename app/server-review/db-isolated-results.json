@@ -1,0 +1,65 @@
+{
+  "scope": "PGlite isolated PostgreSQL with synthetic data; live DDL metadata and functions; not hosted Auth/Storage integration",
+  "checks": [
+    {
+      "name": "live function reproduced: short answer array is incorrectly accepted",
+      "pass": true
+    },
+    {
+      "name": "live grants reproduced: authenticated role has TRUNCATE privilege",
+      "pass": true
+    },
+    {
+      "name": "candidate function compiles in isolated PostgreSQL",
+      "pass": true
+    },
+    {
+      "name": "short answer array rejected",
+      "pass": true
+    },
+    {
+      "name": "extra answer rejected",
+      "pass": true
+    },
+    {
+      "name": "empty written answer rejected",
+      "pass": true
+    },
+    {
+      "name": "null answer rejected",
+      "pass": true
+    },
+    {
+      "name": "MC option out of range rejected",
+      "pass": true
+    },
+    {
+      "name": "MC non-integer rejected",
+      "pass": true
+    },
+    {
+      "name": "non-text written answer rejected",
+      "pass": true
+    },
+    {
+      "name": "unassigned student rejected",
+      "pass": true
+    },
+    {
+      "name": "authorized complete submission accepted",
+      "pass": true
+    },
+    {
+      "name": "duplicate submit preserves original answers",
+      "pass": true
+    },
+    {
+      "name": "TRUNCATE privilege removed without changing snapshot CRUD",
+      "pass": true
+    },
+    {
+      "name": "original live function can be restored",
+      "pass": true
+    }
+  ]
+}

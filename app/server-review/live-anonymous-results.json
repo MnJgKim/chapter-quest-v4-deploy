@@ -1,0 +1,33 @@
+{
+  "scope": "live anonymous requests only; no authenticated writes",
+  "checks": [
+    {
+      "name": "anonymous RPC blocked: cq_v4_my_chapters",
+      "status": 401,
+      "code": "42501",
+      "pass": true
+    },
+    {
+      "name": "anonymous RPC blocked: cq_v4_list_child_access",
+      "status": 401,
+      "code": "42501",
+      "pass": true
+    },
+    {
+      "name": "anonymous RPC blocked: cq_v4_parent_submissions",
+      "status": 401,
+      "code": "42501",
+      "pass": true
+    },
+    {
+      "name": "missing JWT Edge request blocked: cq-v4-pdf-parent",
+      "status": 401,
+      "pass": true
+    },
+    {
+      "name": "missing JWT Edge request blocked: cq-v4-pdf-link",
+      "status": 401,
+      "pass": true
+    }
+  ]
+}

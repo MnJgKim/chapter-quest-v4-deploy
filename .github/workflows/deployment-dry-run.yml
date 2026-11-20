@@ -1,0 +1,28 @@
+name: Deployment dry-run only
+on:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  target-explicit-dry-run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Build local static assets
+        run: node app/build-assets.mjs
+      - name: Node syntax check
+        run: node --check app/tools/deploy-preflight.mjs
+      - name: Stage Wrangler dry-run
+        run: node app/tools/deploy-preflight.mjs --target stage
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+      - name: Production Wrangler dry-run
+        run: node app/tools/deploy-preflight.mjs --target production
+        env:
+          WRANGLER_SEND_METRICS: 'false'

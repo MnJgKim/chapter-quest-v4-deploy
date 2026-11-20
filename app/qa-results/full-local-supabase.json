@@ -1,0 +1,85 @@
+{
+  "scope": "real local Supabase Auth, PostgreSQL, Storage and Edge functions; generated synthetic users/PDF/audio only; no hosted data or AI calls",
+  "checks": [
+    {
+      "name": "five synthetic accounts sign up and log in on the full local stack",
+      "pass": true
+    },
+    {
+      "name": "real Edge parent endpoint denies a non-parent account before privileged writes",
+      "pass": true
+    },
+    {
+      "name": "parent browser is authorized through real Auth and admin RPC",
+      "pass": true
+    },
+    {
+      "name": "real invitation claim and parent enrollment approval",
+      "pass": true
+    },
+    {
+      "name": "TXT converts to PDF and uploads through real signed Storage URL and Edge verification",
+      "pass": true
+    },
+    {
+      "name": "approved lesson binds to the real verified PDF and assigns through RPC",
+      "pass": true
+    },
+    {
+      "name": "real parent lesson context includes model answers and denies the student",
+      "pass": true
+    },
+    {
+      "name": "assigned student downloads and renders PDF through the real signed-link Edge function",
+      "pass": true
+    },
+    {
+      "name": "real MediaRecorder audio uploads to private Storage and final answers submit through RPC",
+      "pass": true
+    },
+    {
+      "name": "parent receives a real authorized signed recording playback link",
+      "pass": true
+    },
+    {
+      "name": "parent reads real answers and releases feedback visible in independent student browser",
+      "pass": true
+    },
+    {
+      "name": "fresh parent browser retrieves real private original without creating a chapter and student is denied",
+      "pass": true
+    },
+    {
+      "name": "another registered parent cannot obtain this PDF, recording or answer context",
+      "pass": true
+    },
+    {
+      "name": "unassigned real account sees no other student chapter",
+      "pass": true
+    },
+    {
+      "name": "parent assigns the same approved chapter to a second real student without removing the first assignment",
+      "pass": true
+    },
+    {
+      "name": "second assigned student starts without the first result and submits independent answers and real recorded audio",
+      "pass": true
+    },
+    {
+      "name": "parent receives two distinct submissions and released feedback remains scoped to each real student",
+      "pass": true
+    },
+    {
+      "name": "two students assigned to the same chapter cannot sign each other private recording",
+      "pass": true
+    },
+    {
+      "name": "no runtime errors or non-local service requests",
+      "pass": true
+    }
+  ],
+  "page_errors": [],
+  "blocked_requests": [],
+  "commit": "a4b8874192cd6e37584bbd7935b1d72d3b952a51",
+  "workflow_run": "https://github.com/MnJgKim/chapter-quest-v4-deploy/actions/runs/42968594077"
+}

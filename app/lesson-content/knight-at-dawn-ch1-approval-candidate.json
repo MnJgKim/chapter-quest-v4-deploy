@@ -1,0 +1,145 @@
+{
+  "format": "chapter-quest-v4-approval-candidate",
+  "version": 1,
+  "status": "DRAFT_REQUIRES_PARENT_APPROVAL",
+  "book": "Magic Tree House #2: The Knight at Dawn",
+  "chapter_title": "Chapter 1: The Dark Woods",
+  "server_pdf_chapter_uuid": "cda5aa92-39e5-4286-9595-5d80ca779b8f",
+  "questions": [
+    {
+      "kind": "mc",
+      "text": "What time was it when Jack looked at the clock?",
+      "options": [
+        "Five-thirty",
+        "Six-thirty",
+        "Seven-thirty",
+        "Eight-thirty"
+      ],
+      "correct": 0
+    },
+    {
+      "kind": "mc",
+      "text": "Why was Jack looking at his notebook?",
+      "options": [
+        "He was studying for a test.",
+        "He was trying to understand yesterday's strange events.",
+        "He was drawing a castle.",
+        "He was writing a letter."
+      ],
+      "correct": 1
+    },
+    {
+      "kind": "mc",
+      "text": "Who understood Jack's dinosaur adventure?",
+      "options": [
+        "His mom",
+        "His teacher",
+        "Annie",
+        "His dad"
+      ],
+      "correct": 2
+    },
+    {
+      "kind": "mc",
+      "text": "What did Annie want to find out at the tree house?",
+      "options": [
+        "Whether the magic person was real",
+        "Where their dog had gone",
+        "Who owned the flashlight",
+        "How to build a ladder"
+      ],
+      "correct": 0
+    },
+    {
+      "kind": "mc",
+      "text": "What did Annie shine her flashlight on near the end?",
+      "options": [
+        "A castle gate",
+        "A long rope ladder",
+        "A horse",
+        "A notebook"
+      ],
+      "correct": 1
+    },
+    {
+      "kind": "short",
+      "text": "What did Jack write in his notebook about the gold object?",
+      "sample": "He wrote about the gold medallion and added the letter M."
+    },
+    {
+      "kind": "short",
+      "text": "Where did Jack and Annie go early in the morning?",
+      "sample": "They went to the Frog Creek woods and the tree house."
+    },
+    {
+      "kind": "short",
+      "text": "What happened after Annie began climbing?",
+      "sample": "Annie disappeared into the tree house, leaving Jack alone in the dark."
+    },
+    {
+      "kind": "inference",
+      "text": "Why did Jack tell Annie to be quiet as they left the house? Use evidence from the chapter.",
+      "sample": "He did not want their parents to wake up or anyone to see them sneaking out."
+    },
+    {
+      "kind": "inference",
+      "text": "How are Jack and Annie different in their reactions to the mysterious tree house? Give one example of each.",
+      "sample": "Jack is cautious and worried that the magic person might be mean; Annie is curious and eager to go back and investigate."
+    }
+  ],
+  "vocabulary": [
+    {
+      "word": "figure out",
+      "meaning": "이해하다, 알아내다",
+      "example": "Jack tried to figure out what had happened."
+    },
+    {
+      "word": "notebook",
+      "meaning": "공책",
+      "example": "Jack looked at his notebook."
+    },
+    {
+      "word": "medallion",
+      "meaning": "메달 모양 장식품",
+      "example": "Jack wrote about the gold medallion."
+    },
+    {
+      "word": "mysterious",
+      "meaning": "신비로운, 수수께끼 같은",
+      "example": "The mysterious tree house was high in the tree."
+    },
+    {
+      "word": "dawn",
+      "meaning": "새벽, 동틀 무렵",
+      "example": "It was almost dawn."
+    },
+    {
+      "word": "whisper",
+      "meaning": "속삭이다",
+      "example": "Annie whispered to Jack."
+    },
+    {
+      "word": "tiptoe",
+      "meaning": "발끝으로 살금살금 걷다",
+      "example": "Annie tiptoed away quietly."
+    },
+    {
+      "word": "flashlight",
+      "meaning": "손전등",
+      "example": "Annie switched on her flashlight."
+    },
+    {
+      "word": "creep",
+      "meaning": "살금살금 움직이다",
+      "example": "Jack crept downstairs."
+    },
+    {
+      "word": "rope ladder",
+      "meaning": "줄사다리",
+      "example": "Annie saw a long rope ladder."
+    }
+  ],
+  "writingPrompt": "Write 5–7 English sentences about what Jack and Annie discovered and what you think might happen next. Use two details from Chapter 1.",
+  "speakingPrompt": "1. Why couldn't Jack sleep?\n2. What did Annie want to find out?\n3. What do you predict will happen after Annie climbs the rope ladder?",
+  "notes": "New source-grounded candidate; not claimed identical to prior Codex questions. Not approved or published."
+}
