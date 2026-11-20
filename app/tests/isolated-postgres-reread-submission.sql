@@ -54,7 +54,12 @@ DO $reread_submission$ DECLARE v_rejected boolean; BEGIN
  IF (SELECT count(*) FROM public.cq_v4_my_reread_status('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'))<>1 THEN RAISE EXCEPTION 'student status missing'; END IF;
  PERFORM set_config('cq.test_uid','33333333-3333-3333-3333-333333333333',true);
  IF EXISTS (SELECT 1 FROM public.cq_v4_my_reread_status('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa')) THEN RAISE EXCEPTION 'cross student status leak'; END IF;
- BEGIN PERFORM public.cq_v4_complete_reread('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'); RAISE EXCEPTION 'cross student completion accepted'; EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ v_rejected:=false;
+ BEGIN
+  PERFORM public.cq_v4_complete_reread('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
+ EXCEPTION WHEN insufficient_privilege THEN v_rejected:=true;
+ END;
+ IF NOT v_rejected THEN RAISE EXCEPTION 'cross student completion accepted'; END IF;
  PERFORM set_config('cq.test_uid','22222222-2222-2222-2222-222222222222',true);
  PERFORM public.cq_v4_complete_reread('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
  IF NOT (SELECT completed_at IS NOT NULL FROM public.cq_v4_reread_progress) THEN RAISE EXCEPTION 'completion not persisted'; END IF;
