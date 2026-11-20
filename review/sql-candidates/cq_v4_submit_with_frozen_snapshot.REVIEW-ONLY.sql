@@ -1,7 +1,9 @@
 -- REVIEW ONLY / isolated PostgreSQL only. Never apply to production without approval.
 -- Install AFTER approved-weekday-release-gate-v1, the original v3 RPC/storage file,
 -- and review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql.
--- NOT DEPLOYABLE: requires the reviewed reread progress table and frozen grading helper;
+-- REVIEW ONLY: legacy published chapters without verified approval provenance retain
+-- submission, but receive no automatic reread decision until explicitly reconciled.
+-- Requires the reviewed reread progress table and frozen grading helper;
 -- disable legacy cq_v4_reread_after_submit trigger before enabling this RPC.
 -- Preserve the original immutable submission/idempotency behavior and historical reads.
 CREATE OR REPLACE FUNCTION public.cq_v4_submit_answers(p_chapter_uuid uuid, p_answers jsonb)
@@ -10,7 +12,7 @@ CREATE OR REPLACE FUNCTION public.cq_v4_submit_answers(p_chapter_uuid uuid, p_an
  SECURITY DEFINER
  SET search_path TO ''
 AS $function$
-DECLARE v_uid uuid := auth.uid(); v_questions jsonb; v_question jsonb; v_answer jsonb; v_index integer; v_value text; v_number numeric;
+DECLARE v_uid uuid := auth.uid(); v_questions jsonb; v_question jsonb; v_answer jsonb; v_index integer; v_value text; v_number numeric; v_snapshot_ready boolean := false;
 BEGIN
  IF v_uid IS NULL THEN RAISE EXCEPTION 'Login required' USING ERRCODE='28000'; END IF;
  -- Serialize with parent rescheduling for the same student/chapter pair.
@@ -86,11 +88,26 @@ BEGIN
  ) THEN
     RAISE EXCEPTION 'Speaking recording not uploaded' USING ERRCODE='22023';
  END IF;
+ -- Preserve submission for published legacy chapters whose approval provenance is
+ -- incomplete. Never infer a score or create a reread row for these chapters.
+ -- Snapshot-ready chapters alone use the immutable scoring path.
+ SELECT EXISTS (
+  SELECT 1 FROM public.cq_v4_activities act
+  JOIN public.cq_v4_pdf_chapters c ON c.chapter_id=act.chapter_uuid
+  JOIN public.cq_v4_approval_requests req
+    ON req.id=act.approval_id AND req.chapter_uuid=act.chapter_uuid
+   AND req.parent_user_id=c.parent_user_id
+   AND req.content_hash=act.approval_hash AND req.questions=act.questions
+  WHERE act.chapter_uuid=p_chapter_uuid AND act.published_at IS NOT NULL
+    AND act.approval_hash IS NOT NULL AND jsonb_typeof(req.answer_key)='array'
+    AND jsonb_array_length(req.answer_key)=jsonb_array_length(act.questions)
+ ) INTO v_snapshot_ready;
  INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers)
  VALUES(p_chapter_uuid,v_uid,p_answers)
  ON CONFLICT DO NOTHING;
  -- Atomic frozen snapshot capture. A failure rolls back the submission INSERT above.
  -- Pre-existing submissions exit through the earlier immutable idempotency branch.
+ IF v_snapshot_ready THEN
  IF NOT public.cq_v4_capture_grading_snapshot_internal(v_uid,p_chapter_uuid) THEN
    RAISE EXCEPTION 'Submission snapshot already exists' USING ERRCODE='23505';
  END IF;
@@ -98,6 +115,7 @@ BEGIN
  -- same submission transaction; any error rolls back submission and snapshot.
  IF NOT public.cq_v4_record_frozen_reread_internal(v_uid,p_chapter_uuid) THEN
    RAISE EXCEPTION 'Frozen reread decision failed' USING ERRCODE='22023';
+ END IF;
  END IF;
  -- Existing submission is immutable. The caller can fetch the authoritative record.
  RETURN QUERY SELECT s.chapter_uuid,s.submitted_at FROM public.cq_v4_student_submissions s
