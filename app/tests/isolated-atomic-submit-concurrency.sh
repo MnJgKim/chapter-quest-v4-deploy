@@ -7,6 +7,8 @@ psql -X -v ON_ERROR_STOP=1 <<'SETUP'
 ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_id uuid;
 ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_hash text;
 CREATE TABLE IF NOT EXISTS public.cq_v4_approval_requests(id uuid PRIMARY KEY,parent_user_id uuid,chapter_uuid uuid,answer_key jsonb,content_hash text,questions jsonb);
+-- A prior isolated test may have created the table without the new approval schema.
+ALTER TABLE public.cq_v4_approval_requests ADD COLUMN IF NOT EXISTS questions jsonb;
 \i review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql
 \i review/sql-candidates/cq_v4_submit_with_frozen_snapshot.REVIEW-ONLY.sql
 INSERT INTO public.cq_v4_pdf_chapters VALUES
