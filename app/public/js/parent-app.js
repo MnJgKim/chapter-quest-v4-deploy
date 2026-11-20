@@ -150,7 +150,7 @@
    const rows=await parentRpc('cq_v4_parent_list_lesson_releases');
    if(cloudIdentity()!==owner||!Array.isArray(rows))return;
    lessonReleases=rows;scheduleCheckedAt=new Date().toLocaleString('ko-KR',{timeZone:'Asia/Seoul'});scheduleError='';scheduleAutoOwner=owner;render();
-  }catch(error){if(cloudIdentity()===owner){scheduleError='서버 일정 자동 조회 실패: '+error.message;render();}}
+  }catch(error){if(cloudIdentity()===owner){scheduleAutoOwner=owner;scheduleError='서버 일정 자동 조회 실패: '+error.message;render();}}
   finally{scheduleAutoBusy=false;}
  }
  let scheduleCheckedAt='',scheduleError='';
@@ -185,7 +185,7 @@
   const b=event.target.closest('[data-lesson]');if(!b||b.disabled)return;
   b.disabled=true;
   try{
-   if(b.dataset.lesson==='refresh'){await refreshPdfParentLists();lessonStatus('서버 챕터·학생 배정 및 공개 상태 확인 완료');return;}
+   if(b.dataset.lesson==='refresh'){await refreshPdfParentLists();await refreshLessonReleases();lessonStatus('서버 챕터·학생 배정 및 공개 상태 확인 완료');return;}
    const student=b.dataset.student,chapter=b.dataset.chapter;
    if(!/^[0-9a-f-]{36}$/i.test(student)||!/^[0-9a-f-]{36}$/i.test(chapter))throw Error('잘못된 식별자');
    if(b.dataset.lesson==='schedule'){
