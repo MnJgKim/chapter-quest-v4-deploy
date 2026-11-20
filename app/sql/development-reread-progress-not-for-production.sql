@@ -99,8 +99,10 @@ begin
       if v_q->>'kind' <> 'mc' then continue; end if;
       v_expected:=v_key->v_i;
       v_actual:=v_answers->>v_i;
-      -- A blank or out-of-range MC response is an incomplete submission,
-      -- not an incorrect answer to be counted toward the reread threshold.
+      if jsonb_typeof(v_q->'options') is distinct from 'array'
+         or jsonb_array_length(v_q->'options') < 2 then
+        raise exception 'Invalid multiple-choice options at index %',v_i using errcode='22023';
+      end if;
       if jsonb_typeof(v_answers->v_i) is distinct from 'string'
          or v_actual !~ '^(0|[1-9][0-9]*)      if jsonb_typeof(v_expected)<>'number'
          or (v_expected #>> '{}') !~ '^(0|[1-9][0-9]*)$'
