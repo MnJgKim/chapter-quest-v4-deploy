@@ -619,6 +619,17 @@ function seoulLessonDate(){
      if(hasAtRiskDraft()){status('조회 중 답안 저장에 실패해 이동을 중단했습니다. 답안 저장 재시도를 누르세요.');return;}
      invalidateVoiceForNavigation();clearServerPdf();chapters=rows;if(session.resumedExisting)session.assignmentCount=rows.length;const scheduleNotice=await refreshStudentScheduleNotice();draw();status(scheduleNotice||chapters.length+'개 공개 챕터를 불러왔습니다.');
    }
+   if(b.dataset.child==='reread-complete'){
+    const c=chapters.find(x=>x.chapter_uuid===b.dataset.uuid);
+    if(!c)throw Error('배정된 챕터가 아닙니다.');
+    const owner=childContext(),api=childApi;
+    await api.completeReread(c.chapter_uuid);
+    assertChildContext(owner);if(childApi!==api)return;
+    status('재독서 완료가 서버에 저장되었습니다. 오늘의 학습을 마쳤습니다.');
+    const refresh=document.querySelector('[data-child="feedback"][data-uuid="'+c.chapter_uuid+'"]');
+    if(refresh)refresh.click();
+    return;
+   }
    if(b.dataset.child==='view'||b.dataset.child==='feedback'){
     const c=chapters.find(x=>x.chapter_uuid===b.dataset.uuid);
     if(!c)throw Error('배정된 챕터가 아닙니다.');
@@ -628,8 +639,14 @@ function seoulLessonDate(){
     assertChildContext(viewContext);if(childApi!==viewApi)return;
     const submitted=Array.isArray(previous)?previous[0]:previous;
     // Optional review-only RPC: absent deployments must retain the existing feedback view.
-    let rereadSuggested=false;
-    if(submitted?.feedback_released){
+    let rereadProgress=null;
+    if(submitted){
+      try{rereadProgress=await viewApi.rereadStatus(c.chapter_uuid)}
+      catch(error){console.warn('Reread status unavailable:',String(error?.message||error).slice(0,160));}
+      assertChildContext(viewContext);if(childApi!==viewApi)return;
+    }
+    let rereadSuggested=!!rereadProgress?.required&&!rereadProgress.completed;
+    if(submitted?.feedback_released&&!rereadProgress){
       try{rereadSuggested=await viewApi.releasedRereadSuggestion(c.chapter_uuid)}
       catch(error){
         // Advisory is optional: transient RPC/network failures must never hide an immutable submission or released parent feedback.
@@ -663,8 +680,8 @@ function seoulLessonDate(){
     const vocabularyHtml=vocabulary.map((v,i)=>`<li class="word-card"><strong>${escape(v.word||'')}</strong><div class="row"><button type="button" data-word-reveal="${i}" aria-expanded="false">뜻 보기</button><button type="button" data-word-speak="${escape(v.word||'')}">단어 듣기</button><label><input type="checkbox" data-word-done="${i}"> 학습 완료</label></div><p data-word-meaning="${i}" hidden>${escape(v.meaning||'')} ${v.example?`<small>${escape(v.example)}</small>`:''}</p></li>`).join('');
     const activityHtml=`<section data-learn-section="words"><h4>핵심 단어</h4><ul>${vocabularyHtml||'<li>등록된 단어가 없습니다.</li>'}</ul></section><section data-learn-section="prompts"><h4>영어 독후감 질문</h4><p>${escape(activity.writing_prompt||'')}</p><h4>말하기 질문</h4><p>${escape(activity.speaking_prompt||'')}</p></section>`;
     const form=`${pending?'<p class="muted">이전에 업로드된 녹음이 있습니다. 최종 제출 시 서버에서 파일을 확인합니다. 임시저장된 답변이 있다면 자동으로 복원됩니다.</p>':''}<form id="cqChildWork" novalidate data-uuid="${escape(c.chapter_uuid)}"><nav class="learn-nav" aria-label="학습 순서"><button type="button" data-learn-jump="read">1 원문</button><button type="button" data-learn-jump="words">2 단어</button><button type="button" data-learn-jump="questions">3 문제</button><button type="button" data-learn-jump="writing">4 글쓰기</button><button type="button" data-learn-jump="speaking">5 말하기</button><button type="button" data-learn-jump="submit">6 제출</button></nav><div id="cqServerPdfViewer" data-learn-section="read" class="card" role="region" aria-label="원본 PDF 읽기">원본 PDF 접근 권한을 확인하는 중입니다...</div><div class="note" role="status">원본 PDF를 읽고 문제·독후감·말하기를 완료하세요. PDF를 불러오지 못하면 제출할 수 없습니다.</div>${activityHtml}<label><input type="checkbox" name="readComplete" required disabled> 원문 PDF 연결 대기</label><section data-learn-section="questions">${questionFields}</section><label data-learn-section="writing">영어 독후감<textarea name="essay" rows="5" required></textarea></label><label data-learn-section="speaking">말하기 대본<textarea name="speaking" rows="3" required></textarea></label><div class="row"><button type="button" data-child="voice-start">● 녹음 시작</button><button type="button" data-child="voice-stop">■ 녹음 종료</button><button type="button" data-child="voice-retry">↻ 녹음 저장 재시도</button><button type="button" data-child="voice-download">↓ 미저장 녹음 백업</button><button type="button" data-child="voice-import">↑ 녹음 백업 복원</button><input id="cqVoiceManifestImport" type="file" accept=".json,.cqvoice.json,application/json" hidden><input id="cqVoiceImport" type="file" accept="audio/webm,audio/mp4,audio/ogg" hidden></div><div id="cqVoicePlayback"></div><p class="muted" id="cqVoiceStatus">말하기 녹음은 필수입니다. 녹음 완료 후 이 기기의 IndexedDB에 원본을 저장합니다. 저장에 실패하면 제출할 수 없으며, 최종 제출 시 서버 업로드를 시도합니다. 업로드가 실패하면 제출되지 않습니다.</p><div class="submission-bar" data-learn-section="submit"><span id="cqDraftStatus" role="status">답안은 입력 즉시 이 기기에 저장됩니다.</span><button type="button" data-child="draft-retry">답안 저장 재시도</button><button type="submit" disabled title="서버 PDF 연결 및 접근 권한 검증 후 활성화">최종 제출 (PDF 연결 대기)</button></div></form>`;
-    const rereadNotice=submitted?.feedback_released&&rereadSuggested?'<p role="alert" style="color:#b91c1c;font-weight:800;border:2px solid #b91c1c;border-radius:8px;padding:12px">⚠️ 정답률이 낮아 재독서가 필요합니다. 이 챕터의 원문을 다시 읽고 내용을 복습하세요. 학습 결과를 부모님께 알려드릴 예정입니다. 부모님께 줄거리를 요약해서 이야기 해야할 수 있습니다.</p>':'';
-    const feedback=submitted?.feedback_released?`<section aria-label="공개된 부모 피드백"><h4>부모 피드백</h4><p style="white-space:pre-wrap">${escape(submitted.feedback||'')}</p></section>`:'<p>부모 피드백 검토 중입니다. 공개되면 이 화면에서 바로 확인할 수 있습니다.</p>';
+    const rereadNotice=rereadSuggested?'<p role="alert" style="color:#b91c1c;font-weight:800;border:2px solid #b91c1c;border-radius:8px;padding:12px">⚠️ 정답률이 낮아 재독서가 필요합니다. 이 챕터의 원문을 다시 읽고 내용을 복습하세요. 학습 결과를 부모님께 알려드릴 예정입니다. 부모님께 줄거리를 요약해서 이야기 해야할 수 있습니다.</p>':'';
+    const feedback=submitted?.feedback_released&&!rereadSuggested?`<section aria-label="공개된 부모 피드백"><h4>부모 피드백</h4><p style="white-space:pre-wrap">${escape(submitted.feedback||'')}</p></section>`:'<p>부모 피드백 검토 중입니다. 공개되면 이 화면에서 바로 확인할 수 있습니다.</p>';
     detail.dataset.viewChapter=c.chapter_uuid;
     detail.innerHTML=`<div class="book"><h3>${escape(c.chapter_title)}</h3>${submitted?`<p>제출 완료 · ${escape(submitted.submitted_at||'')}</p><div id="cqServerPdfViewer" class="card" role="region" aria-label="제출 완료 원본 PDF 다시 읽기">원본 PDF 읽기 권한을 확인하는 중입니다...</div>${feedback}${rereadNotice}<button data-child="feedback" data-uuid="${escape(c.chapter_uuid)}">피드백 새로고침</button>`:form}</div>`;
     if(submitted){clearDraft(viewUid,c.chapter_uuid);clearRecovery(viewUid,c.chapter_uuid)}
