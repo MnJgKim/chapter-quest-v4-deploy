@@ -27,5 +27,15 @@ DO $$ BEGIN
  PERFORM set_config('cq.test_uid','22222222-2222-2222-2222-222222222222',true);
  PERFORM public.cq_v4_complete_reread('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa');
  IF NOT (SELECT completed_at IS NOT NULL FROM public.cq_v4_reread_progress) THEN RAISE EXCEPTION 'completion not persisted'; END IF;
+ DELETE FROM public.cq_v4_reread_progress; DELETE FROM public.cq_v4_student_submissions;
+ INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','{"answers":["1","1","1","1","1","1","1","0","0","0"]}'::jsonb);
+ IF (SELECT required FROM public.cq_v4_reread_progress) IS DISTINCT FROM false THEN RAISE EXCEPTION '70 percent must not require reread'; END IF;
+ DELETE FROM public.cq_v4_reread_progress; DELETE FROM public.cq_v4_student_submissions;
+ INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','{"answers":["1","1","1","1","1","1","1","1","0","0"]}'::jsonb);
+ IF (SELECT required FROM public.cq_v4_reread_progress) IS DISTINCT FROM false THEN RAISE EXCEPTION '80 percent must not require reread'; END IF;
+ BEGIN
+ INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','{"answers":["1"]}'::jsonb);
+ RAISE EXCEPTION 'duplicate submission accepted';
+ EXCEPTION WHEN unique_violation THEN NULL; END;
  RAISE NOTICE 'REREAD_STUDENT_POSTGRES_ASSERTIONS_PASSED';
 END $$;
