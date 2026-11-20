@@ -9,6 +9,8 @@ export PGDATABASE="$db"
 # Strip only these two role creation lines for this new disposable database.
 sed -e '/^CREATE ROLE anon NOLOGIN;$/d' -e '/^CREATE ROLE authenticated NOLOGIN;$/d' app/tests/isolated-postgres-bootstrap.sql | psql -v ON_ERROR_STOP=1 >/dev/null
 psql -v ON_ERROR_STOP=1 -f review/sql-candidates/cq_v4_v3b_reread_install_bundle.REVIEW-ONLY.sql >/dev/null
+# Repeat in the same disposable DB to catch non-idempotent DDL and permission drift.
+psql -v ON_ERROR_STOP=1 -f review/sql-candidates/cq_v4_v3b_reread_install_bundle.REVIEW-ONLY.sql >/dev/null
 psql -v ON_ERROR_STOP=1 <<'SQL'
 DO $verify$
 BEGIN
