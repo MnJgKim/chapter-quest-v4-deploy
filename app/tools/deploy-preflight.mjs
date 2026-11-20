@@ -19,6 +19,9 @@ if(config.name!=='chapter-quest-v4'||config.main!=='app/worker.mjs'||config.asse
   throw Error('Unexpected Wrangler config: refusing preflight');
 }
 config.name=target==='stage'?'chapter-quest-v4-stage':'chapter-quest-v4';
+// Temporary config lives outside the repo: resolve asset and entrypoint paths explicitly.
+config.main=join(root,'app/worker.mjs');
+config.assets.directory=join(root,'app/public');
 const dir=await mkdtemp(join(tmpdir(),'cq-v4-preflight-'));
 try{
   const configPath=join(dir,'wrangler.json');
