@@ -80,17 +80,16 @@ begin
      and req.questions=act.questions
    where act.chapter_uuid=new.chapter_uuid
      and act.published_at is not null;
-  -- Do not block a child's submission if approved keys are incomplete.
-  -- Do not insert a 'passed' row either: no row means NOT SCORED,
-  -- and must be surfaced to the parent before production rollout.
+  -- Fail atomically: never accept a submission without an authoritative score.
+  -- Deployment requires repairing legacy answer-key provenance first.
   if jsonb_typeof(v_questions) is distinct from 'array'
      or jsonb_typeof(v_key) is distinct from 'array'
      or jsonb_typeof(v_answers) is distinct from 'array' then
-    return new;
+    raise exception 'Reread scoring data unavailable' using errcode='22023';
   end if;
   if jsonb_array_length(v_questions)<>jsonb_array_length(v_answers)
      or jsonb_array_length(v_questions)<>jsonb_array_length(v_key) then
-    return new;
+    raise exception 'Reread scoring question/key count mismatch' using errcode='22023';
   end if;
   -- Non-MC answer keys may legitimately be absent. Validate each MC key below.
   -- Empty arrays have no MC denominator; avoid 0..-1 subscripts.
@@ -104,8 +103,7 @@ begin
          or (v_expected #>> '{}') !~ '^(0|[1-9][0-9]*)$'
          or jsonb_typeof(v_q->'options')<>'array'
          or (v_expected #>> '{}')::integer >= jsonb_array_length(v_q->'options') then
-        -- Unscorable, not a pass. Never reject the submission.
-        return new;
+        raise exception 'Invalid reread answer key at index %',v_i using errcode='22023';
       end if;
       v_total:=v_total+1;
       if v_actual=(v_expected #>> '{}') then v_correct:=v_correct+1; end if;
