@@ -119,6 +119,8 @@ jobs:
           PGDATABASE=cq_v4_publish_review psql -v ON_ERROR_STOP=1 -f app/tests/isolated-publish-rpc-review.sql
       - name: Verify reviewed publication RPC contract
         run: node --test app/tests/reread-publish-rpc-contract.test.cjs
+      - name: Verify V3B production-compatible minimal reread in isolated PostgreSQL
+        run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-v3b-minimal-reread.sql
       - name: Verify atomic submission and immutable snapshot against isolated PostgreSQL
         run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-atomic-submission-snapshot.sql
       - name: Verify weekly schedule release RPC against isolated PostgreSQL
