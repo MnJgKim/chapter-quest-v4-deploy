@@ -18,34 +18,38 @@ INSERT INTO public.cq_v4_activities SELECT chapter_uuid,id,content_hash,question
 \ir ../sql/development-reread-publish-validation-not-for-production.sql
 SELECT set_config('cq.test_uid','11111111-1111-1111-1111-111111111111',false);
 DO $reread_validation$
+DECLARE v_rejected boolean;
 BEGIN
  IF public.cq_v4_assert_reread_publishable('cccccccc-cccc-cccc-cccc-cccccccccccc') IS DISTINCT FROM true THEN RAISE EXCEPTION 'valid approved key rejected'; END IF;
  PERFORM set_config('cq.test_uid','22222222-2222-2222-2222-222222222222',true);
+ v_rejected:=false;
  BEGIN
   PERFORM public.cq_v4_assert_reread_publishable('cccccccc-cccc-cccc-cccc-cccccccccccc');
-  RAISE EXCEPTION 'student unexpectedly validated parent approval';
- EXCEPTION WHEN insufficient_privilege THEN NULL;
+ EXCEPTION WHEN insufficient_privilege THEN v_rejected:=true;
  END;
+ IF NOT v_rejected THEN RAISE EXCEPTION 'student unexpectedly validated parent approval'; END IF;
  PERFORM set_config('cq.test_uid','11111111-1111-1111-1111-111111111111',true);
  UPDATE public.cq_v4_approval_requests SET answer_key='[1]'::jsonb WHERE id='cccccccc-cccc-cccc-cccc-cccccccccccc';
+ v_rejected:=false;
  BEGIN
   PERFORM public.cq_v4_assert_reread_publishable('cccccccc-cccc-cccc-cccc-cccccccccccc');
-  RAISE EXCEPTION 'missing answer key not rejected';
- EXCEPTION WHEN invalid_parameter_value THEN NULL;
+ EXCEPTION WHEN invalid_parameter_value THEN v_rejected:=true;
  END;
+ IF NOT v_rejected THEN RAISE EXCEPTION 'missing answer key not rejected'; END IF;
  UPDATE public.cq_v4_approval_requests SET answer_key='[9,1,1,1,1,1,1,1,1,1]'::jsonb WHERE id='cccccccc-cccc-cccc-cccc-cccccccccccc';
+ v_rejected:=false;
  BEGIN
   PERFORM public.cq_v4_assert_reread_publishable('cccccccc-cccc-cccc-cccc-cccccccccccc');
-  RAISE EXCEPTION 'out-of-range answer key not rejected';
- EXCEPTION WHEN invalid_parameter_value THEN NULL;
+ EXCEPTION WHEN invalid_parameter_value THEN v_rejected:=true;
  END;
+ IF NOT v_rejected THEN RAISE EXCEPTION 'out-of-range answer key not rejected'; END IF;
  UPDATE public.cq_v4_approval_requests SET answer_key='[1,1,1,1,1,1,1,1,1,1]'::jsonb WHERE id='cccccccc-cccc-cccc-cccc-cccccccccccc';
  RAISE NOTICE 'REREAD_PUBLISH_POSTGRES_ASSERTIONS_PASSED';
 END $reread_validation$;
 \ir ../sql/development-reread-progress-not-for-production.sql
 SELECT set_config('cq.test_uid','22222222-2222-2222-2222-222222222222',false);
 INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','{"answers":["1","1","1","1","1","1","0","0","0","0"]}'::jsonb);
-DO $$ BEGIN
+DO $ DECLARE v_rejected boolean; BEGIN
  IF (SELECT required FROM public.cq_v4_reread_progress) IS DISTINCT FROM true THEN RAISE EXCEPTION '60 percent must require reread'; END IF;
  IF (SELECT count(*) FROM public.cq_v4_my_reread_status('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'))<>1 THEN RAISE EXCEPTION 'student status missing'; END IF;
  PERFORM set_config('cq.test_uid','33333333-3333-3333-3333-333333333333',true);
@@ -66,11 +70,12 @@ DO $$ BEGIN
  EXCEPTION WHEN unique_violation THEN NULL; END;
  DELETE FROM public.cq_v4_reread_progress; DELETE FROM public.cq_v4_student_submissions;
  UPDATE public.cq_v4_approval_requests SET answer_key='[1]'::jsonb WHERE id='cccccccc-cccc-cccc-cccc-cccccccccccc';
+ v_rejected:=false;
  BEGIN
   INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','{"answers":["1","1","1","1","1","1","0","0","0","0"]}'::jsonb);
-  RAISE EXCEPTION 'invalid key unexpectedly accepted';
- EXCEPTION WHEN invalid_parameter_value THEN NULL;
+ EXCEPTION WHEN invalid_parameter_value THEN v_rejected:=true;
  END;
+ IF NOT v_rejected THEN RAISE EXCEPTION 'invalid key unexpectedly accepted'; END IF;
  IF EXISTS (SELECT 1 FROM public.cq_v4_student_submissions) OR EXISTS (SELECT 1 FROM public.cq_v4_reread_progress) THEN RAISE EXCEPTION 'failed score left partial submission'; END IF;
  UPDATE public.cq_v4_approval_requests SET answer_key='[1,1,1,1,1,1,1,1,1,1]'::jsonb WHERE id='cccccccc-cccc-cccc-cccc-cccccccccccc';
  RAISE NOTICE 'REREAD_STUDENT_POSTGRES_ASSERTIONS_PASSED';
