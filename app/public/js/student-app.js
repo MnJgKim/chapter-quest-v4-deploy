@@ -38,6 +38,10 @@
    assertChildContext(owner);if(childApi!==api)return;
    chapters=rows;const scheduleNotice=await refreshStudentScheduleNotice();draw();status(scheduleNotice||rows.length+'개 공개 챕터를 자동으로 불러왔습니다.');
   }catch(err){
+   // A transport failure before authentication must not permanently consume the restore attempt.
+   // Retry only on a later online/visibility/page event, never in a tight loop.
+   // Once a session exists, refresh the lesson data separately rather than rotating the token again.
+   if(!session&&err instanceof TypeError)childRestoreAttempted=false;
    // Do not erase the original refresh token on network failure: the learner may be offline.
    if(err.message==='saved-session-expired'||err.message==='saved-session-mismatch')forgetDedicatedChild();
    if(mode==='student'&&session&&generation===childGeneration){
