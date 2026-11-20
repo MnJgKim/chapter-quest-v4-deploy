@@ -360,7 +360,7 @@ BEGIN
  -- Existing submission is immutable. The caller can fetch the authoritative record.
  RETURN QUERY SELECT s.chapter_uuid,s.submitted_at FROM public.cq_v4_student_submissions s
  WHERE s.chapter_uuid=p_chapter_uuid AND s.child_user_id=v_uid;
-END; $function$
+END; $function$;
 
 
 
