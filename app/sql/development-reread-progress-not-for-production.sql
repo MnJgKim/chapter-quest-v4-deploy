@@ -133,8 +133,11 @@ begin
       if v_actual=(v_expected #>> '{}') then v_correct:=v_correct+1; end if;
     end loop;
   end if;
-  -- No MC questions: do not require reread; no denominator exists.
-  if v_total>0 then v_required:=(v_correct*10<v_total*7); end if;
+  -- Fail closed: no objective denominator cannot be treated as a passing score.
+  if v_total=0 then
+    raise exception 'No objectively scorable MC questions' using errcode='22023';
+  end if;
+  v_required:=(v_correct*10<v_total*7);
   insert into public.cq_v4_reread_progress(chapter_uuid,child_user_id,required)
   values(new.chapter_uuid,new.child_user_id,v_required)
   on conflict do nothing;
