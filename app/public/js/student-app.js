@@ -628,7 +628,10 @@ function seoulLessonDate(){
     try{
       await api.completeReread(c.chapter_uuid);
       assertChildContext(owner);if(childApi!==api)return;
-      status('재독서 완료가 서버에 저장되었습니다. 완료 상태를 다시 확인합니다.');
+      const confirmed=await api.rereadStatus(c.chapter_uuid);
+      assertChildContext(owner);if(childApi!==api)return;
+      if(!confirmed?.completed)throw Error('재독서 완료 상태를 서버에서 재확인하지 못했습니다. 잠시 후 다시 시도하세요.');
+      status('재독서 완료가 서버에 저장되고 재확인되었습니다. 오늘의 학습을 마쳤습니다.');
       const refresh=document.querySelector('[data-child="feedback"][data-uuid="'+c.chapter_uuid+'"]');
       if(refresh)refresh.click();
       return;
