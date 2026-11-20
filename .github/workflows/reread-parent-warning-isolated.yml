@@ -14,6 +14,7 @@ on:
       - 'app/tests/isolated-postgres-reread-submission.sql'
       - 'app/sql/development-reread-publish-validation-not-for-production.sql'
       - 'app/tests/reread-publish-validation.test.cjs'
+      - 'app/tests/reread-universal-contract.test.cjs'
       - 'app/public/js/student-app.js'
       - 'app/sql/development-reread-progress-not-for-production.sql'
       - 'app/tests/reread-student-integration.test.cjs'
@@ -48,6 +49,8 @@ jobs:
         run: node app/tests/reread-student-flow.test.cjs
       - name: Publication answer-key validation static checks
         run: node app/tests/reread-publish-validation.test.cjs
+      - name: Universal future-PDF reread contract
+        run: node app/tests/reread-universal-contract.test.cjs
       - name: PostgreSQL student submission reread trigger and authorization
         env:
           PGPASSWORD: postgres
