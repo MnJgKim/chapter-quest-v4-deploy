@@ -16,6 +16,7 @@ assert.equal(advisory({...row(4),lessonContext:null}),null,'missing context must
 assert.equal(advisory({...row(4),lessonContext:{questions:qs,answer_key:[1]}}),null,'key mismatch must not pass');
 assert.equal(advisory({...row(4),lessonContext:{questions:qs,answer_key:[1,1,1,1,1,1,null]}}),null,'invalid MC key must not pass');
 assert.equal(advisory({...row(4),answers:{answers:[1]}}),null,'answer length mismatch must not pass');
-assert(src.includes('재독서 판정 보류'),'unscorable status must be visible');
+assert(!src.includes('재독서 판정 보류'),'unrequested pending-decision label must not appear');
+assert(src.includes('문제·정답 조회 오류'),'missing server context must be surfaced as an error');
 assert(!src.includes('lessonContext:contexts.get(row.chapter_uuid)||localLessonContext(row.chapter_uuid)'),'stale local fallback must not be used');
 console.log('REREAD_ADVISORY_NODE_ASSERTIONS_PASSED');
