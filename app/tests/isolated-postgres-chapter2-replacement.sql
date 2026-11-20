@@ -39,7 +39,8 @@ BEGIN
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  PERFORM set_config('cq.test_uid','11111111-1111-1111-1111-111111111111',true);
  -- Invalid answer key rolls back.
- UPDATE public.cq_v4_approval_requests SET answer_key='[3,null]' WHERE id=v_new;
+ UPDATE public.cq_v4_approval_requests SET answer_key='[3,null]',
+ content_hash=md5(jsonb_build_array(book_local_id,chapter_local_id,title,source_text,questions,'[3,null]'::jsonb,vocabulary,writing_prompt,speaking_prompt)::text) WHERE id=v_new;
  BEGIN PERFORM public.cq_v4_replace_published_activity(v_id,v_old,'old-hash',v_new);
  RAISE EXCEPTION 'bad key unexpectedly succeeded';
  EXCEPTION WHEN check_violation THEN NULL; END;
