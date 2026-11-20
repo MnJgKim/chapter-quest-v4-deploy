@@ -36,6 +36,7 @@ begin
       then
       raise exception 'Invalid multiple-choice answer key at index %',v_i using errcode='22023';
    end if;
+   -- Do not cast until the preceding statement has validated numeric syntax.
    if v_answer::integer>=jsonb_array_length(v_q->'options') then
       raise exception 'Multiple-choice key out of range at index %',v_i using errcode='22023';
    end if;
