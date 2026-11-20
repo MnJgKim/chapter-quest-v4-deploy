@@ -645,7 +645,9 @@ function seoulLessonDate(){
       catch(error){console.warn('Reread status unavailable:',String(error?.message||error).slice(0,160));}
       assertChildContext(viewContext);if(childApi!==viewApi)return;
     }
-    let rereadSuggested=!!submitted?.feedback_released&&!!rereadProgress?.required&&!rereadProgress.completed;
+    // Reread is a prerequisite for parent feedback, not a consequence of its release.
+    // The server-authorized status exposes only required/completed, never scores or keys.
+    let rereadSuggested=!!submitted&&!!rereadProgress?.required&&!rereadProgress.completed;
     if(submitted?.feedback_released&&!rereadProgress){
       try{rereadSuggested=await viewApi.releasedRereadSuggestion(c.chapter_uuid)}
       catch(error){
