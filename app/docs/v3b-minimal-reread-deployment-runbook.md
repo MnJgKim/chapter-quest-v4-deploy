@@ -2,6 +2,12 @@
 
 Target: Supabase project ftffxetmqditfqdvzjdd (english-v3b-test). No automatic production mutations.
 
+## Verified production RPC baseline (read-only, 2026-11-20)
+- `cq_v4_submit_answers(uuid,jsonb)`, `cq_v4_release_feedback(uuid,uuid,text,boolean)`, and `cq_v4_is_released(uuid,uuid)` are SECURITY DEFINER functions owned by `postgres`.
+- All three currently have EXECUTE grants only to `postgres`, `authenticated`, and `service_role`. Preserve those grants exactly when replacing the functions; do not grant PUBLIC or anon.
+- The production submission table had no user-defined trigger in the read-only inspection. This is a pre-deploy observation, not a guarantee of future state.
+- **Backup blocker:** the available Supabase connection does not expose a verified restorable backup or restore rehearsal. Do not claim backup success or request deployment approval until this is independently established.
+
 ## Baseline before approval
 - Read-only inventory: activity 17, verified approval provenance 7, 10 not fully matched, submissions 1 (as of 2026-11-20). Re-query immediately before deployment; these counts are not migration assertions.
 - Preserve all Zack Files / Magic Tree House #2 chapters, Storage PDFs, hidden chapters, assignments, historical submissions and feedback.
