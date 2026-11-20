@@ -35,3 +35,10 @@ test('failed status lookup cannot silently imply reread is unnecessary',()=>{
  assert.match(app,/재독서가 필요하지 않다는 뜻은 아닙니다/);
  assert.match(app,/if\(submitted\?\.feedback_released&&!rereadProgress&&!rereadStatusUnavailable\)/);
 });
+
+test('reread completion guards double-click and preserves retry after RPC failure',()=>{
+ assert.match(app,/if\(b\.disabled\)return; \/\/ Prevent duplicate requests/);
+ assert.match(app,/b\.disabled=true;\s*try\{\s*await api\.completeReread/);
+ assert.match(app,/finally\{[\s\S]*?if\(b\.isConnected\)b\.disabled=false/);
+ assert.match(app,/완료 상태를 다시 확인합니다/);
+});
