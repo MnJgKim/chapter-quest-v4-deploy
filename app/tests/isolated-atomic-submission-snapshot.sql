@@ -58,28 +58,22 @@ BEGIN
 END $test$;
 INSERT INTO storage.objects(bucket_id,name) VALUES
  ('cq-v4-speaking','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb/33333333-3333-4333-8333-333333333333.webm');
--- Deliberately fail capture AFTER submission INSERT; the exception subtransaction
--- must roll back the submission and its snapshot, not leave an orphan.
+-- A published legacy chapter with mismatched approval provenance must still
+-- accept a valid submission, but must never fabricate a grading snapshot.
 RESET ROLE;
 UPDATE public.cq_v4_activities SET approval_hash='deliberately-mismatched'
  WHERE chapter_uuid='33333333-3333-4333-8333-333333333333';
 SET LOCAL ROLE authenticated;
-DO $atomic_rollback$
-BEGIN
- BEGIN
-  PERFORM public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333',
-   '{"readComplete":true,"answers":["0"],"essay":"Rollback","speaking":"Rollback","hasAudio":true}'::jsonb);
-  RAISE EXCEPTION 'Hash mismatch incorrectly accepted';
- EXCEPTION WHEN insufficient_privilege THEN NULL;END;
-
-END $atomic_rollback$;
+SELECT chapter_uuid FROM public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333',
+ '{"readComplete":true,"answers":["0"],"essay":"Legacy","speaking":"Legacy","hasAudio":true}'::jsonb);
 RESET ROLE;
-DO $verify_atomic_rollback$
+DO $verify_legacy$
 BEGIN
- IF EXISTS(SELECT 1 FROM public.cq_v4_student_submissions WHERE child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb' AND chapter_uuid='33333333-3333-4333-8333-333333333333')
+ IF NOT EXISTS(SELECT 1 FROM public.cq_v4_student_submissions WHERE child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb' AND chapter_uuid='33333333-3333-4333-8333-333333333333')
  OR EXISTS(SELECT 1 FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb' AND chapter_uuid='33333333-3333-4333-8333-333333333333')
- THEN RAISE EXCEPTION 'Failed capture left partial submission or snapshot';END IF;
-END $verify_atomic_rollback$;
+ OR EXISTS(SELECT 1 FROM public.cq_v4_reread_progress WHERE child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb' AND chapter_uuid='33333333-3333-4333-8333-333333333333')
+ THEN RAISE EXCEPTION 'Legacy submission must persist without fabricated snapshot or reread';END IF;
+END $verify_legacy$;
 UPDATE public.cq_v4_activities SET approval_hash='frozen-approved'
  WHERE chapter_uuid='33333333-3333-4333-8333-333333333333';
 SET LOCAL ROLE authenticated;
