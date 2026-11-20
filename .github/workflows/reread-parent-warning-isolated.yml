@@ -13,6 +13,7 @@ on:
       - 'app/tests/reread-student-flow.test.cjs'
       - 'app/tests/reread-api-transport-isolated.test.cjs'
       - 'app/tests/student-reread-feedback-ui.test.mjs'
+      - 'app/tests/reread-student-api-chromium.py'
       - 'app/tests/isolated-postgres-reread-submission.sql'
       - 'app/sql/development-reread-publish-validation-not-for-production.sql'
       - 'app/tests/reread-publish-validation.test.cjs'
@@ -45,6 +46,11 @@ jobs:
           node-version: '22'
       - name: Node advisory threshold and failure cases
         run: node app/tests/reread-parent-warning.test.cjs
+      - name: Chromium student API reread RPC sequence
+        run: |
+          python -m pip install playwright==1.58.0
+          python -m playwright install --with-deps chromium
+          python app/tests/reread-student-api-chromium.py
       - name: Reread student feedback and unavailable status UI regressions
         run: node --test app/tests/student-reread-feedback-ui.test.mjs
       - name: Isolated reread completion API transport and denial cases
