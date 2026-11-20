@@ -5,7 +5,9 @@ db="cq_v4_v3b_bundle_$$"
 psql -v ON_ERROR_STOP=1 -d postgres -c "CREATE DATABASE $db"
 trap 'psql -v ON_ERROR_STOP=1 -d postgres -c "DROP DATABASE IF EXISTS '"$db"'" >/dev/null' EXIT
 export PGDATABASE="$db"
-psql -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-bootstrap.sql >/dev/null
+# Roles are cluster-wide; the CI job already created anon/authenticated in its first bootstrap.
+# Strip only these two role creation lines for this new disposable database.
+sed -e '/^CREATE ROLE anon NOLOGIN;$/d' -e '/^CREATE ROLE authenticated NOLOGIN;$/d' app/tests/isolated-postgres-bootstrap.sql | psql -v ON_ERROR_STOP=1 >/dev/null
 psql -v ON_ERROR_STOP=1 -f review/sql-candidates/cq_v4_v3b_reread_install_bundle.REVIEW-ONLY.sql >/dev/null
 psql -v ON_ERROR_STOP=1 <<'SQL'
 DO $verify$
