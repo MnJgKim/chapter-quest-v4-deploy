@@ -8,6 +8,9 @@ on:
       - 'app/tests/isolated-postgres-parent-lesson.sql'
       - 'app/tests/reread-parent-warning.test.cjs'
       - 'app/public/js/parent-app.js'
+      - 'app/public/js/student-app.js'
+      - 'app/sql/development-reread-progress-not-for-production.sql'
+      - 'app/tests/reread-student-integration.test.cjs'
       - '.github/workflows/reread-parent-warning-isolated.yml'
   workflow_dispatch:
 jobs:
@@ -33,6 +36,8 @@ jobs:
           node-version: '22'
       - name: Node advisory threshold and failure cases
         run: node app/tests/reread-parent-warning.test.cjs
+      - name: Student submission to reread integration static assertions
+        run: node app/tests/reread-student-integration.test.cjs
       - name: PostgreSQL parent lesson authorization and approval consistency
         env:
           PGPASSWORD: postgres
