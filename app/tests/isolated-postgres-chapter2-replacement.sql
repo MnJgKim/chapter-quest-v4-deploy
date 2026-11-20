@@ -65,3 +65,24 @@ BEGIN
  EXCEPTION WHEN SQLSTATE '40001' THEN NULL; END;
  RAISE NOTICE 'CHAPTER2_POSTGRES_REPLACEMENT_ASSERTIONS_PASSED';
 END $$;
+
+-- Restore-to-approved regression test in an independent fixture.
+\ir ../sql/development-chapter2-restore-approved-questions-not-for-production.sql
+DO $$
+DECLARE v_ch uuid:='aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa';
+ v_old uuid:='bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb';
+BEGIN
+ -- Existing fixture has new activity published; restore requires the same old approval ID.
+ -- Reset fixture to original published approval, then add unapproved questions.
+ UPDATE public.cq_v4_activities SET approval_id=v_old,approval_hash='old-hash',
+  questions='[{"kind":"mc","options":["A","B"]},{"kind":"mc","options":["X","Y"]}]'::jsonb
+ WHERE chapter_uuid=v_ch;
+ -- Original fixture's old approval hash is synthetic, so this call must reject.
+ BEGIN
+  PERFORM public.cq_v4_restore_approved_questions(v_ch,v_old,'old-hash');
+  RAISE EXCEPTION 'Synthetic old approval hash should have been rejected';
+ EXCEPTION WHEN check_violation THEN NULL; END;
+ IF (SELECT jsonb_array_length(questions) FROM public.cq_v4_activities WHERE chapter_uuid=v_ch)<>2
+ THEN RAISE EXCEPTION 'Rejected restore modified published questions'; END IF;
+ RAISE NOTICE 'CHAPTER2_RESTORE_HASH_GUARD_PASSED';
+END $$;
