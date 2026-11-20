@@ -622,9 +622,9 @@ function seoulLessonDate(){
    if(b.dataset.child==='reread-complete'){
     const c=chapters.find(x=>x.chapter_uuid===b.dataset.uuid);
     if(!c)throw Error('배정된 챕터가 아닙니다.');
-    if(b.disabled)return; // Prevent duplicate requests while a completion is in flight.
+    // The shared click handler already sets busy=true and disables this button.
+    // Checking b.disabled here would silently skip every reread completion.
     const owner=childContext(),api=childApi;
-    b.disabled=true;
     try{
       await api.completeReread(c.chapter_uuid);
       assertChildContext(owner);if(childApi!==api)return;
