@@ -19,6 +19,8 @@ on:
       - 'review/sql-candidates/seojin-seven-lessons.ISOLATED-TEST.sql'
       - 'review/sql-candidates/cq_v4_my_lesson_schedule_release_guard.sql'
       - 'review/sql-candidates/cq_v4_parent_reread_notices.REVIEW-ONLY.sql'
+      - 'app/sql/development-publish-approved-reread-guard.REVIEW-ONLY.sql'
+      - 'app/tests/reread-publish-rpc-contract.test.cjs'
       - 'review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql'
       - 'review/sql-candidates/cq_v4_parent_reread_frozen_snapshot.REVIEW-ONLY.sql'
       - 'review/sql-candidates/cq_v4_submit_with_frozen_snapshot.REVIEW-ONLY.sql'
@@ -103,6 +105,8 @@ jobs:
         run: |
           psql -v ON_ERROR_STOP=1 -f app/sql/approved-release-rpc-storage-overlay-v1.REVIEW-ONLY.sql
           psql -v ON_ERROR_STOP=1 -f app/tests/isolated-approved-release-rpc-storage.sql
+      - name: Verify reviewed publication RPC contract
+        run: node --test app/tests/reread-publish-rpc-contract.test.cjs
       - name: Verify atomic submission and immutable snapshot against isolated PostgreSQL
         run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-atomic-submission-snapshot.sql
       - name: Verify weekly schedule release RPC against isolated PostgreSQL
