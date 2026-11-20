@@ -9,8 +9,9 @@ test('reread suggestion RPC returns strict Boolean and validates chapter UUID',(
  assert.match(api,/typeof value!=='boolean'/);
 });
 test('student only asks for reread after released feedback and does not expose score',()=>{
- assert.match(app,/if\(submitted\?\.feedback_released\)\{\s*try\{rereadSuggested=await viewApi\.releasedRereadSuggestion/);
- assert.match(app,/submitted\?\.feedback_released&&rereadSuggested/);
+ assert.match(app,/if\(submitted\?\.feedback_released&&!rereadProgress\)\{\s*try\{rereadSuggested=await viewApi\.releasedRereadSuggestion/);
+ assert.match(app,/let rereadSuggested=!!submitted\?\.feedback_released&&!!rereadProgress\?\.required/);
+ assert.match(app,/const feedback=submitted\?\.feedback_released\?/);
  const begin=app.indexOf('const rereadNotice=');const end=app.indexOf('const feedback=',begin);
  assert.ok(begin>0&&end>begin);
  assert.doesNotMatch(app.slice(begin,end),/correct_mc|total_mc|answer_key|approval_hash/);
