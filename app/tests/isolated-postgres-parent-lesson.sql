@@ -1,5 +1,7 @@
 \set ON_ERROR_STOP on
 CREATE SCHEMA auth;
+CREATE ROLE anon NOLOGIN;
+CREATE ROLE authenticated NOLOGIN;
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('cq.test_uid',true),'')::uuid $$;
 CREATE FUNCTION public.cq_is_admin() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT auth.uid()='11111111-1111-1111-1111-111111111111'::uuid $$;
 CREATE TABLE public.cq_v4_pdf_chapters(chapter_id uuid PRIMARY KEY,parent_user_id uuid NOT NULL);
