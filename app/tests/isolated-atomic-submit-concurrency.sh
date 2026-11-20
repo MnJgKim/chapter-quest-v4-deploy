@@ -10,6 +10,8 @@ CREATE TABLE IF NOT EXISTS public.cq_v4_approval_requests(id uuid PRIMARY KEY,pa
 -- A prior isolated test may have created the table without the new approval schema.
 ALTER TABLE public.cq_v4_approval_requests ADD COLUMN IF NOT EXISTS questions jsonb;
 \i review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql
+CREATE TABLE IF NOT EXISTS public.cq_v4_reread_progress(chapter_uuid uuid NOT NULL,child_user_id uuid NOT NULL,required boolean NOT NULL,completed_at timestamptz,PRIMARY KEY(chapter_uuid,child_user_id));
+\i review/sql-candidates/cq_v4_frozen_reread_atomic.REVIEW-ONLY.sql
 \i review/sql-candidates/cq_v4_submit_with_frozen_snapshot.REVIEW-ONLY.sql
 INSERT INTO public.cq_v4_pdf_chapters VALUES
  ('33333333-3333-4333-8333-333333333333','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true,'Approved'),
