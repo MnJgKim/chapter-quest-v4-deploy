@@ -26,6 +26,14 @@ BEGIN
  OR has_table_privilege('authenticated','public.cq_v4_reread_progress','UPDATE')
  OR has_function_privilege('authenticated','public.cq_v4_capture_grading_snapshot_internal(uuid,uuid)','EXECUTE')
  OR has_function_privilege('anon','public.cq_v4_record_frozen_reread_internal(uuid,uuid)','EXECUTE')
+ OR has_function_privilege('anon','public.cq_v4_reject_snapshot_mutation()','EXECUTE')
+ OR has_function_privilege('authenticated','public.cq_v4_reject_snapshot_mutation()','EXECUTE')
+ OR has_function_privilege('anon','public.cq_v4_complete_reread(uuid)','EXECUTE')
+ OR has_function_privilege('anon','public.cq_v4_my_reread_status(uuid)','EXECUTE')
+ OR has_function_privilege('anon','public.cq_v4_parent_reread_progress()','EXECUTE')
+ OR NOT has_function_privilege('authenticated','public.cq_v4_complete_reread(uuid)','EXECUTE')
+ OR NOT has_function_privilege('authenticated','public.cq_v4_my_reread_status(uuid)','EXECUTE')
+ OR NOT has_function_privilege('authenticated','public.cq_v4_parent_reread_progress()','EXECUTE')
  THEN RAISE EXCEPTION 'Answer-key or scoring privilege leaked';END IF;
 END $verify$;
 SQL
