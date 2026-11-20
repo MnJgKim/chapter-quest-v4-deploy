@@ -103,7 +103,7 @@
  const inviteCfg=()=>({url:project?.url,anonKey:project?.anonKey,getAccessToken:async()=>{await refreshIfNeeded();return session?.token}});
  const publicationChildrenPanel=()=>`<section class="card"><h2>📤 서버 게시 대상 학생</h2><p class="muted">게시할 학생과 서버에서 검증된 PDF 챕터를 각각 선택하세요. 로컬 챕터와 서버 PDF는 자동으로 동일하다고 간주하지 않습니다.</p><label>서버 PDF 챕터<select id="cqPublishVerifiedPdf"><option value="">검증된 서버 PDF 챕터 선택 (필수)</option>${pdfServerChapters.filter(x=>x.ready).map(x=>`<option value="${escapeHtml(x.uuid)}" ${chapter()?.serverPdfUuid===x.uuid?'selected':''}>${escapeHtml(x.title)} · ${escapeHtml(x.uuid)}</option>`).join('')}</select></label>${pendingChildren.filter(c=>c.active).map(c=>`<label><input type="checkbox" data-publish-child="${escapeHtml(c.child_user_id)}"> ${escapeHtml(studentLabel(c.child_user_id,c.student_name))} <small>계정 확인번호 ${escapeHtml(c.child_user_id.slice(-8))}</small></label>`).join('')||'<p>활성 연결 학생 목록을 먼저 불러오세요.</p>'}</section>`;
  let pdfServerChapters=[],pdfServerStudents=[],pdfServerAssignments=[];
- const studentLabel=(id,name)=>String(id||'').toLowerCase().endsWith('7d6881a6')?'서우':[name,pendingChildren.find(child=>child.child_user_id===id)?.student_name]
+ const studentLabel=(id,name)=>String(id||'').toLowerCase().endsWith('7d6881a6')?'서우':String(id||'').toLowerCase().endsWith('f2668488')?'서진':[name,pendingChildren.find(child=>child.child_user_id===id)?.student_name]
    .map(value=>typeof value==='string'?value.trim():'')
    .find(value=>value&&value!=='연결된 학생')||'계정 '+String(id||'').slice(-8);
 
@@ -113,7 +113,7 @@
   if(!session)return '';
   const rows=recurringOwner===cloudIdentity()?recurringRows:[];
   const dayName=d=>['일','월','화','수','목','금','토'][new Date(d+'T00:00:00Z').getUTCDay()];
-  return `<section class="card"><h2>요일 자동 공개 · 학생별 예정 수업</h2><p class="muted">서버에 등록된 수업 일정입니다. 해당 학습일에 자동 공개되며 다시 배정할 필요가 없습니다.</p><button data-recurring="refresh">학생별 대기열 조회</button><div class="grid">${rows.map(r=>`<div class="book"><b>${escapeHtml(studentLabel(r.student_user_id))}</b> · ${escapeHtml(r.lesson_date)} (${dayName(r.lesson_date)})<p>${escapeHtml(r.title)} · ${r.released_at?'공개 예정/활성':'비공개'}</p></div>`).join('')||'<p>서버 조회 후 예정 수업을 표시합니다.</p>'}</div><p id="cqRecurringStatus" class="status" role="status"></p></section>`;
+  return `<section class="card"><h2>요일 자동 공개 · 학생별 예정 수업</h2><p class="muted">서버에 등록된 수업 일정입니다. 해당 학습일에 자동 공개되며 다시 배정할 필요가 없습니다.</p><button data-recurring="refresh">학생별 대기열 조회</button><div class="grid">${rows.map(r=>`<div class="book"><b>${escapeHtml(studentLabel(r.student_user_id))}</b> · ${escapeHtml(r.lesson_date)} (${dayName(r.lesson_date)})<p>${escapeHtml(r.title)} · ${!r.released_at?'비공개':r.lesson_date>new Date(Date.now()+9*3600000).toISOString().slice(0,10)?'공개 예정':'공개 활성'}</p></div>`).join('')||'<p>서버 조회 후 예정 수업을 표시합니다.</p>'}</div><p id="cqRecurringStatus" class="status" role="status"></p></section>`;
  };
  async function refreshRecurring(){
   const owner=cloudIdentity();
