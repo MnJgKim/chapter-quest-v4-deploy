@@ -85,8 +85,8 @@ begin
        raise exception 'Invalid approved MC answer' using errcode='22023';
      end if;
    elsif v_q->>'kind' in ('short','inference','critical','comprehension') then
-     if v_answer <> 'null'::jsonb then
-       raise exception 'Non-MC answer keys must be null' using errcode='22023';
+     if jsonb_typeof(v_answer)<>'string' or nullif(pg_catalog.btrim(v_answer #>> '{}'),'') is null then
+       raise exception 'Non-MC answer key must be a nonempty sample string' using errcode='22023';
      end if;
    else
      raise exception 'Invalid question kind' using errcode='22023';
@@ -111,7 +111,7 @@ grant execute on function public.cq_v4_replace_published_activity(uuid,uuid,text
 
 -- INTEGRATION TESTS REQUIRED before deployment:
 -- Parent owns chapter and fresh approval; no submissions; old ID/hash exact;
--- 10 questions with 10 aligned key entries (null for non-MC allowed);
+-- 10 questions with 10 aligned key entries (non-MC samples are strings);
 -- repeat request rejected; other parent rejected; submitted chapter rejected;
 -- concurrent submit vs replace serialized; invalid key rolls back approval bind;
 -- chapter UUID, PDF path, 2 assignments and old approval remain unchanged;
