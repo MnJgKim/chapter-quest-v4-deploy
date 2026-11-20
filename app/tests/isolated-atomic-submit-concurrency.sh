@@ -6,7 +6,7 @@ psql -X -v ON_ERROR_STOP=1 <<'SETUP'
 \set ON_ERROR_STOP on
 ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_id uuid;
 ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_hash text;
-CREATE TABLE IF NOT EXISTS public.cq_v4_approval_requests(id uuid PRIMARY KEY,parent_user_id uuid,chapter_uuid uuid,answer_key jsonb,content_hash text);
+CREATE TABLE IF NOT EXISTS public.cq_v4_approval_requests(id uuid PRIMARY KEY,parent_user_id uuid,chapter_uuid uuid,answer_key jsonb,content_hash text,questions jsonb);
 \i review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql
 \i review/sql-candidates/cq_v4_submit_with_frozen_snapshot.REVIEW-ONLY.sql
 INSERT INTO public.cq_v4_pdf_chapters VALUES
@@ -35,6 +35,7 @@ INSERT INTO public.cq_v4_approval_requests(id,parent_user_id,chapter_uuid,answer
 UPDATE public.cq_v4_activities SET approval_id='99999999-9999-4999-8999-999999999999',approval_hash='frozen-approved' WHERE chapter_uuid='33333333-3333-4333-8333-333333333333';
 UPDATE public.cq_v4_activities SET approval_id='99999999-9999-4999-8999-999999999998',approval_hash='frozen-approved-2' WHERE chapter_uuid='44444444-4444-4444-8444-444444444444';
 
+UPDATE public.cq_v4_approval_requests r SET questions=a.questions FROM public.cq_v4_activities a WHERE a.approval_id=r.id;
 INSERT INTO storage.objects(bucket_id,name) VALUES ('cq-v4-speaking','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb/33333333-3333-4333-8333-333333333333.webm');
 SETUP
 submit() {
