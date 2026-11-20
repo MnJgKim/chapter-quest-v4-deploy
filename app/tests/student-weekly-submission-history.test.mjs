@@ -15,6 +15,6 @@ test('past lessons without a submission cannot be restarted',()=>{
 
 test('historical feedback is never inferred from a local draft',()=>{
  assert.match(source,/const feedback=submitted\?\.feedback_released\?/);
- assert.match(source,/let rereadSuggested=!!submitted\?\.feedback_released&&/);
+ assert.match(source,/let rereadSuggested=!!submitted&&/);
  assert.match(source,/const submitted=Array\.isArray\(previous\)\?previous\[0\]:previous/);
 });
