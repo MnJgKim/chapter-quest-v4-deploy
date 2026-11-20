@@ -2,6 +2,7 @@
 -- Disposable PostgreSQL 16 only. No production connectivity.
 BEGIN;
 CREATE ROLE authenticated NOLOGIN;
+CREATE ROLE anon NOLOGIN;
 GRANT authenticated TO CURRENT_USER;
 CREATE SCHEMA auth;
 CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS 'SELECT nullif(current_setting(''test.uid'',true),'''')::uuid';
