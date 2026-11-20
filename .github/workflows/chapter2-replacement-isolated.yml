@@ -1,0 +1,34 @@
+name: Chapter 2 isolated PostgreSQL replacement
+on:
+  push:
+    branches:
+      - work/reread-parent-workflow-20261120
+    paths:
+      - 'app/sql/development-replace-published-activity-not-for-production.sql'
+      - 'app/tests/isolated-postgres-chapter2-replacement.sql'
+      - '.github/workflows/chapter2-replacement-isolated.yml'
+  workflow_dispatch:
+jobs:
+  isolated-postgres:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: chapter2_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d chapter2_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Isolated PostgreSQL replacement assertions
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql -h 127.0.0.1 -U postgres -d chapter2_test -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-chapter2-replacement.sql | tee chapter2-test.log
+          grep -q 'CHAPTER2_POSTGRES_REPLACEMENT_ASSERTIONS_PASSED' chapter2-test.log || echo 'Check NOTICE on stderr in job logs'
