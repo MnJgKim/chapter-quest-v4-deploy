@@ -77,6 +77,7 @@ begin
       on req.id=act.approval_id
      and req.chapter_uuid=act.chapter_uuid
      and req.content_hash=act.approval_hash
+     and req.questions=act.questions
    where act.chapter_uuid=new.chapter_uuid
      and act.published_at is not null;
   -- Do not block a child's submission if approved keys are incomplete.
@@ -87,7 +88,8 @@ begin
      or jsonb_typeof(v_answers) is distinct from 'array' then
     return new;
   end if;
-  if jsonb_array_length(v_questions)<>jsonb_array_length(v_answers) then
+  if jsonb_array_length(v_questions)<>jsonb_array_length(v_answers)
+     or jsonb_array_length(v_questions)<>jsonb_array_length(v_key) then
     return new;
   end if;
   -- Non-MC answer keys may legitimately be absent. Validate each MC key below.
