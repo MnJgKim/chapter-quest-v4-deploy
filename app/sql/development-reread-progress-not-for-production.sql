@@ -167,15 +167,16 @@ begin
  if p_release is null or (p_release and pg_catalog.length(pg_catalog.btrim(p_feedback))=0) then
    raise exception 'Feedback required for release' using errcode='22023';
  end if;
- -- Restrict only newly scored submissions that require rereading.
- if p_release and exists(
+ -- Parent feedback entry AND release must wait for required rereading.
+ -- Historical submissions without a progress row retain their original behavior.
+ if exists(
    select 1 from public.cq_v4_reread_progress r
     where r.chapter_uuid=p_chapter_uuid
       and r.child_user_id=p_child_user_id
       and r.required=true
       and r.completed_at is null
  ) then
-   raise exception 'Reread must be completed before feedback release' using errcode='23514';
+   raise exception 'Reread must be completed before parent feedback' using errcode='23514';
  end if;
  update public.cq_v4_student_submissions s
     set feedback=p_feedback, feedback_released=p_release
