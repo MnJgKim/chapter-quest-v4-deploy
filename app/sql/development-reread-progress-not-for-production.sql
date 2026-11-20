@@ -54,7 +54,7 @@ revoke all on function public.cq_v4_my_reread_status(uuid) from public, anon;
 grant execute on function public.cq_v4_my_reread_status(uuid) to authenticated;
 -- Only newly inserted submissions are scored; historical submissions are untouched.
 -- Use the approved, matching answer key and the server-published questions.
--- Threshold: below 60% correct MC answers means reread required.
+-- Threshold: below 70% correct MC answers means reread required.
 create or replace function public.cq_v4_reread_on_submission()
 returns trigger language plpgsql security definer set search_path=''
 as $function$
@@ -103,7 +103,7 @@ begin
     if v_actual=(v_expected #>> '{}') then v_correct:=v_correct+1; end if;
   end loop;
   -- No MC questions: do not require reread; no denominator exists.
-  if v_total>0 then v_required:=(v_correct*5<v_total*3); end if;
+  if v_total>0 then v_required:=(v_correct*10<v_total*7); end if;
   insert into public.cq_v4_reread_progress(chapter_uuid,child_user_id,required)
   values(new.chapter_uuid,new.child_user_id,v_required)
   on conflict do nothing;
