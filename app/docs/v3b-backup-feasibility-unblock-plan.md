@@ -21,10 +21,10 @@ Verified 2026-11-20 using Supabase read-only project metadata and current Supaba
 ### B. No scheduled backups / Free tier
 1. Use a trusted local computer or private Codespace with Supabase CLI, Docker and the **database connection URL from Dashboard > Connect**. Keep the database password and URL out of Git, chat, shell history, logs and CI artifacts.
 2. Verify installed CLI commands with `supabase --help` and `supabase db dump --help`.
-3. Use the documented `supabase db dump --db-url ... --role-only`, schema, and `--data-only --use-copy` export modes, with output files in a private, access-controlled directory (never the repository).
+3. Use the documented `supabase db dump --db-url ... --role-only`, schema, and `--data-only --use-copy` export modes, with output files in a private, access-controlled directory (never the repository). **Important:** Supabase CLI excludes managed `auth` and `storage` schemas by default, so these three files alone are NOT a complete restorable backup of student authentication, Storage metadata, or all Supabase managed state. Design and separately validate supported exports of managed schemas before claiming full disaster recovery.
 4. Confirm all files exist, are non-empty and checksummed; encrypt and keep an off-site copy.
 5. Restore the dump to a **disposable, isolated** Postgres/Supabase environment compatible with the source version, checking documented role/schema/data restore order and extension requirements. Never restore into production.
-6. Validate table counts, function definitions, RLS, representative private checksums and student submission count. Export Storage objects separately (the database dump is insufficient for PDF/audio bytes).
+6. Validate table counts, function definitions, RLS, representative private checksums and student submission count. Verify Auth user continuity and Storage metadata separately. Export Storage objects separately (the database dump is insufficient for PDF/audio bytes).
 7. If Docker/DB connection or storage export is unavailable, mark this route BLOCKED with the precise missing permission or tool rather than retrying indefinitely.
 
 ## Security findings from Supabase advisors (read-only)
@@ -41,3 +41,6 @@ Verified 2026-11-20 using Supabase read-only project metadata and current Supaba
 
 ## Smallest remaining human action (only if needed)
 Open https://supabase.com/dashboard/project/ftffxetmqditfqdvzjdd/database/backups/scheduled and report whether scheduled backups exist and the most recent successful timestamp (or 'none'). Do not share a password, connection URL, backup content, or API token.
+
+## Confirmed dashboard observation (2026-11-20)
+User-provided screenshot of Database Backups > Scheduled backups states: **Free Plan does not include project backups**. Automatic scheduled backup is unavailable. Route B is required; do not request a paid upgrade. Do not treat `supabase db dump`'s default exclusion of managed `auth`/`storage` as full recoverability. Before user runs any command, confirm whether a trusted computer or Codespace has Docker/CLI available and where encrypted private backup files can be retained off-repository.
