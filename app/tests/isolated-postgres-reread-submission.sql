@@ -75,6 +75,18 @@ BEGIN
      OR EXISTS (SELECT 1 FROM public.cq_v4_reread_progress) THEN
     RAISE EXCEPTION 'invalid MC response left partial submission';
   END IF;
+  v_rejected:=false;
+  BEGIN
+    INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers)
+    VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222',
+      '{"answers":["1","1","1","1","1","1",null,"0","0","0"]}'::jsonb);
+  EXCEPTION WHEN invalid_parameter_value THEN v_rejected:=true;
+  END;
+  IF NOT v_rejected THEN RAISE EXCEPTION 'null MC response accepted'; END IF;
+  IF EXISTS (SELECT 1 FROM public.cq_v4_student_submissions)
+     OR EXISTS (SELECT 1 FROM public.cq_v4_reread_progress) THEN
+    RAISE EXCEPTION 'null MC response left partial submission';
+  END IF;
   RAISE NOTICE 'REREAD_MISSING_MC_POSTGRES_ASSERTIONS_PASSED';
 END $reread_missing_answers$;
 INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','{"answers":["1","1","1","1","1","1","0","0","0","0"]}'::jsonb);
