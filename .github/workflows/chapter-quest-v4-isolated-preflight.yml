@@ -66,6 +66,8 @@ jobs:
         run: node --test app/tests/parent-objective-reread.test.mjs
       - name: Verify student reread feedback gate and missing RPC compatibility
         run: node --check app/public/js/student-api.js && node --check app/public/js/student-app.js && node --test app/tests/student-reread-feedback-ui.test.mjs app/tests/student-legacy-scheduler-fallback.test.mjs app/tests/student-seoul-date-boundary.test.mjs app/tests/student-weekly-submission-history.test.mjs app/tests/student-submitted-pdf-retry.test.mjs
+      - name: Verify V3B ordered installation bundle contract
+        run: node --test app/tests/reread-v3b-install-bundle.test.mjs
       - name: Verify V3B live submission parity in minimal reread overlay
         run: node --test app/tests/reread-v3b-production-parity.test.mjs
       - name: Verify legacy-safe submission routing
