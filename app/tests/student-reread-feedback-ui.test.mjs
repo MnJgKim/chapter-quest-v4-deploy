@@ -37,8 +37,9 @@ test('failed status lookup cannot silently imply reread is unnecessary',()=>{
 });
 
 test('reread completion guards double-click and preserves retry after RPC failure',()=>{
- assert.match(app,/if\(b\.disabled\)return; \/\/ Prevent duplicate requests/);
- assert.match(app,/b\.disabled=true;\s*try\{\s*await api\.completeReread/);
+ assert.match(app,/if\(busy\)return;[\s\S]*?busy=true;b\.disabled=true/);
+ assert.doesNotMatch(app,/if\(b\.dataset\.child==='reread-complete'\)\{[\s\S]{0,250}if\(b\.disabled\)return/);
+ assert.match(app,/if\(b\.dataset\.child==='reread-complete'\)[\s\S]*?try\{\s*await api\.completeReread/);
  assert.match(app,/finally\{[\s\S]*?if\(b\.isConnected\)b\.disabled=false/);
  assert.match(app,/const confirmed=await api\.rereadStatus\(c\.chapter_uuid\)/);
  assert.match(app,/if\(!confirmed\?\.required\|\|!confirmed\.completed\)throw Error/);
