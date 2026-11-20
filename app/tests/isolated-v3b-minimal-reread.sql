@@ -33,6 +33,37 @@ SELECT set_config('request.jwt.claim.sub','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'
 SELECT public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333','{"readComplete":true,"answers":["1"],"essay":"Verified","speaking":"Verified","hasAudio":true}');
 SELECT public.cq_v4_submit_answers('44444444-4444-4444-8444-444444444444','{"readComplete":true,"answers":["0"],"essay":"Legacy","speaking":"Legacy","hasAudio":true}');
 SELECT public.cq_v4_submit_answers('33333333-3333-4333-8333-333333333333','{"readComplete":true,"answers":["0"],"essay":"Tampered","speaking":"Tampered","hasAudio":true}');
+-- Invalid but provenance-matched frozen key must roll back the entire new submission.
+RESET ROLE;
+INSERT INTO public.cq_v4_pdf_chapters(chapter_id,parent_user_id,pdf_ready,title) VALUES
+('55555555-5555-4555-8555-555555555555','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true,'Invalid key');
+INSERT INTO public.cq_v4_pdf_assignments VALUES ('55555555-5555-4555-8555-555555555555','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb');
+INSERT INTO public.cq_v4_activities(chapter_uuid,published_at,questions,approval_id,approval_hash) VALUES
+('55555555-5555-4555-8555-555555555555',now(),'[{"kind":"mc","options":["A","B"]}]','99999999-9999-4999-8999-999999999997','invalid-key');
+INSERT INTO public.cq_v4_approval_requests VALUES
+('99999999-9999-4999-8999-999999999997','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','55555555-5555-4555-8555-555555555555','[9]','invalid-key','[{"kind":"mc","options":["A","B"]}]');
+INSERT INTO public.cq_v4_lesson_schedule(parent_user_id,student_user_id,chapter_id,lesson_date,released_at) VALUES
+('aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb','55555555-5555-4555-8555-555555555555',CURRENT_DATE,now());
+INSERT INTO storage.objects(bucket_id,name) VALUES
+('cq-v4-speaking','bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb/55555555-5555-4555-8555-555555555555.webm');
+SET LOCAL ROLE authenticated;
+DO $rollback_invalid_key$
+BEGIN
+ BEGIN
+  PERFORM public.cq_v4_submit_answers('55555555-5555-4555-8555-555555555555',
+   '{"readComplete":true,"answers":["0"],"essay":"Rollback","speaking":"Rollback","hasAudio":true}');
+  RAISE EXCEPTION 'Invalid frozen key incorrectly accepted';
+ EXCEPTION WHEN invalid_parameter_value THEN NULL;
+ END;
+END $rollback_invalid_key$;
+RESET ROLE;
+DO $rollback_assert$
+BEGIN
+ IF EXISTS(SELECT 1 FROM public.cq_v4_student_submissions WHERE chapter_uuid='55555555-5555-4555-8555-555555555555')
+ OR EXISTS(SELECT 1 FROM public.cq_v4_immutable_grading_snapshots WHERE chapter_uuid='55555555-5555-4555-8555-555555555555')
+ OR EXISTS(SELECT 1 FROM public.cq_v4_reread_progress WHERE chapter_uuid='55555555-5555-4555-8555-555555555555')
+ THEN RAISE EXCEPTION 'Invalid frozen key left partial submission';END IF;
+END $rollback_assert$;
 -- Parent cannot write feedback before required reread. Student cannot impersonate parent.
 RESET ROLE;
 SELECT set_config('request.jwt.claim.sub','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true);
