@@ -79,14 +79,18 @@ begin
      and req.content_hash=act.approval_hash
    where act.chapter_uuid=new.chapter_uuid
      and act.published_at is not null;
-  -- Fail closed on inconsistent approval data: do not claim a pass.
+  -- Do not block a child's submission if approved keys are incomplete.
+  -- Do not insert a 'passed' row either: no row means NOT SCORED,
+  -- and must be surfaced to the parent before production rollout.
   if jsonb_typeof(v_questions) is distinct from 'array'
      or jsonb_typeof(v_key) is distinct from 'array'
-     or jsonb_typeof(v_answers) is distinct from 'array'
-     or jsonb_array_length(v_questions)<>jsonb_array_length(v_key)
-     or jsonb_array_length(v_questions)<>jsonb_array_length(v_answers) then
-    raise exception 'Approved answer key unavailable for scoring' using errcode='22023';
+     or jsonb_typeof(v_answers) is distinct from 'array' then
+    return new;
   end if;
+  if jsonb_array_length(v_questions)<>jsonb_array_length(v_answers) then
+    return new;
+  end if;
+  -- Non-MC answer keys may legitimately be absent. Validate each MC key below.
   -- Empty arrays have no MC denominator; avoid 0..-1 subscripts.
   if jsonb_array_length(v_questions)>0 then
     for v_i in 0..jsonb_array_length(v_questions)-1 loop
@@ -273,7 +277,8 @@ $function$;
 revoke all on function public.cq_v4_parent_reread_progress() from public,anon;
 grant execute on function public.cq_v4_parent_reread_progress() to authenticated;
  then
-        raise exception 'Invalid approved multiple-choice answer key' using errcode='22023';
+        -- Missing/invalid MC key: preserve submission, do not assign a score.
+        return new;
       end if;
       v_total:=v_total+1;
       if v_actual=(v_expected #>> '{}') then v_correct:=v_correct+1; end if;
