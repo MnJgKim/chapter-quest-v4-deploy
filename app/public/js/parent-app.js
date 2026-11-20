@@ -110,51 +110,20 @@
  let recurringRows=[], recurringOwner=null, recurringBackendMissing=true;
  const recurringLabels={empty:'다음 챕터 준비 필요',in_progress:'공개됨 · 제출 대기',paused:'부모 비공개',scheduled:'예약됨',ready:'자동 공개 대기',blocked:'원본 또는 승인 자료 확인 필요'};
  const recurringPanel=()=>{
-   if(!session)return '';
-   const c=chapter(),rows=recurringOwner===cloudIdentity()?recurringRows:[];
-   const stateLabel=(ready)=>ready?'완료':'준비 필요';
-   const linkedPdf=pdfServerChapters.some(row=>row.uuid===c?.serverPdfUuid&&row.ready);
-   return `<section class="card"><h2>요일 자동 공개</h2><button data-recurring="refresh">학생별 대기열 조회</button>
-    ${c?`<p>${escapeHtml(book()?.title)} · ${escapeHtml(c.title)}</p><ul>
-      <li>서버 원본: ${stateLabel(linkedPdf)}</li><li>AI용 본문: ${stateLabel(c.source?.trim()&&!c.sourcePreviewOnly)}</li>
-      <li>문제·단어: ${stateLabel(c.questions?.length&&c.vocabulary?.length)}</li>
-      <li>부모 승인: ${c.approvalReceipt?'승인 기록 있음 · 대기열 등록 시 검증':'검토 필요'}</li>
-    </ul><label>책 안의 챕터 번호 <input type="number" min="1" max="1000" step="1" id="cqRecurringChapterNumber"></label>
-    <label><input id="cqRecurringFinalChapter" type="checkbox"> 이 책의 마지막 챕터</label>
-    <p>서버 게시 대상에서 검증된 PDF와 학생을 선택하세요. 대기 중인 승인본을 수정하려면 먼저 해당 자료를 철회하세요.</p>
-    <button ${recurringBackendMissing?'disabled title="자동 공개 서버 기능 미설치"':''} data-parent-publish data-recurring-queue="true" data-c="${escapeHtml(c.id)}">승인 자료를 대기열에 추가</button>
-    <button ${recurringBackendMissing?'disabled title="자동 공개 서버 기능 미설치"':''} data-parent-publish data-recurring-queue="true" data-existing-publication="true" data-c="${escapeHtml(c.id)}">기존 서버 게시본을 대기열에 추가</button>`:''}
-    ${recurringBackendMissing?'<p role="alert">자동 공개 대기열 서버 기능이 아직 설치되지 않았습니다. 기존 수업 일정은 유지되며 대기열 추가·철회는 사용할 수 없습니다.</p>':''}<div class="grid">${rows.map(row=>`<div class="book"><b>${escapeHtml(studentLabel(row.student_id))}</b>
-     <p>${escapeHtml(row.weekdays?.map(day=>['','월','화','수','목','금','토','일'][day]).join('·')||'요일 미설정')} ${row.enabled?`· ${escapeHtml(row.effective_from)} 시작`:'· 자동 공개 꺼짐'}</p>
-     ${row.book_title?`<p>도서 · ${escapeHtml(row.book_title)}</p>`:''}
-     <p>최근 공개 · ${escapeHtml(row.current_title||'없음')}</p><p>다음 · ${escapeHtml(row.next_title||'준비 필요')}</p>
-     <p>${row.chapter_title?`Chapter ${escapeHtml(row.chapter_number??'')} · ${escapeHtml(row.chapter_title)}`:'대기열 없음'}</p>
-     <p>${escapeHtml(recurringLabels[row.state]||'상태 확인 필요')}${row.chapter_title?` · 원본 ${stateLabel(row.pdf_ready)} · 서버 게시 ${stateLabel(row.published)}`:''}</p>
-     ${row.withdraw_chapter?`<button ${recurringBackendMissing?'disabled':''} data-recurring="withdraw" data-student="${escapeHtml(row.student_id)}" data-chapter="${escapeHtml(row.withdraw_chapter)}">마지막 대기 자료 철회</button>`: ''}
-    </div>`).join('')}</div><p id="cqRecurringStatus" class="status" role="status"></p></section>`;
+  if(!session)return '';
+  const rows=recurringOwner===cloudIdentity()?recurringRows:[];
+  const dayName=d=>['일','월','화','수','목','금','토'][new Date(d+'T00:00:00Z').getUTCDay()];
+  return `<section class="card"><h2>요일 자동 공개 · 학생별 예정 수업</h2><p class="muted">서버에 등록된 수업 일정입니다. 해당 학습일에 자동 공개되며 다시 배정할 필요가 없습니다.</p><button data-recurring="refresh">학생별 대기열 조회</button><div class="grid">${rows.map(r=>`<div class="book"><b>${escapeHtml(studentLabel(r.student_user_id))}</b> · ${escapeHtml(r.lesson_date)} (${dayName(r.lesson_date)})<p>${escapeHtml(r.title)} · ${r.released_at?'공개 예정/활성':'비공개'}</p></div>`).join('')||'<p>서버 조회 후 예정 수업을 표시합니다.</p>'}</div><p id="cqRecurringStatus" class="status" role="status"></p></section>`;
  };
  async function refreshRecurring(){
-   const owner=cloudIdentity();
-   let rows,children;
-   try{
-     [rows,children]=await Promise.all([
-       parentRpc('cq_v4_parent_recurring_status'),
-       parentRpc('cq_v4_list_child_access').catch(()=>null),
-     ]);
-     recurringBackendMissing=false;
-   }catch(error){
-     if(/cq_v4_parent_recurring_status/.test(String(error?.message||''))&&/schema cache|could not find the function|PGRST202/i.test(String(error?.message||''))){
-       recurringBackendMissing=true;
-       recurringRows=[];recurringOwner=owner;
-       if(cloudIdentity()===owner)render();
-       return;
-     }
-     throw error;
-   }
-   if(cloudIdentity()!==owner)return;
-   if(!Array.isArray(rows))throw Error('대기열 응답 형식을 확인하세요.');
-   if(Array.isArray(children))pendingChildren=children;
-   recurringOwner=owner;recurringRows=rows;render();
+  const owner=cloudIdentity();
+  await refreshPdfParentLists();
+  const rows=await parentRpc('cq_v4_parent_list_lesson_releases');
+  if(owner!==cloudIdentity())return;
+  if(!Array.isArray(rows))throw Error('서버 일정 응답 오류');
+  recurringBackendMissing=true;
+  recurringRows=rows.filter(r=>r.lesson_date).map(r=>({...r,title:pdfServerChapters.find(c=>c.uuid===r.chapter_id)?.title||'Chapter '+String(r.chapter_id||'').slice(0,8)})).sort((a,b)=>a.lesson_date.localeCompare(b.lesson_date)||studentLabel(a.student_user_id).localeCompare(studentLabel(b.student_user_id)));
+  recurringOwner=owner;render();
  }
  document.addEventListener('click',async event=>{
    const button=event.target.closest('[data-recurring]');
@@ -192,7 +161,11 @@
   finally{if(b.isConnected)b.disabled=false;}
  });
  let lessonReleases=[];
- const lessonReleasePanel=()=>`<section class="card"><h2>🔓 부모 직접 챕터 공개</h2><p>공개 전에는 학생이 볼 수 없습니다. 월·수·목 외 날짜도 선택할 수 있습니다.</p><button data-lesson="refresh" ${session?'':'disabled'}>공개 상태 새로고침</button>${pdfServerAssignments.map(a=>{const c=pdfServerChapters.find(x=>x.uuid===a.chapter_uuid);const v=lessonReleases.find(x=>x.student_user_id===a.student_user_id&&x.chapter_id===a.chapter_uuid);return `<div class="book"><b>${escapeHtml(c?.title||a.chapter_uuid)}</b> · 학생 ${escapeHtml(studentLabel(a.student_user_id))} · ${v?.released_at?'공개':'비공개'}<div class="row"><input type="date" data-lesson-date="${escapeHtml(a.student_user_id+':'+a.chapter_uuid)}" value="${escapeHtml(v?.lesson_date||'2026-11-23')}"><button data-lesson="schedule" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" ${c?.ready?'':'disabled'}>일정 저장</button><button data-lesson="toggle" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" data-open="${v?.released_at?'false':'true'}" ${v&&c?.ready?'':'disabled'}>${v?.released_at?'비공개 전환':'지금 공개'}</button></div></div>`}).join('')||'<p>서버 챕터와 학생 배정을 먼저 등록하세요.</p>'}<p id="lessonReleaseStatus" class="status"></p></section>`;
+ const lessonReleasePanel=()=>{
+  const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Seoul',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+  const rows=pdfServerAssignments.map(a=>({...a,c:pdfServerChapters.find(c=>c.uuid===a.chapter_uuid),v:lessonReleases.find(r=>r.student_user_id===a.student_user_id&&r.chapter_id===a.chapter_uuid)})).sort((a,b)=>Number(!!b.v?.released_at)-Number(!!a.v?.released_at)||String(a.v?.lesson_date||'9999').localeCompare(String(b.v?.lesson_date||'9999')));
+  return `<section class="card"><h2>🔓 부모 직접 챕터 공개</h2><p>공개 설정과 학습일을 구분합니다. 학습일 전에는 원문과 문제를 열람할 수 없습니다.</p><button data-lesson="refresh" ${session?'':'disabled'}>공개 상태 새로고침</button>${rows.map(a=>{const status=!a.v?.released_at?'비공개':a.v.lesson_date>today?'공개 예정':'공개 활성';return `<div class="book"><b>${escapeHtml(a.c?.title||a.chapter_uuid)}</b> · 학생 ${escapeHtml(studentLabel(a.student_user_id))} · ${status}<div class="row"><input type="date" data-lesson-date="${escapeHtml(a.student_user_id+':'+a.chapter_uuid)}" value="${escapeHtml(a.v?.lesson_date||'')}"><button data-lesson="schedule" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" ${a.c?.ready?'':'disabled'}>일정 저장</button><button data-lesson="toggle" data-student="${escapeHtml(a.student_user_id)}" data-chapter="${escapeHtml(a.chapter_uuid)}" data-open="${a.v?.released_at?'false':'true'}" ${a.v&&a.c?.ready?'':'disabled'}>${a.v?.released_at?'비공개 전환':'지금 공개'}</button></div></div>`}).join('')||'<p>서버 챕터와 학생 배정을 먼저 등록하세요.</p>'}<p id="lessonReleaseStatus" class="status"></p></section>`;
+ };
  const lessonStatus=t=>{const e=document.getElementById('lessonReleaseStatus');if(e)e.textContent=t};
  async function refreshLessonReleases(){const rows=await parentRpc('cq_v4_parent_list_lesson_releases');if(!Array.isArray(rows))throw Error('공개 목록 조회 실패');lessonReleases=rows;render();lessonStatus('서버 상태 확인 완료');}
  document.addEventListener('click',async event=>{
