@@ -52,5 +52,6 @@ BEGIN
  SELECT v_r.chapter_uuid, x.uid FROM pg_catalog.unnest(p_children) AS x(uid)
  ON CONFLICT DO NOTHING;
  RETURN v_r.chapter_uuid;
-END $function$;
+END;
+$function$;
 
