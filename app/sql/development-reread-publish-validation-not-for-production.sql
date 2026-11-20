@@ -29,28 +29,15 @@ begin
       or jsonb_array_length(v_q->'options')<2
       or jsonb_typeof(v_key->v_i) is distinct from 'number'
       or v_answer is null
-      or v_answer !~ '^(0|[1-9][0-9]*)
-  end loop;
- end if;
- if v_count=0 then
-  raise exception 'No objectively scorable multiple-choice questions' using errcode='22023';
- end if;
- return true;
-end;
-$function$;
-revoke all on function public.cq_v4_assert_reread_publishable(uuid) from public,anon;
-grant execute on function public.cq_v4_assert_reread_publishable(uuid) to authenticated;
--- Integration point for a reviewed cq_v4_publish_approved migration:
--- PERFORM public.cq_v4_assert_reread_publishable(p_approval_id);
--- Execute inside the SAME publication transaction before writing activities.
--- Do not change production publication RPC until separate approval.
-
-      or pg_catalog.length(v_answer)>9 then
+      or v_answer = ''
+      or pg_catalog.translate(v_answer,'0123456789','') <> ''
+      or (pg_catalog.length(v_answer)>1 and pg_catalog.left(v_answer,1)='0')
+      or pg_catalog.length(v_answer)>9
+      then
       raise exception 'Invalid multiple-choice answer key at index %',v_i using errcode='22023';
    end if;
-   -- Do not cast until the preceding statement has rejected malformed keys.
    if v_answer::integer>=jsonb_array_length(v_q->'options') then
-      raise exception 'Multiple-choice answer key out of range at index %',v_i using errcode='22023';
+      raise exception 'Multiple-choice key out of range at index %',v_i using errcode='22023';
    end if;
   end loop;
  end if;
