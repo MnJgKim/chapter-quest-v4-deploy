@@ -96,14 +96,22 @@ begin
   if jsonb_array_length(v_questions)>0 then
     for v_i in 0..jsonb_array_length(v_questions)-1 loop
       v_q:=v_questions->v_i;
-      if v_q->>'kind' <> 'mc' then continue; end if;
+      if v_q->>'kind' <> 'mc' then
+        if jsonb_typeof(v_answers->v_i) is distinct from 'string'
+           or pg_catalog.length(pg_catalog.btrim(coalesce(v_answers->>v_i,'')))=0
+           or pg_catalog.length(v_answers->>v_i)>8000 then
+          raise exception 'Missing or invalid written response at index %',v_i
+            using errcode='22023';
+        end if;
+        continue;
+      end if;
       v_expected:=v_key->v_i;
       v_actual:=v_answers->>v_i;
       if jsonb_typeof(v_q->'options') is distinct from 'array'
          or jsonb_array_length(v_q->'options') < 2 then
         raise exception 'Invalid multiple-choice options at index %',v_i using errcode='22023';
       end if;
-      if jsonb_typeof(v_answers->v_i) is distinct from 'string'
+      if jsonb_typeof(v_answers->v_i) not in ('string','number')
          or v_actual !~ '^(0|[1-9][0-9]*)$'
          or pg_catalog.length(v_actual)>9
          or v_actual::integer >= jsonb_array_length(v_q->'options') then
