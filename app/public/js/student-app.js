@@ -633,7 +633,9 @@ function seoulLessonDate(){
       if(!confirmed?.required||!confirmed.completed)throw Error('필수 재독서 완료 상태를 서버에서 재확인하지 못했습니다. 잠시 후 다시 시도하세요.');
       status('재독서 완료가 서버에 저장되고 재확인되었습니다. 오늘의 학습을 마쳤습니다.');
       const refresh=document.querySelector('[data-child="feedback"][data-uuid="'+c.chapter_uuid+'"]');
-      if(refresh)refresh.click();
+      // The shared click handler still owns busy=true until its outer finally.
+      // Defer the refresh so the click is not discarded by that guard.
+      if(refresh)queueMicrotask(()=>{if(refresh.isConnected)refresh.click();});
       return;
     }finally{
       // A rejected RPC must leave the action retryable; a successful refresh replaces this button.
