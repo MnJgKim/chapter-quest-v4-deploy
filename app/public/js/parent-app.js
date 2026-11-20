@@ -553,7 +553,7 @@
    finally{publicationBusy=false;if(button.isConnected)button.disabled=false;}
  });
  const originalRender=render;
- render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+serverSchedulePanel()+pdfParentPanel()+recurringPanel()+lessonReleasePanel()+publicationChildrenPanel()+feedbackPanel()+rereadPanel());if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession);if(session&&scheduleAutoOwner!==cloudIdentity()&&!scheduleAutoBusy)queueMicrotask(loadServerSchedulesAutomatically)}};
+ render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+serverSchedulePanel()+`<details class="card" id="cqMaterialWorkflow"><summary style="cursor:pointer;font-weight:700">📚 학습 자료 제작·승인·게시 (12단계 펼치기)</summary><div class="note">① 서버 원본 PDF 등록 → ② 책·챕터 관리 → ③ 챕터 추가 → ④ 편집·AI 문제 생성 → ⑤ AI용 TXT 저장 → ⑥ 원본 PDF/TXT 등록 → ⑦ JSON 가져오기 → ⑧ 본문·정답·근거 검토 → ⑨ 부모 승인 저장 → ⑩ 게시 가능 확인 → ⑪ 서버 PDF·학생 선택 → ⑫ 승인 자료 게시·배정. 책·챕터 편집은 아래 기존 책 관리 화면에서 진행합니다. 승인과 서버 게시는 별도 작업입니다.</div>`+pdfParentPanel()+publicationChildrenPanel()+`</details>`+recurringPanel()+lessonReleasePanel()+feedbackPanel()+rereadPanel());if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession);if(session&&scheduleAutoOwner!==cloudIdentity()&&!scheduleAutoBusy)queueMicrotask(loadServerSchedulesAutomatically)}};
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-parent-invite]');if(!b)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project){inviteStatus('부모 Supabase 로그인이 필요합니다.');return;}
