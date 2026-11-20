@@ -761,7 +761,8 @@ function seoulLessonDate(){
        voiceBlob=null;voiceChapter=null;
        status('서버에 이미 제출된 답변이 확인되었습니다. 중복 제출하지 않았습니다.'+(audioCleanupOk?'':' 이 기기의 녹음 파일 정리는 실패했습니다. 저장 공간을 확인하세요.'));
        const detail=el('cqChildDetail');
-       if(detail)detail.innerHTML='<p>제출 완료. 피드백은 부모 검토 후 공개됩니다.</p><button data-child="feedback" data-uuid="'+escape(uuid)+'">피드백 확인</button>';
+       if(detail){detail.innerHTML='<p>제출 완료. 재독서 필요 여부를 서버에서 확인합니다.</p><button data-child="feedback" data-uuid="'+escape(uuid)+'">학습 결과 확인</button>'; 
+        queueMicrotask(()=>{if(session?.uid===context.uid&&childGeneration===context.generation)detail.querySelector('[data-child="feedback"]')?.click();});}
        return;
      }
      let pending=readRecovery(context.uid,uuid);
@@ -826,7 +827,8 @@ function seoulLessonDate(){
      assertChildContext(context);
      try{submissionGate.markConfirmed(context.uid,uuid)}catch(err){console.warn('Submission marker unavailable:',err?.name||'UNKNOWN');}
      uploadedAudio.delete(session.uid+'/'+uuid);clearRecovery(session.uid,uuid);clearDraft(session.uid,uuid);const audioCleanupOk=await cleanupConfirmedAudio(context.uid,uuid,context);assertChildContext(context);voiceBlob=null;voiceChapter=null;status('제출 완료. 부모 피드백은 공개 후 확인할 수 있습니다.'+(audioCleanupOk?'':' 이 기기의 녹음 파일 정리는 실패했습니다. 저장 공간을 확인하세요.'));
-     const detail=el('cqChildDetail');if(detail)detail.innerHTML='<p>제출 완료. 피드백은 부모 검토 후 공개됩니다.</p><button data-child="feedback" data-uuid="'+escape(uuid)+'">피드백 확인</button>';
+     const detail=el('cqChildDetail');if(detail){detail.innerHTML='<p>제출 완료. 재독서 필요 여부를 서버에서 확인합니다.</p><button data-child="feedback" data-uuid="'+escape(uuid)+'">학습 결과 확인</button>'; 
+        queueMicrotask(()=>{if(session?.uid===context.uid&&childGeneration===context.generation)detail.querySelector('[data-child="feedback"]')?.click();});}
    }catch(err){
      if(session?.uid===context.uid&&childGeneration===context.generation){
        status('제출 실패: '+err.message+(readRecovery(context.uid,uuid)?' · 서버에 업로드된 녹음 기록이 보존되었습니다. 다시 로그인해 제출할 수 있습니다.':''));
