@@ -3,7 +3,7 @@ BEGIN;
 ALTER TABLE public.cq_v4_student_submissions ADD COLUMN IF NOT EXISTS feedback_released boolean NOT NULL DEFAULT false;
 ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_id uuid;
 ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_hash text;
-CREATE TABLE IF NOT EXISTS public.cq_v4_approval_requests(id uuid PRIMARY KEY,parent_user_id uuid,chapter_uuid uuid,answer_key jsonb,content_hash text);
+CREATE TABLE IF NOT EXISTS public.cq_v4_approval_requests(id uuid PRIMARY KEY,parent_user_id uuid,chapter_uuid uuid,answer_key jsonb,content_hash text,questions jsonb);
 \ir ../../review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql
 \ir ../../review/sql-candidates/cq_v4_parent_reread_frozen_snapshot.REVIEW-ONLY.sql
 DO $$
@@ -19,6 +19,8 @@ BEGIN
  INSERT INTO public.cq_v4_activities(chapter_uuid,published_at,approval_id,approval_hash,questions) VALUES
  (c,now(),a,'hash-1',(SELECT jsonb_agg(jsonb_build_object('kind','mc','options',jsonb_build_array('a','b'))) FROM generate_series(1,10))),
  (d,now(),'dddddddd-dddd-4ddd-dddd-ddddddddddde','hash-2',(SELECT jsonb_agg(jsonb_build_object('kind','mc','options',jsonb_build_array('a','b'))) FROM generate_series(1,10)));
+ UPDATE public.cq_v4_approval_requests r SET questions=act.questions
+ FROM public.cq_v4_activities act WHERE act.approval_id=r.id;
  INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES
  (c,s,'{"answers":["0","0","0","0","0","0","1","1","1","1"]}'::jsonb),
  (d,t,'{"answers":["0","0","0","0","0","0","0","1","1","1"]}'::jsonb);
