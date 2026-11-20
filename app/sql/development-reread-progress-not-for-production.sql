@@ -166,3 +166,25 @@ $function$;
 -- DO NOT DEPLOY until isolated integration tests cover:
 -- approved key validity, 70% threshold, completion, parent feedback gate,
 -- historical submissions, recording uploads and submission atomicity.
+
+-- Parent-only status (no answer keys or scores in the student-facing RPC).
+create or replace function public.cq_v4_parent_reread_progress()
+returns table(chapter_uuid uuid, student_user_id uuid, required boolean, completed_at timestamptz)
+language plpgsql security definer set search_path=''
+as $function$
+begin
+ if auth.uid() is null or not public.cq_is_admin() then
+   raise exception 'Parent authorization required' using errcode='42501';
+ end if;
+ return query
+ select r.chapter_uuid,r.child_user_id,r.required,r.completed_at
+ from public.cq_v4_reread_progress r
+ join public.cq_v4_pdf_chapters c on c.chapter_id=r.chapter_uuid
+ join public.cq_v4_pdf_assignments a on a.chapter_id=c.chapter_id and a.student_user_id=r.child_user_id
+ join public.cq_v4_pdf_enrollments e on e.parent_user_id=c.parent_user_id and e.student_user_id=r.child_user_id
+ where c.parent_user_id=auth.uid()
+ order by r.created_at desc;
+end;
+$function$;
+revoke all on function public.cq_v4_parent_reread_progress() from public,anon;
+grant execute on function public.cq_v4_parent_reread_progress() to authenticated;
