@@ -129,14 +129,14 @@ BEGIN
    RAISE EXCEPTION 'Duplicate immutable submission row'; END IF;
  IF (SELECT answers->>'essay' FROM public.cq_v4_student_submissions
      WHERE chapter_uuid='33333333-3333-4333-8333-333333333333'::uuid
-       AND child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid) <> 'Test' THEN
+       AND child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid) <> 'Legacy' THEN
    RAISE EXCEPTION 'Submitted essay was overwritten'; END IF;
 END $idempotency$;
 DO $snapshot_checks$
 BEGIN
- IF (SELECT required FROM public.cq_v4_reread_progress WHERE chapter_uuid='33333333-3333-4333-8333-333333333333'::uuid AND child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid) IS DISTINCT FROM false THEN RAISE EXCEPTION 'Correct one-question submission must not require reread';END IF;
- IF (SELECT count(*) FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid AND chapter_uuid='33333333-3333-4333-8333-333333333333'::uuid)<>1 THEN RAISE EXCEPTION 'Atomic submission did not capture snapshot';END IF;
- IF (SELECT count(*) FROM public.cq_v4_immutable_grading_snapshots)<>1 THEN RAISE EXCEPTION 'Unexpected extra snapshot';END IF;
+ IF EXISTS (SELECT 1 FROM public.cq_v4_reread_progress WHERE chapter_uuid='33333333-3333-4333-8333-333333333333'::uuid AND child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid)
+ OR EXISTS (SELECT 1 FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid AND chapter_uuid='33333333-3333-4333-8333-333333333333'::uuid)
+ THEN RAISE EXCEPTION 'Legacy idempotent resubmission created forbidden score';END IF;
 END $snapshot_checks$;
 ROLLBACK;
 \echo 'ATOMIC_SUBMISSION_SNAPSHOT_ASSERTIONS_PASSED'
