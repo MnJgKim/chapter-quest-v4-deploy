@@ -89,6 +89,18 @@ BEGIN
   END IF;
   RAISE NOTICE 'REREAD_MISSING_MC_POSTGRES_ASSERTIONS_PASSED';
 END $reread_missing_answers$;
+-- The real submit RPC accepts both JSON numbers and numeric strings for MC.
+INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers)
+VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222',
+        '{"answers":[1,1,1,1,1,1,0,0,0,0]}'::jsonb);
+DO $numeric_mc$ BEGIN
+ IF (SELECT required FROM public.cq_v4_reread_progress) IS DISTINCT FROM true THEN
+   RAISE EXCEPTION 'numeric MC responses must score at 60 percent';
+ END IF;
+ RAISE NOTICE 'REREAD_NUMERIC_MC_POSTGRES_ASSERTIONS_PASSED';
+END $numeric_mc$;
+DELETE FROM public.cq_v4_reread_progress;
+DELETE FROM public.cq_v4_student_submissions;
 INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','{"answers":["1","1","1","1","1","1","0","0","0","0"]}'::jsonb);
 DO $reread_submission$ DECLARE v_rejected boolean; BEGIN
  IF (SELECT required FROM public.cq_v4_reread_progress) IS DISTINCT FROM true THEN RAISE EXCEPTION '60 percent must require reread'; END IF;
