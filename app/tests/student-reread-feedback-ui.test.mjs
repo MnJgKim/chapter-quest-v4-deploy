@@ -40,5 +40,7 @@ test('reread completion guards double-click and preserves retry after RPC failur
  assert.match(app,/if\(b\.disabled\)return; \/\/ Prevent duplicate requests/);
  assert.match(app,/b\.disabled=true;\s*try\{\s*await api\.completeReread/);
  assert.match(app,/finally\{[\s\S]*?if\(b\.isConnected\)b\.disabled=false/);
- assert.match(app,/완료 상태를 다시 확인합니다/);
+ assert.match(app,/const confirmed=await api\.rereadStatus\(c\.chapter_uuid\)/);
+ assert.match(app,/if\(!confirmed\?\.completed\)throw Error/);
+ assert.match(app,/저장되고 재확인되었습니다/);
 });
