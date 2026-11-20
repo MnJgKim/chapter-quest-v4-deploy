@@ -64,5 +64,14 @@ DO $$ BEGIN
  INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','{"answers":["1"]}'::jsonb);
  RAISE EXCEPTION 'duplicate submission accepted';
  EXCEPTION WHEN unique_violation THEN NULL; END;
+ DELETE FROM public.cq_v4_reread_progress; DELETE FROM public.cq_v4_student_submissions;
+ UPDATE public.cq_v4_approval_requests SET answer_key='[1]'::jsonb WHERE id='cccccccc-cccc-cccc-cccc-cccccccccccc';
+ BEGIN
+  INSERT INTO public.cq_v4_student_submissions(chapter_uuid,child_user_id,answers) VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa','22222222-2222-2222-2222-222222222222','{"answers":["1","1","1","1","1","1","0","0","0","0"]}'::jsonb);
+  RAISE EXCEPTION 'invalid key unexpectedly accepted';
+ EXCEPTION WHEN invalid_parameter_value THEN NULL;
+ END;
+ IF EXISTS (SELECT 1 FROM public.cq_v4_student_submissions) OR EXISTS (SELECT 1 FROM public.cq_v4_reread_progress) THEN RAISE EXCEPTION 'failed score left partial submission'; END IF;
+ UPDATE public.cq_v4_approval_requests SET answer_key='[1,1,1,1,1,1,1,1,1,1]'::jsonb WHERE id='cccccccc-cccc-cccc-cccc-cccccccccccc';
  RAISE NOTICE 'REREAD_STUDENT_POSTGRES_ASSERTIONS_PASSED';
 END $$;
