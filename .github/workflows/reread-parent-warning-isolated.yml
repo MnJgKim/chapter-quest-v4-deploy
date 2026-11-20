@@ -1,0 +1,42 @@
+name: Reread parent warning isolated verification
+on:
+  push:
+    branches:
+      - work/reread-parent-workflow-20261120
+    paths:
+      - 'app/sql/development-parent-lesson-context-not-for-production.sql'
+      - 'app/tests/isolated-postgres-parent-lesson.sql'
+      - 'app/tests/reread-parent-warning.test.cjs'
+      - 'app/public/js/parent-app.js'
+      - '.github/workflows/reread-parent-warning-isolated.yml'
+  workflow_dispatch:
+jobs:
+  reread-warning:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: reread_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d reread_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Node advisory threshold and failure cases
+        run: node app/tests/reread-parent-warning.test.cjs
+      - name: PostgreSQL parent lesson authorization and approval consistency
+        env:
+          PGPASSWORD: postgres
+        run: |
+          set -euo pipefail
+          psql -X -h 127.0.0.1 -U postgres -d reread_test -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-parent-lesson.sql 2>&1 | tee reread-parent-lesson.log
+          grep -q 'REREAD_PARENT_LESSON_POSTGRES_ASSERTIONS_PASSED' reread-parent-lesson.log
