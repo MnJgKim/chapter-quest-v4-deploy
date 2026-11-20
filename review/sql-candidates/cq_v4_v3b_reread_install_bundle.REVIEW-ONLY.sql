@@ -364,6 +364,15 @@ END; $function$;
 
 
 
+-- Explicitly close PostgreSQL's default PUBLIC EXECUTE on newly created SECURITY DEFINER routines.
+-- Existing submit/feedback functions retain their live V3B ACL; do not widen them.
+REVOKE ALL ON FUNCTION public.cq_v4_reject_snapshot_mutation() FROM PUBLIC,anon,authenticated;
+REVOKE ALL ON FUNCTION public.cq_v4_complete_reread(uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_complete_reread(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.cq_v4_my_reread_status(uuid) FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_my_reread_status(uuid) TO authenticated;
+REVOKE ALL ON FUNCTION public.cq_v4_parent_reread_progress() FROM PUBLIC,anon;
+GRANT EXECUTE ON FUNCTION public.cq_v4_parent_reread_progress() TO authenticated;
 -- Do not expose immutable answer keys or private scoring helpers.
 REVOKE ALL ON public.cq_v4_immutable_grading_snapshots FROM PUBLIC,anon,authenticated;
 REVOKE ALL ON public.cq_v4_reread_progress FROM PUBLIC,anon,authenticated;
