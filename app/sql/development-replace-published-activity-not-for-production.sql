@@ -12,7 +12,7 @@ declare
  v_old public.cq_v4_activities%rowtype;
  v_new public.cq_v4_approval_requests%rowtype;
  v_chapter public.cq_v4_pdf_chapters%rowtype;
- v_i integer; v_q jsonb; v_answer jsonb;
+ v_i integer; v_q jsonb; v_answer jsonb; v_expected_hash text;
 begin
  if v_uid is null or not public.cq_is_admin() then
    raise exception 'Parent authorization required' using errcode='42501';
@@ -37,6 +37,13 @@ begin
     or v_old.approval_hash is distinct from p_old_approval_hash then
    raise exception 'Published approval changed; refresh before replacement' using errcode='40001';
  end if;
+ if not exists(select 1 from public.cq_v4_approval_requests old_req
+               where old_req.id=p_old_approval_id
+                 and old_req.chapter_uuid=p_chapter_uuid
+                 and old_req.parent_user_id=v_uid
+                 and old_req.content_hash=p_old_approval_hash) then
+   raise exception 'Previous approval record does not match' using errcode='42501';
+ end if;
  -- Recheck after lock; never replace content with an existing submission.
  if exists(select 1 from public.cq_v4_student_submissions
            where chapter_uuid=p_chapter_uuid) then
@@ -47,6 +54,14 @@ begin
  if not found or (v_new.chapter_uuid is not null and v_new.chapter_uuid<>p_chapter_uuid)
     or v_new.content_hash is null then
    raise exception 'Fresh owned approval required' using errcode='42501';
+ end if;
+ -- The registration RPC hashes the complete payload; reject modified approval rows.
+ v_expected_hash:=pg_catalog.md5(pg_catalog.jsonb_build_array(
+    v_new.book_local_id,v_new.chapter_local_id,v_new.title,v_new.source_text,
+    v_new.questions,v_new.answer_key,v_new.vocabulary,
+    v_new.writing_prompt,v_new.speaking_prompt)::text);
+ if v_new.content_hash is distinct from v_expected_hash then
+   raise exception 'New approval content hash mismatch' using errcode='23514';
  end if;
  if exists(select 1 from public.cq_v4_activities where approval_id=p_new_approval_id) then
    raise exception 'Approval already published' using errcode='23505';
@@ -69,7 +84,11 @@ begin
         or (v_answer #>> '{}')::integer>=jsonb_array_length(v_q->'options') then
        raise exception 'Invalid approved MC answer' using errcode='22023';
      end if;
-   elsif v_q->>'kind' not in ('short','inference','critical','comprehension') then
+   elsif v_q->>'kind' in ('short','inference','critical','comprehension') then
+     if v_answer <> 'null'::jsonb then
+       raise exception 'Non-MC answer keys must be null' using errcode='22023';
+     end if;
+   else
      raise exception 'Invalid question kind' using errcode='22023';
    end if;
  end loop;
