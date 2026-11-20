@@ -112,7 +112,7 @@ begin
         raise exception 'Invalid multiple-choice options at index %',v_i using errcode='22023';
       end if;
       if jsonb_typeof(v_answers->v_i) not in ('string','number')
-         or v_actual !~ '^(0|[1-9][0-9]*)$'
+         or (v_actual is null or v_actual = '' or pg_catalog.translate(v_actual,'0123456789','') <> '' or (pg_catalog.length(v_actual)>1 and pg_catalog.left(v_actual,1)='0'))
          or pg_catalog.length(v_actual)>9
          then
         raise exception 'Invalid MC response' using errcode='22023';
@@ -121,7 +121,7 @@ begin
         raise exception 'Missing or invalid multiple-choice response at index %',v_i using errcode='22023';
       end if;
       if jsonb_typeof(v_expected) is distinct from 'number'
-         or (v_expected #>> '{}') !~ '^(0|[1-9][0-9]*)$'
+         or ((v_expected #>> '{}') is null or (v_expected #>> '{}') = '' or pg_catalog.translate((v_expected #>> '{}'),'0123456789','') <> '' or (pg_catalog.length(v_expected #>> '{}')>1 and pg_catalog.left((v_expected #>> '{}'),1)='0'))
          or pg_catalog.length(v_expected #>> '{}')>9
          then
         raise exception 'Invalid MC key' using errcode='22023';
