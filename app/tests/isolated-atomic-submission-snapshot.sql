@@ -5,6 +5,8 @@ ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_id uuid;
 ALTER TABLE public.cq_v4_activities ADD COLUMN IF NOT EXISTS approval_hash text;
 CREATE TABLE IF NOT EXISTS public.cq_v4_approval_requests(id uuid PRIMARY KEY,parent_user_id uuid,chapter_uuid uuid,answer_key jsonb,content_hash text,questions jsonb);
 \ir ../../review/sql-candidates/cq_v4_immutable_grading_snapshot.REVIEW-ONLY.sql
+CREATE TABLE public.cq_v4_reread_progress(chapter_uuid uuid NOT NULL,child_user_id uuid NOT NULL,required boolean NOT NULL,completed_at timestamptz,PRIMARY KEY(chapter_uuid,child_user_id));
+\ir ../../review/sql-candidates/cq_v4_frozen_reread_atomic.REVIEW-ONLY.sql
 \ir ../../review/sql-candidates/cq_v4_submit_with_frozen_snapshot.REVIEW-ONLY.sql
 INSERT INTO public.cq_v4_pdf_chapters VALUES
  ('33333333-3333-4333-8333-333333333333','aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa',true,'Approved'),
@@ -137,6 +139,7 @@ BEGIN
 END $idempotency$;
 DO $snapshot_checks$
 BEGIN
+ IF (SELECT required FROM public.cq_v4_reread_progress WHERE chapter_uuid='33333333-3333-4333-8333-333333333333'::uuid AND child_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid) IS DISTINCT FROM false THEN RAISE EXCEPTION 'Correct one-question submission must not require reread';END IF;
  IF (SELECT count(*) FROM public.cq_v4_immutable_grading_snapshots WHERE student_user_id='bbbbbbbb-bbbb-4bbb-bbbb-bbbbbbbbbbbb'::uuid AND chapter_uuid='33333333-3333-4333-8333-333333333333'::uuid)<>1 THEN RAISE EXCEPTION 'Atomic submission did not capture snapshot';END IF;
  IF (SELECT count(*) FROM public.cq_v4_immutable_grading_snapshots)<>1 THEN RAISE EXCEPTION 'Unexpected extra snapshot';END IF;
 END $snapshot_checks$;
