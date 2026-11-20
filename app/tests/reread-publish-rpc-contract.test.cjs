@@ -4,6 +4,9 @@ const fs=require('node:fs');
 const sql=fs.readFileSync('app/sql/development-publish-approved-reread-guard.REVIEW-ONLY.sql','utf8');
 const baseline=fs.readFileSync('app/server-review/fixtures/current-functions.sql','utf8');
 assert.match(sql,/DEVELOPMENT REVIEW CANDIDATE ONLY/);
+assert.match(sql,/END;\s*\$function\$;/);
+assert.doesNotMatch(sql,/END\s+\$function\$;/);
+
 assert.match(sql,/CREATE OR REPLACE FUNCTION public\.cq_v4_publish_approved\(p_approval_id uuid, p_children uuid\[\]\)/);
 assert.match(sql,/PERFORM public\.cq_v4_assert_reread_publishable\(p_approval_id\)/);
 for(const field of ['questions','vocabulary','writing_prompt','speaking_prompt']){
