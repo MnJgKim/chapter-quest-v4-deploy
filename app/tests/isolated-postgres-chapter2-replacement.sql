@@ -16,7 +16,7 @@ CREATE TEMP TABLE payload AS SELECT 'cccccccc-cccc-cccc-cccc-cccccccccccc'::uuid
 '88888888-8888-8888-8888-888888888888'::uuid request_key,
 'b2'::text book_local_id,'c2'::text chapter_local_id,'Chapter 2'::text title,'new source'::text source_text,
 '[{"kind":"mc","text":"Q","options":["A","B"]},{"kind":"short","text":"Why?","sample":"Because."}]'::jsonb questions,
-'[1,null]'::jsonb answer_key,'[]'::jsonb vocabulary,'write new'::text writing_prompt,'speak new'::text speaking_prompt;
+'[1,"Because."]'::jsonb answer_key,'[]'::jsonb vocabulary,'write new'::text writing_prompt,'speak new'::text speaking_prompt;
 INSERT INTO public.cq_v4_approval_requests(id,parent_user_id,request_key,book_local_id,chapter_local_id,title,source_text,questions,answer_key,vocabulary,writing_prompt,speaking_prompt,content_hash)
 SELECT id,parent_user_id,request_key,book_local_id,chapter_local_id,title,source_text,questions,answer_key,vocabulary,writing_prompt,speaking_prompt,
 md5(jsonb_build_array(book_local_id,chapter_local_id,title,source_text,questions,answer_key,vocabulary,writing_prompt,speaking_prompt)::text)
@@ -39,13 +39,13 @@ BEGIN
  EXCEPTION WHEN insufficient_privilege THEN NULL; END;
  PERFORM set_config('cq.test_uid','11111111-1111-1111-1111-111111111111',true);
  -- Invalid answer key rolls back.
- UPDATE public.cq_v4_approval_requests SET answer_key='[3,null]',
- content_hash=md5(jsonb_build_array(book_local_id,chapter_local_id,title,source_text,questions,'[3,null]'::jsonb,vocabulary,writing_prompt,speaking_prompt)::text) WHERE id=v_new;
+ UPDATE public.cq_v4_approval_requests SET answer_key='[3,"Because."]',
+ content_hash=md5(jsonb_build_array(book_local_id,chapter_local_id,title,source_text,questions,'[3,"Because."]'::jsonb,vocabulary,writing_prompt,speaking_prompt)::text) WHERE id=v_new;
  BEGIN PERFORM public.cq_v4_replace_published_activity(v_id,v_old,'old-hash',v_new);
  RAISE EXCEPTION 'bad key unexpectedly succeeded';
- EXCEPTION WHEN check_violation THEN NULL; END;
- UPDATE public.cq_v4_approval_requests SET answer_key='[1,null]',
- content_hash=md5(jsonb_build_array(book_local_id,chapter_local_id,title,source_text,questions,'[1,null]'::jsonb,vocabulary,writing_prompt,speaking_prompt)::text) WHERE id=v_new;
+ EXCEPTION WHEN invalid_parameter_value THEN NULL; END;
+ UPDATE public.cq_v4_approval_requests SET answer_key='[1,"Because."]',
+ content_hash=md5(jsonb_build_array(book_local_id,chapter_local_id,title,source_text,questions,'[1,"Because."]'::jsonb,vocabulary,writing_prompt,speaking_prompt)::text) WHERE id=v_new;
  -- Existing submission blocks replacement.
  INSERT INTO public.cq_v4_student_submissions VALUES(v_id,'33333333-3333-3333-3333-333333333333');
  BEGIN PERFORM public.cq_v4_replace_published_activity(v_id,v_old,'old-hash',v_new);
