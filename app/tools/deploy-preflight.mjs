@@ -27,9 +27,10 @@ try{
   const configPath=join(dir,'wrangler.json');
   await writeFile(configPath,JSON.stringify(config,null,2));
   const require=createRequire(import.meta.url);
-  const cli=resolve(root,'app/node_modules/wrangler/bin/wrangler.js');
+  const cli=join(require.resolve('wrangler/package.json'),'..');
+  const cliPath=resolve(cli,'bin/wrangler.js');
   // Explicitly dry-run; no Cloudflare credentials or network needed.
-  const run=spawnSync(process.execPath,[cli,'deploy','--config',configPath,'--dry-run','--outdir',join(dir,'build')],{
+  const run=spawnSync(process.execPath,[cliPath,'deploy','--config',configPath,'--dry-run','--outdir',join(dir,'build')],{
     cwd:root,stdio:'inherit',env:{...process.env,WRANGLER_SEND_METRICS:'false'}
   });
   if(run.error)throw run.error;
