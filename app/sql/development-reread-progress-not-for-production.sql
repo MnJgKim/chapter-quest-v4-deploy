@@ -104,9 +104,14 @@ begin
         raise exception 'Invalid multiple-choice options at index %',v_i using errcode='22023';
       end if;
       if jsonb_typeof(v_answers->v_i) is distinct from 'string'
-         or v_actual !~ '^(0|[1-9][0-9]*)      if jsonb_typeof(v_expected)<>'number'
+         or v_actual !~ '^(0|[1-9][0-9]*)$'
+         or pg_catalog.length(v_actual)>9
+         or v_actual::integer >= jsonb_array_length(v_q->'options') then
+        raise exception 'Missing or invalid multiple-choice response at index %',v_i using errcode='22023';
+      end if;
+      if jsonb_typeof(v_expected) is distinct from 'number'
          or (v_expected #>> '{}') !~ '^(0|[1-9][0-9]*)$'
-         or jsonb_typeof(v_q->'options')<>'array'
+         or pg_catalog.length(v_expected #>> '{}')>9
          or (v_expected #>> '{}')::integer >= jsonb_array_length(v_q->'options') then
         raise exception 'Invalid reread answer key at index %',v_i using errcode='22023';
       end if;
