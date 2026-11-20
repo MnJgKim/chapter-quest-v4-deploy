@@ -37,5 +37,23 @@ with sync_playwright() as p:
       "cq_v4_my_reread_status","cq_v4_complete_reread","cq_v4_my_reread_status"],result
     assert all(c["headers"]["Authorization"]=="Bearer isolated-token" for c in result["calls"])
     assert all(c["body"]["p_chapter_uuid"]==uuid for c in result["calls"])
+    errors=page.evaluate("""async (uuid) => {
+      let shouldFail=true;
+      const api=window.CQStudentAPI.createStudentAPI({
+        url:'https://isolated-test.supabase.co',
+        anonKey:'public-test-key',
+        getAccessToken:async()=> 'isolated-token',
+        fetchImpl:async(url)=>{
+          if(shouldFail){shouldFail=false;return {ok:false,status:503,json:async()=>({message:'temporarily unavailable'})};}
+          return {ok:true,json:async()=>[{required:true,completed:false}]};
+        }
+      });
+      let rejected=false;
+      try{await api.rereadStatus(uuid);}catch(e){rejected=/503/.test(e.message);}
+      return {rejected,recovered:await api.rereadStatus(uuid)};
+    }""",uuid)
+    assert errors["rejected"] is True,errors
+    assert errors["recovered"]=={"required":True,"completed":False},errors
+    print("REAL_CHROMIUM_REREAD_RPC_FAILURE_RECOVERY_PASSED")
     print("REAL_CHROMIUM_STUDENT_API_REREAD_RPC_SEQUENCE_PASSED")
     browser.close()
