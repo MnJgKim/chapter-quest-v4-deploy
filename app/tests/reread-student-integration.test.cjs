@@ -1,0 +1,14 @@
+const assert=require('node:assert/strict');
+const fs=require('node:fs');
+const student=fs.readFileSync('app/public/js/student-app.js','utf8');
+const sql=fs.readFileSync('app/sql/development-reread-progress-not-for-production.sql','utf8');
+assert(student.includes('await childApi.submit(uuid,'),'server submission must be used');
+assert.equal((student.match(/queueMicrotask\(\(\)=>\{if\(session\?\.uid===context\.uid/g)||[]).length,2,'new and recovered submissions must refresh server status');
+assert(student.includes('await viewApi.rereadStatus(c.chapter_uuid)'),'student view must request server reread state');
+assert(student.includes('data-child="reread-complete"'),'reread completion button must exist');
+assert(student.includes('await api.completeReread(c.chapter_uuid)'),'completion must call server');
+assert(sql.includes('create trigger cq_v4_reread_after_submit'),'automatic trigger must exist');
+assert(sql.includes('and req.questions=act.questions'),'mismatched published questions must not be graded');
+assert(sql.includes('jsonb_array_length(v_questions)<>jsonb_array_length(v_key)'),'key counts must be validated');
+assert(sql.includes('v_correct*10<v_total*7'),'strictly below 70 percent');
+console.log('REREAD_STUDENT_INTEGRATION_STATIC_ASSERTIONS_PASSED');
