@@ -1,7 +1,7 @@
 name: Chapter Quest V4 isolated security preflight
 on:
   push:
-    branches: [work/hosted-readonly-preflight-20261117]
+    branches: [work/hosted-readonly-preflight-20261117, work/reread-parent-workflow-20261120]
     paths:
       - '.github/workflows/chapter-quest-v4-isolated-preflight.yml'
       - 'app/tests/**'
