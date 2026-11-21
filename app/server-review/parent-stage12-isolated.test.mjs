@@ -30,6 +30,16 @@ try{
  await check('preserve original date and release',async()=>{const r=(await db.query('SELECT lesson_date,released_at IS NOT NULL AS released FROM cq_v4_lesson_schedule')).rows[0];assert.equal(String(r.lesson_date).slice(0,10),'2026-11-23');assert.equal(r.released,true);});
  await check('reject different chapter on same student/day',async()=>assert.rejects(db.query('INSERT INTO cq_v4_lesson_schedule VALUES($1,$2,$3,$4)',[parent,child,otherChapter,'2026-11-23']),e=>e.code==='23505'));
  await check('permit another day',async()=>{await db.query('INSERT INTO cq_v4_lesson_schedule VALUES($1,$2,$3,$4)',[parent,child,otherChapter,'2026-11-25']);});
+ await check('simultaneous conflicting updates leave no duplicate student/day',async()=>{
+  const results=await Promise.allSettled([
+   db.query('UPDATE cq_v4_lesson_schedule SET lesson_date=$1 WHERE student_user_id=$2 AND chapter_id=$3',['2026-11-26',child,chapter]),
+   db.query('UPDATE cq_v4_lesson_schedule SET lesson_date=$1 WHERE student_user_id=$2 AND chapter_id=$3',['2026-11-26',child,otherChapter])
+  ]);
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+  assert.equal(results.filter(r=>r.status==='rejected').length,1);
+  const rows=(await db.query('SELECT count(*)::int AS n FROM cq_v4_lesson_schedule WHERE student_user_id=$1 AND lesson_date=$2',[child,'2026-11-26'])).rows;
+  assert.equal(rows[0].n,1);
+ });
  await db.exec(readFileSync(new URL('./parent-reread-notice-rpcs.REVIEW.sql',import.meta.url),'utf8'));
  await uid(parent);
  await check('parent inbox idempotent',async()=>{const a=(await db.query('SELECT * FROM cq_v4_parent_reread_inbox()')).rows;const b=(await db.query('SELECT * FROM cq_v4_parent_reread_inbox()')).rows;assert.equal(a.length,1);assert.equal(b.length,1);assert.equal(a[0].notice_id,b[0].notice_id);assert.equal(a[0].correct_mc,null);});
