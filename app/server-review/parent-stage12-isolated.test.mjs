@@ -42,6 +42,12 @@ try{
   assert.equal(rows[0].n,1);
  });
  await db.exec(readFileSync(new URL('./parent-reread-notice-rpcs.REVIEW.sql',import.meta.url),'utf8'));
+ await check('notice table denies direct authenticated and anon access',async()=>{
+  for(const role of ['authenticated','anon']){
+   const result=(await db.query('SELECT has_table_privilege($1,\'public.cq_v4_parent_reread_notices\',\'SELECT,INSERT,UPDATE,DELETE\') AS allowed',[role])).rows[0];
+   assert.equal(result.allowed,false);
+  }
+ });
  await uid(parent);
  await check('parent inbox idempotent',async()=>{const a=(await db.query('SELECT * FROM cq_v4_parent_reread_inbox()')).rows;const b=(await db.query('SELECT * FROM cq_v4_parent_reread_inbox()')).rows;assert.equal(a.length,1);assert.equal(b.length,1);assert.equal(a[0].notice_id,b[0].notice_id);assert.equal(a[0].correct_mc,null);});
  const notice=(await db.query('SELECT notice_id FROM cq_v4_parent_reread_inbox()')).rows[0].notice_id;
