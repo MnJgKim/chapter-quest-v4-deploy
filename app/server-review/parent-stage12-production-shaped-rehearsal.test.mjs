@@ -10,6 +10,7 @@ const p='11111111-1111-4111-8111-111111111111',c='22222222-2222-4222-8222-222222
 let passed=0;const check=(label)=>{passed++;console.log('PASS',label)};
 try{
  await admin.connect();
+ await admin.query(`DO $ BEGIN IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='authenticated') THEN CREATE ROLE authenticated; END IF; IF NOT EXISTS (SELECT 1 FROM pg_roles WHERE rolname='anon') THEN CREATE ROLE anon; END IF; END $;`);
  await admin.query(`CREATE DATABASE ${isolatedDatabase}`);
  await db.connect();
  await db.query(`CREATE SCHEMA auth;
