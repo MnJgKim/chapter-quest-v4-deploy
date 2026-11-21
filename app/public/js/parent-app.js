@@ -610,7 +610,11 @@
    if(title)move(title.closest('.row')||title,2);
    const add=manage.querySelector('#chapterTitle')?.closest('.row');
    move(add,3);
-   // Chapter selection remains in step 4; existing data-act delegation is unchanged.
+   // Keep the chapter management list beside book registration in step 2.
+   // The selected chapter's editor belongs in step 4, not in the book list.
+   for(const chapterRow of Array.from(manage.querySelectorAll(':scope > .book'))){
+    move(chapterRow,2);
+   }
    while(manage.firstChild)move(manage.firstChild,4);
    manage.remove();
   }
