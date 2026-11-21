@@ -5,7 +5,7 @@ const sql=readFileSync(new URL('./parent-reread-notice-rpcs.REVIEW.sql',import.m
 const ui=readFileSync(new URL('../public/js/parent-app.js',import.meta.url),'utf8');
 test('notice draft is parent-scoped, idempotent and private',()=>{
  assert.match(sql,/UNIQUE\(chapter_uuid,student_user_id\)/);
- assert.match(sql,/ON CONFLICT\(chapter_uuid,student_user_id\) DO NOTHING/);
+ assert.match(sql,/ON CONFLICT ON CONSTRAINT cq_v4_parent_reread_notice_once DO NOTHING/);
  assert.match(sql,/ENABLE ROW LEVEL SECURITY/);
  assert.match(sql,/REVOKE ALL ON public\.cq_v4_parent_reread_notices FROM PUBLIC, anon, authenticated/);
  assert.match(sql,/auth\.uid\(\) IS NULL OR NOT public\.cq_is_admin\(\)/);
