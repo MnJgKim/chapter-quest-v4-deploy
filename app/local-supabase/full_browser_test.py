@@ -122,6 +122,12 @@ try:
   expect(pp.locator('#cloudEmail')).to_be_visible()
   pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인됨');passed('parent browser is authorized through real Auth and admin RPC')
   pp.locator('[data-parent-invite="issue"]').click();expect(pp.locator('#cqInviteCode')).to_have_text(__import__('re').compile('^[0-9a-f]{48}$'));invite=pp.locator('#cqInviteCode').inner_text();private.append(invite)
+  # Diagnose the local schedule RPC independently; do not mask HTTP errors or relax student assertions.
+  try:
+   schedule_probe=api('/rest/v1/rpc/cq_v4_my_lesson_schedule',{},users['student']['token'])
+   report['schedule_probe']={'status':'ok','rows':len(schedule_probe) if isinstance(schedule_probe,list) else 'unexpected'}
+  except urllib.error.HTTPError as error:
+   report['schedule_probe']={'status':error.code,'body':error.read(700).decode(errors='replace')}
   sp=page();sp.locator('#cqChildEmail').fill(users['student']['email']);sp.locator('#cqChildPassword').fill(users['student']['password']);sp.locator('[data-child="login"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('배정 챕터를 불러왔습니다');expect(sp.locator('#cqChildInvite')).to_be_visible();sp.locator('#cqChildInvite').fill(invite);sp.locator('#cqChildInviteName').fill('Synthetic Student');assert sp.locator('#cqChildInvite').input_value()==invite,'Invite input was changed before claim';sp.locator('[data-child="claim"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('연결 요청 완료');pp.locator('[data-parent-invite="refresh"]').click();pp.locator('[data-parent-invite="approve"]').click();expect(pp.locator('#cqInviteStatus')).to_contain_text('승인 완료');passed('real invitation claim and parent enrollment approval')
   pp.locator('#bookTitle').fill('Synthetic Local Book');pp.locator('[data-act="addBook"]').click();pp.locator('#chapterTitle').fill('Synthetic Chapter');pp.locator('[data-act="addChapter"]').click();pp.locator('#cqOriginalPDF').set_input_files(str(original));pp.locator('[data-act="savePDF"]').click()
   if original_kind=='txt':expect(pp.locator('#sourceText')).to_have_value(source)
