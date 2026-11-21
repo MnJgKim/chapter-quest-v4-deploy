@@ -623,8 +623,13 @@
        if(released&&!text.trim())throw Error('피드백을 작성한 뒤 공개하세요.');
        await parentRpc('cq_v4_release_feedback',{p_child_user_id:r.child_user_id,p_chapter_uuid:r.chapter_uuid,p_feedback:text,p_release:released});
        r.feedback=text;r.feedback_released=released;
-       const rows=await parentRpc('cq_v4_parent_submissions');
-       submissions=await enrichSubmissions(Array.isArray(rows)?rows:[]);render();parentStatus('서버에서 피드백 저장 상태를 다시 확인했습니다.');
+       try{
+         const rows=await parentRpc('cq_v4_parent_submissions');
+         if(!Array.isArray(rows))throw Error('제출 목록 응답 형식 오류');
+         submissions=await enrichSubmissions(rows);render();parentStatus('서버에서 피드백 저장 상태를 다시 확인했습니다.');
+       }catch(refreshError){
+         render();parentStatus('피드백 저장은 성공했지만 재조회에 실패했습니다. 새로고침하여 확인하세요: '+refreshError.message);
+       }
      }
    }catch(error){parentStatus('오류: '+error.message)}finally{feedbackBusy=false;button.disabled=false}
  });
