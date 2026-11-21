@@ -44,3 +44,12 @@
 ## Remaining validation
 - Restore current production-shaped schema to an isolated database and execute reviewed migration there; test JWT/role authorization, concurrent index creation/failure/retry, rollback, and exact row/timestamp preservation.
 - Reconcile UI RPC response contracts and confirm first lessons remain unaffected.
+
+## Production read-only recheck — 2026-11-21 (no writes)
+- Confirmed 15 schedule rows, 0 student/date duplicates, 1 submission and 0 reread progress rows.
+- Confirmed `cq_v4_lesson_schedule.student_user_id` is UUID NOT NULL and `lesson_date` is DATE NOT NULL; the current PK is (student_user_id, chapter_id). The proposed student/date index is absent.
+- Confirmed `cq_v4_reread_progress` PK is (chapter_uuid, child_user_id), compatible with the proposed notice FK. Notice table and both proposed notice RPCs are absent.
+- Confirmed `cq_is_admin()` is owned by postgres, SECURITY DEFINER, with empty search path, and checks `public.cq_admins` against `auth.uid()`. The existing `cq_v4_parent_reread_progress()` is likewise owned by postgres and filters chapter ownership, assignments and enrollments.
+- Confirmed RLS enabled for schedule, progress, submissions, chapters, assignments and enrollments. Authenticated has no direct SELECT privilege on schedule, reread progress or submissions; anon has no direct SELECT privilege on these six tables. The RPC needs definer privileges but must enforce its own parent checks.
+- These are metadata and count checks only, **not** a full restored production-schema migration rehearsal. Do not mark the latter complete.
+- Prior Actions run 44881474807 passed 30/30 tests in synthetic isolated environments, not a production schema restore.
