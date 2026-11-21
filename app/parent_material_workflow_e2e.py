@@ -26,7 +26,11 @@ try:
    else:report['blocked_requests'].append(route.request.url);route.abort()
   ctx.route('**/*',intercept)
   page=ctx.new_page()
-  page.on('dialog',lambda dialog:dialog.accept('123456') if dialog.type=='prompt' else dialog.accept())
+  dialogs=[]
+  def on_dialog(dialog):
+   dialogs.append({'type':dialog.type,'message':dialog.message})
+   dialog.accept('123456') if dialog.type=='prompt' else dialog.accept()
+  page.on('dialog',on_dialog)
   page.on('pageerror',lambda error:report['errors'].append(str(error)))
   page.goto(origin+'/index.html')
   page.locator('#parentBtn').click()
@@ -66,6 +70,18 @@ try:
   root.locator(':scope > summary').click()
   check('reopens on click',root.evaluate('(el)=>el.open'))
   check('text retained after toggle',page.locator('#sourceText').input_value()=='Unsubmitted synthetic text')
+  # Exercise isolated negative paths without ever authenticating to hosted services.
+  check('manual approval disabled without questions',page.locator('[data-act="approveManual"]').is_disabled())
+  page.locator('[data-act="checkPublication"]').click()
+  expect(page.locator('#cqPublicationStatus')).to_contain_text('원문과 유효한 문제')
+  check('publication eligibility blocks incomplete material',True)
+  page.locator('[data-parent-publish="publish"]').click()
+  expect(page.locator('#cqPublicationStatus')).to_contain_text('부모 Supabase 로그인')
+  check('server publish requires parent cloud login',True)
+  page.locator('#cqDraftImport').set_input_files({'name':'invalid.json','mimeType':'application/json','buffer':b'{not valid json}'})
+  check('invalid JSON import rejected',any('초안 가져오기 실패' in d['message'] for d in dialogs))
+  check('invalid JSON does not create review draft',page.locator('#cqParentDraftReview').count()==0)
+  check('no hosted network calls',not report['blocked_requests'])
   check('no browser exceptions',not report['errors'])
   browser.close()
 finally:
