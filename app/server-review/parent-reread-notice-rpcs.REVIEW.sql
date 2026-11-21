@@ -35,7 +35,7 @@ BEGIN
  JOIN public.cq_v4_pdf_enrollments e
    ON e.parent_user_id=c.parent_user_id AND e.student_user_id=r.child_user_id
  WHERE c.parent_user_id=auth.uid() AND r.required IS TRUE
- ON CONFLICT(chapter_uuid,student_user_id) DO NOTHING;
+ ON CONFLICT ON CONSTRAINT cq_v4_parent_reread_notice_once DO NOTHING;
  RETURN QUERY
  SELECT n.notice_id,n.student_user_id,n.chapter_uuid,
         NULL::integer AS correct_mc, NULL::integer AS total_mc,
