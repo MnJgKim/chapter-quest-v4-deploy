@@ -657,12 +657,19 @@
     const acknowledged=await parentRpc('cq_v4_parent_ack_reread_notice',{p_notice:id});
     if(cloudIdentity()!==owner)return;
     if(acknowledged!==true)throw Error('알림 확인 권한이 없거나 알림이 없습니다.');
-    const rows=await parentRpc('cq_v4_parent_reread_inbox');
-    if(cloudIdentity()!==owner)return;
-    if(!Array.isArray(rows))throw Error('알림 갱신 실패');
-    const valid=rows.every(n=>n&&/^[0-9a-f-]{36}$/i.test(String(n.notice_id||''))&&Number.isInteger(n.correct_mc)&&Number.isInteger(n.total_mc)&&n.total_mc>0&&n.correct_mc>=0&&n.correct_mc<=n.total_mc);
-    if(!valid)throw Error('알림 갱신 데이터가 올바르지 않습니다.');
-    rereadNotices=rows;rereadOwner=owner;rereadAvailable=true;render();rereadStatus('서버 확인 상태를 다시 조회했습니다.');
+    const existing=rereadNotices.find(n=>n.notice_id===id);
+    if(existing)existing.acknowledged_at=new Date().toISOString();
+    try{
+      const rows=await parentRpc('cq_v4_parent_reread_inbox');
+      if(cloudIdentity()!==owner)return;
+      if(!Array.isArray(rows))throw Error('알림 갱신 실패');
+      const valid=rows.every(n=>n&&/^[0-9a-f-]{36}$/i.test(String(n.notice_id||''))&&Number.isInteger(n.correct_mc)&&Number.isInteger(n.total_mc)&&n.total_mc>0&&n.correct_mc>=0&&n.correct_mc<=n.total_mc);
+      if(!valid)throw Error('알림 갱신 데이터가 올바르지 않습니다.');
+      rereadNotices=rows;rereadOwner=owner;rereadAvailable=true;render();rereadStatus('서버 확인 상태를 다시 조회했습니다.');
+    }catch(refreshError){
+      if(cloudIdentity()!==owner)return;
+      render();rereadStatus('알림 확인은 성공했지만 재조회에 실패했습니다. 새로고침하여 확인하세요: '+refreshError.message);
+    }
    }
   }catch(error){
    if(cloudIdentity()!==owner)return;
