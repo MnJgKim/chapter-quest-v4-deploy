@@ -564,7 +564,13 @@
   '본문·문제·정답·단어·활동 근거 확인','부모 승인 저장 (서버 게시 별도)',
   '게시 가능 여부 확인','서버 PDF 선택 · 학생 체크','승인 자료 게시 · 학생 배정'
  ];
- const materialInputKey=el=>el.id||el.getAttribute('data-review-q')+'|'+el.getAttribute('data-review-field')+'|'+el.getAttribute('data-review-option')+'|'+el.getAttribute('data-review-v')+'|'+el.getAttribute('data-draftq')+'|'+el.getAttribute('data-draftactivity')+'|'+el.getAttribute('data-evidence-q')+'|'+el.getAttribute('data-evidence-v')+'|'+el.getAttribute('data-evidence-field');
+ const materialInputKey=el=>{
+  if(el.id==='cqEvidenceConfirmed')return '';
+  if(el.id)return 'id:'+el.id;
+  const names=['data-review-q','data-review-field','data-review-option','data-review-v','data-draftq','data-draftactivity','data-evidence-q','data-evidence-v','data-evidence-field'];
+  const values=names.map(name=>el.getAttribute(name));
+  return values.every(v=>v===null)?'':'data:'+values.map(v=>v===null?'':v).join('|');
+ };
  document.addEventListener('input',e=>{
   const el=e.target;
   if(!el.closest?.('#cqMaterialWorkflow')||!el.matches('textarea,input:not([type=file]),select'))return;
