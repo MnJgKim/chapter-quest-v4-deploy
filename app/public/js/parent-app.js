@@ -573,7 +573,7 @@
  };
  document.addEventListener('input',e=>{
   const el=e.target;
-  if(!el.closest?.('#cqMaterialWorkflow')||!el.matches('textarea,input:not([type=file]),select'))return;
+  if(!el.closest?.('#cqMaterialWorkflow')||!el.matches('textarea,input:not([type=file]):not([type=checkbox]):not([type=radio])'))return;
   const key=materialInputKey(el);
   if(key)materialDraftInputs.set(key,{value:el.value,checked:el.checked,type:el.type});
  });
@@ -659,7 +659,7 @@
    const note=document.createElement('p');note.className='muted';note.textContent='책 관리에서 챕터 관리를 선택하면 편집 기능이 표시됩니다.';stepNodes[3].appendChild(note);
   }
   // Preserve unsubmitted text when render() reconstructs the parent DOM.
-  for(const el of root.querySelectorAll('textarea,input:not([type=file]),select')){
+  for(const el of root.querySelectorAll('textarea,input:not([type=file]):not([type=checkbox]):not([type=radio])')){
    const key=materialInputKey(el),saved=materialDraftInputs.get(key);
    if(!saved||!key)continue;
    if(el.type==='checkbox'||el.type==='radio')el.checked=saved.checked;
