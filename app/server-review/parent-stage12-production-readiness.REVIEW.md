@@ -53,3 +53,18 @@
 - Confirmed RLS enabled for schedule, progress, submissions, chapters, assignments and enrollments. Authenticated has no direct SELECT privilege on schedule, reread progress or submissions; anon has no direct SELECT privilege on these six tables. The RPC needs definer privileges but must enforce its own parent checks.
 - These are metadata and count checks only, **not** a full restored production-schema migration rehearsal. Do not mark the latter complete.
 - Prior Actions run 44881474807 passed 30/30 tests in synthetic isolated environments, not a production schema restore.
+
+## Isolated SQL rehearsal evidence — Actions #44884531686
+- Both CI jobs succeeded: 4 static, 12 PGlite, 2 independent-connection, 5 concurrent-index, 7 real-role RPC, and 5 production-shaped installation/rollback assertions (35 total).
+- The last five checks used a **synthetic** PostgreSQL 17 database matching selected observed production columns and keys, NOT a restore of the production backup. They covered draft SQL installation, admin inbox/acknowledgement, preservation of synthetic schedule/submission/reread rows, RPC rollback with notice acknowledgement retained, and concurrent index rollback with lesson timestamps intact.
+- Historical isolated restore evidence (PostgreSQL 17 restore_check_v3, exit code 0; 61 tables, 50 RLS-enabled tables, 65 functions) was reported separately; the actual dump bytes, backup timestamp, restore logs and access to that restored database have NOT been independently retrieved in this stage. It must not be counted as the required full production-backup migration rehearsal.
+
+### Required production-backup rehearsal before approval
+1. Locate the actual backup artifact in the authorized Codespaces or backup storage, verify size, SHA-256, creation time, and safe custody. Do not upload the dump to public GitHub or CI artifacts; it may contain real student data.
+2. Restore into an access-controlled, network-isolated PostgreSQL 17 database with no production credentials or outbound production connections; capture pg_restore exit code and object counts, and compare schema, grants, policies, triggers, and function definitions. Stop if extensions/roles are missing or restore reports unreviewed errors.
+3. Verify duplicate student/date audit is empty; inspect actual object collisions and index state; capture row counts and immutable digests of schedules, submissions, and reread progress.
+4. On that restored database only, install the notice draft and create the schedule index CONCURRENTLY outside a transaction; verify the role/JWT access matrix and data preservation, then rehearse the reviewed rollback in dependency-safe order.
+5. Compare pre/post digests and original lesson_date/released_at/submitted_at values. Record sanitized test evidence, never student records or credentials.
+6. Recheck the **live** read-only preflight immediately before any separately authorized deployment; a historical backup cannot establish current live state.
+
+**Current gate:** production-backup artifact inaccessible/unverified in this review session; restore-based migration rehearsal is NOT complete. No production migration, Worker deployment or PR merge is approved.
