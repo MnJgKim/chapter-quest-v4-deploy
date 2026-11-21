@@ -27,7 +27,7 @@ try{
  INSERT INTO cq_v4_reread_progress VALUES('44444444-4444-4444-8444-444444444444','22222222-2222-4222-8222-222222222222',true,NULL);
  INSERT INTO cq_v4_lesson_schedule VALUES('11111111-1111-4111-8111-111111111111','22222222-2222-4222-8222-222222222222','44444444-4444-4444-8444-444444444444','2026-11-23',now());`);
  await db.exec(readFileSync(new URL('./parent-schedule-student-day-unique.REVIEW.sql',import.meta.url),'utf8'));
- await check('preserve original date and release',async()=>{const r=(await db.query('SELECT lesson_date,released_at IS NOT NULL AS released FROM cq_v4_lesson_schedule')).rows[0];assert.equal(r.lesson_date,'2026-11-23');assert.equal(r.released,true);});
+ await check('preserve original date and release',async()=>{const r=(await db.query('SELECT lesson_date,released_at IS NOT NULL AS released FROM cq_v4_lesson_schedule')).rows[0];assert.equal(String(r.lesson_date).slice(0,10),'2026-11-23');assert.equal(r.released,true);});
  await check('reject different chapter on same student/day',async()=>assert.rejects(db.query('INSERT INTO cq_v4_lesson_schedule VALUES($1,$2,$3,$4)',[parent,child,otherChapter,'2026-11-23']),e=>e.code==='23505'));
  await check('permit another day',async()=>{await db.query('INSERT INTO cq_v4_lesson_schedule VALUES($1,$2,$3,$4)',[parent,child,otherChapter,'2026-11-25']);});
  await db.exec(readFileSync(new URL('./parent-reread-notice-rpcs.REVIEW.sql',import.meta.url),'utf8'));
