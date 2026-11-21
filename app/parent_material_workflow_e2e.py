@@ -79,8 +79,37 @@ try:
   expect(page.locator('#cqPublicationStatus')).to_contain_text('부모 Supabase 로그인')
   check('server publish requires parent cloud login',True)
   page.locator('#cqDraftImport').set_input_files({'name':'invalid.json','mimeType':'application/json','buffer':b'{not valid json}'})
+  for _ in range(40):
+   if any('초안 가져오기 실패' in d['message'] for d in dialogs):break
+   page.wait_for_timeout(100)
   check('invalid JSON import rejected',any('초안 가져오기 실패' in d['message'] for d in dialogs))
   check('invalid JSON does not create review draft',page.locator('#cqParentDraftReview').count()==0)
+  # Valid synthetic draft exercises JSON parsing, review evidence, and local approval only.
+  sample={
+   'questions':[{'kind':'mc','text':'Synthetic question?','options':['Yes','No'],'correct':0}],
+   'vocabulary':[{'word':'sample','meaning':'example'}],
+   'writingPrompt':'Write a synthetic response.',
+   'speakingPrompt':'Say a synthetic response.',
+   'parentReview':{
+    'questions':[{'filePages':'1','printedPages':'','note':'Synthetic evidence for test'}],
+    'vocabulary':[{'filePages':'1','printedPages':'','note':'Synthetic vocabulary evidence'}]
+   }
+  }
+  page.locator('#cqDraftImport').set_input_files({'name':'synthetic.json','mimeType':'application/json','buffer':json.dumps(sample).encode('utf-8')})
+  expect(page.locator('#cqParentDraftReview')).to_have_count(1)
+  check('valid JSON draft imported into review',in_step('#cqParentDraftReview',8))
+  check('evidence checkbox inside review',in_step('#cqEvidenceConfirmed',8))
+  page.locator('[data-act="approve"]').click()
+  check('approval blocked before evidence confirmation',any('근거 확인란을 체크' in d['message'] for d in dialogs))
+  check('approval receipt absent before evidence confirmation',page.get_by_text('승인 기록 없음 · 서버 게시 불가').count()>0)
+  page.locator('#cqEvidenceConfirmed').check()
+  page.locator('[data-act="approve"]').click()
+  expect(page.locator('#cqParentDraftReview')).to_have_count(0)
+  check('local parent approval saved',page.get_by_text('로컬 승인 기록 있음 · 수정 시 승인 무효화').count()>0)
+  check('approved questions visible',page.get_by_text('Synthetic question?',exact=False).count()>0)
+  page.locator('[data-act="checkPublication"]').click()
+  expect(page.locator('#cqPublicationStatus')).to_contain_text('원문과 유효한 문제')
+  check('publication still blocked without original PDF',True)
   check('no hosted network calls',not report['blocked_requests'])
   check('no browser exceptions',not report['errors'])
   browser.close()
