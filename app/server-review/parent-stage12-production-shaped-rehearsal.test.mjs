@@ -2,12 +2,17 @@ import pg from 'pg';
 import {readFileSync} from 'node:fs';
 import assert from 'node:assert/strict';
 const {Client}=pg;
-const db=new Client({host:'127.0.0.1',port:5432,user:'postgres',password:'postgres',database:'postgres'});
+const config={host:'127.0.0.1',port:5432,user:'postgres',password:'postgres'};
+const admin=new Client({...config,database:'postgres'});
+const isolatedDatabase='cq_stage12_prodshape_rehearsal';
+const db=new Client({...config,database:isolatedDatabase});
 const p='11111111-1111-4111-8111-111111111111',c='22222222-2222-4222-8222-222222222222',ch='44444444-4444-4444-8444-444444444444';
 let passed=0;const check=(label)=>{passed++;console.log('PASS',label)};
 try{
+ await admin.connect();
+ await admin.query(`CREATE DATABASE ${isolatedDatabase}`);
  await db.connect();
- await db.query(`CREATE ROLE authenticated; CREATE ROLE anon; CREATE SCHEMA auth;
+ await db.query(`CREATE SCHEMA auth;
  CREATE TABLE public.cq_admins(user_id uuid PRIMARY KEY);
  CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
  CREATE FUNCTION public.cq_is_admin() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path='' AS $$ SELECT EXISTS(SELECT 1 FROM public.cq_admins a WHERE a.user_id=(SELECT auth.uid())) $$;
@@ -58,4 +63,4 @@ try{
  const end=(await db.query(`SELECT (SELECT row_to_json(s) FROM public.cq_v4_lesson_schedule s) AS schedule,(SELECT row_to_json(s) FROM public.cq_v4_student_submissions s) AS submission,(SELECT row_to_json(r) FROM public.cq_v4_reread_progress r) AS reread`)).rows[0];
  assert.deepEqual(end,baseline);check('index rollback leaves original rows and release timestamp intact');
  console.log(JSON.stringify({passed,scope:'isolated PostgreSQL 17 production-shaped synthetic schema; NOT restored production data'}));
-}finally{await db.query('RESET ROLE').catch(()=>{});await db.end().catch(()=>{});}
+}finally{await db.query('RESET ROLE').catch(()=>{});await db.end().catch(()=>{});await admin.query(`DROP DATABASE IF EXISTS ${isolatedDatabase} WITH (FORCE)`).catch(()=>{});await admin.end().catch(()=>{});}
