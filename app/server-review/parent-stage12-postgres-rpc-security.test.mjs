@@ -34,7 +34,6 @@ try{
   const first=(await db.query('SELECT * FROM public.cq_v4_parent_reread_inbox()')).rows;
   const second=(await db.query('SELECT * FROM public.cq_v4_parent_reread_inbox()')).rows;
   assert.equal(first.length,1);assert.equal(second.length,1);assert.equal(first[0].notice_id,second[0].notice_id);
-  assert.equal((await db.query('SELECT count(*)::int AS n FROM public.cq_v4_parent_reread_notices')).rows.length,0);
  });
  await check('authenticated role cannot read or insert notice table directly',async()=>{
   await assert.rejects(db.query('SELECT * FROM public.cq_v4_parent_reread_notices'),e=>e.code==='42501');
