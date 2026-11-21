@@ -25,3 +25,31 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Run parent stage 12 static and isolated tests
         run: npm run test:stage12
+  independent-postgres:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    defaults:
+      run:
+        working-directory: app/server-review
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install PostgreSQL client for isolated test
+        run: npm install --no-save --no-audit --no-fund pg
+      - name: Verify independent PostgreSQL connections and collision safety
+        run: node parent-stage12-independent-postgres.test.mjs
