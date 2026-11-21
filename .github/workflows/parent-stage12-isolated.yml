@@ -53,3 +53,5 @@ jobs:
         run: npm install --no-save --no-audit --no-fund pg
       - name: Verify independent PostgreSQL connections and collision safety
         run: node parent-stage12-independent-postgres.test.mjs
+      - name: Rehearse concurrent index failure, cleanup, retry and rollback
+        run: node parent-stage12-index-rehearsal.test.mjs
