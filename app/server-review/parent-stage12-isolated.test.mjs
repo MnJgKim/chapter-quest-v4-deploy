@@ -14,7 +14,7 @@ const uid=async id=>db.query("SELECT set_config('request.jwt.claim.sub',$1,false
 try{
  await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;CREATE SCHEMA auth;
  CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
- CREATE FUNCTION public.cq_is_admin() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT auth.uid() IN ('11111111-1111-4111-8111-111111111111'::uuid,'66666666-6666-4666-8666-666666666666'::uuid) $;
+ CREATE FUNCTION public.cq_is_admin() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT auth.uid() IN ('11111111-1111-4111-8111-111111111111'::uuid,'66666666-6666-4666-8666-666666666666'::uuid) $$;
  CREATE TABLE cq_v4_pdf_chapters(chapter_id uuid PRIMARY KEY,parent_user_id uuid NOT NULL);
  CREATE TABLE cq_v4_pdf_assignments(chapter_id uuid,student_user_id uuid);
  CREATE TABLE cq_v4_pdf_enrollments(parent_user_id uuid,student_user_id uuid);
