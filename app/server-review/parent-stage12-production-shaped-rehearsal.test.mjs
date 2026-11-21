@@ -65,4 +65,4 @@ try{
  const end=(await db.query(`SELECT (SELECT row_to_json(s) FROM public.cq_v4_lesson_schedule s) AS schedule,(SELECT row_to_json(s) FROM public.cq_v4_student_submissions s) AS submission,(SELECT row_to_json(r) FROM public.cq_v4_reread_progress r) AS reread`)).rows[0];
  assert.deepEqual(end,baseline);check('index rollback leaves original rows and release timestamp intact');
  console.log(JSON.stringify({passed,scope:'isolated PostgreSQL 17 production-shaped synthetic schema; NOT restored production data'}));
-}finally{await db.query('RESET ROLE').catch(()=>{});if(dbConnected) await db.end().catch(()=>{});if(adminConnected) await admin.query(`DROP DATABASE IF EXISTS ${isolatedDatabase} WITH (FORCE)`).catch(()=>{});if(adminConnected) await admin.end().catch(()=>{});}
+}finally{if(dbConnected){await db.query('RESET ROLE').catch(()=>{});await db.end().catch(()=>{});}if(adminConnected) await admin.query(`DROP DATABASE IF EXISTS ${isolatedDatabase} WITH (FORCE)`).catch(()=>{});if(adminConnected) await admin.end().catch(()=>{});}
