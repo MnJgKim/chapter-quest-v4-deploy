@@ -26,7 +26,7 @@ try{
     FROM pg_proc p JOIN pg_namespace n ON n.oid=p.pronamespace
     WHERE n.nspname='public' AND p.proname IN ('cq_v4_parent_reread_inbox','cq_v4_parent_ack_reread_notice')`)).rows;
   assert.equal(rows.length,2);
-  for(const r of rows){assert.equal(r.prosecdef,true);assert.equal(r.owner,'postgres');assert(r.proconfig.includes('search_path='));assert.equal(r.auth_execute,true);assert.equal(r.anon_execute,false);}
+  for(const r of rows){assert.equal(r.prosecdef,true);assert.equal(r.owner,'postgres');assert(Array.isArray(r.proconfig) && r.proconfig.some(setting=>/^search_path\s*=/.test(setting)),JSON.stringify(r.proconfig));assert.equal(r.auth_execute,true);assert.equal(r.anon_execute,false);}
  });
  await uid(parent);
  await db.query('SET ROLE authenticated');
