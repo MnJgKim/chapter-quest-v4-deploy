@@ -1,0 +1,27 @@
+name: Parent stage 12 isolated verification
+on:
+  push:
+    branches:
+      - work/reread-parent-workflow-20261120
+    paths:
+      - 'app/server-review/**'
+      - '.github/workflows/parent-stage12-isolated.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  isolated:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    defaults:
+      run:
+        working-directory: app/server-review
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install isolated PGlite dependency
+        run: npm install --no-audit --no-fund
+      - name: Run parent stage 12 static and isolated tests
+        run: npm run test:stage12
