@@ -36,6 +36,8 @@ jobs:
       - run: pip install -r app/qa-requirements.txt
       - run: python -m playwright install --with-deps chromium
       - run: npm run test:browser
+      - name: Parent 12-step isolated browser regression
+        run: python app/parent_material_workflow_e2e.py "$RUNNER_TEMP/cq-parent-material"
       - name: Start isolated local Supabase, with no hosted project link
         working-directory: app
         run: |
