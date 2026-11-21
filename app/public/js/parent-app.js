@@ -553,8 +553,128 @@
    }
    finally{publicationBusy=false;if(button.isConnected)button.disabled=false;}
  });
+
+ // Stage 12: relocate existing controls, rather than duplicating their event handlers.
+ let materialWorkflowOpen=false;
+ let materialDraftInputs=new Map();
+ let materialContext='';
+ const materialSteps=[
+  '서버 원본 PDF 등록','책 관리 · 챕터 관리','챕터 추가','편집 / AI 문제 생성',
+  'TXT AI용 텍스트 저장','파일 선택 · 원본 PDF/TXT 등록','JSON 가져오기',
+  '본문·문제·정답·단어·활동 근거 확인','부모 승인 저장 (서버 게시 별도)',
+  '게시 가능 여부 확인','서버 PDF 선택 · 학생 체크','승인 자료 게시 · 학생 배정'
+ ];
+ const materialInputKey=el=>{
+  if(el.id==='cqEvidenceConfirmed')return '';
+  if(el.id)return 'id:'+el.id;
+  const names=['data-review-q','data-review-field','data-review-option','data-review-v','data-draftq','data-draftactivity','data-evidence-q','data-evidence-v','data-evidence-field'];
+  const values=names.map(name=>el.getAttribute(name));
+  return values.every(v=>v===null)?'':'data:'+values.map(v=>v===null?'':v).join('|');
+ };
+ document.addEventListener('input',e=>{
+  const el=e.target;
+  if(!el.closest?.('#cqMaterialWorkflow')||!el.matches('textarea,input:not([type=file]):not([type=checkbox]):not([type=radio])'))return;
+  const key=materialInputKey(el);
+  if(key)materialDraftInputs.set(key,{value:el.value,checked:el.checked,type:el.type});
+ });
+ document.addEventListener('toggle',e=>{
+  if(e.target?.id==='cqMaterialWorkflow')materialWorkflowOpen=e.target.open;
+ },true);
+ function organizeMaterialWorkflow(){
+  const root=document.getElementById('cqMaterialWorkflow');
+  if(!root)return;
+  const app=document.getElementById('app');
+  const context=[selectedBook||'',selectedChapter||''].join('|');
+  if(context!==materialContext){materialContext=context;materialDraftInputs.clear();}
+  const stepNodes=materialSteps.map((label,i)=>{
+   const section=document.createElement('section');
+   section.className='card cq-material-step';
+   section.dataset.materialStep=String(i+1);
+   section.style.margin='10px 0';
+   const h=document.createElement('h3');
+   h.textContent=String(i+1).padStart(2,'0')+' · '+label;
+   section.appendChild(h);
+   root.appendChild(section);
+   return section;
+  });
+  const move=(node,n)=>{if(node)stepNodes[n-1].appendChild(node)};
+  // The server PDF and student selector were already inside the workflow.
+  move(root.querySelector('#cqPdfParentPanel'),1);
+  const publishStudents=root.querySelector('#cqPublishVerifiedPdf')?.closest('section.card');
+  move(publishStudents,11);
+  const bookSection=app.querySelector('#bookTitle')?.closest('section.card');
+  move(bookSection,2);
+  const manage=app.querySelector('#chapterTitle')?.closest('section.card');
+  if(manage){
+   const title=manage.querySelector('h2');
+   if(title)move(title.closest('.row')||title,2);
+   const add=manage.querySelector('#chapterTitle')?.closest('.row');
+   move(add,3);
+   // Keep the chapter management list beside book registration in step 2.
+   // The selected chapter's editor belongs in step 4, not in the book list.
+   for(const chapterRow of Array.from(manage.querySelectorAll(':scope > .book'))){
+    move(chapterRow,2);
+   }
+   while(manage.firstChild)move(manage.firstChild,4);
+   manage.remove();
+  }
+  const editor=stepNodes[3].querySelector('#sourceText')?.closest('.card');
+  if(editor){
+   const source=editor.querySelector('#sourceText')?.closest('label');
+   move(source,5);
+   const saveSource=editor.querySelector('[data-act="saveSource"]');
+   if(saveSource)move(saveSource,5);
+   const file=editor.querySelector('#cqOriginalPDF')?.closest('.row');
+   move(file,6);
+   const preview=editor.querySelector('[data-act="previewOriginal"]');
+   const extract=editor.querySelector('[data-act="extractSource"]');
+   move(preview,6);move(extract,6);
+   const viewer=editor.querySelector('#cqParentPdfViewer');
+   move(viewer,6);
+   const range=editor.querySelector('[aria-label="PDF 페이지 범위 준비"]');
+   move(range,6);
+   const importButton=editor.querySelector('[data-act="importDraft"]');
+   const importInput=editor.querySelector('#cqDraftImport');
+   move(importButton,7);move(importInput,7);
+   const review=editor.querySelector('#cqParentDraftReview');
+   if(review){
+    const approve=review.querySelector('[data-act="approve"]');
+    move(approve,9);
+    move(review,8);
+   }
+   const manualApproval=editor.querySelector('[data-act="approveManual"]');
+   move(manualApproval,9);
+   const check=editor.querySelector('[data-act="checkPublication"]');
+   move(check,10);
+   const publish=editor.querySelector('[data-parent-publish="publish"]');
+   move(publish,12);
+   const status=editor.querySelector('#cqPublicationStatus');
+   move(status,12);
+  }
+  // Remove the obsolete introductory list: every step now contains actual controls.
+  const oldNote=Array.from(root.children).find(el=>el.classList?.contains('note'));
+  if(oldNote)oldNote.remove();
+  if(!stepNodes[1].querySelector('#bookTitle')){
+   const note=document.createElement('p');note.className='muted';
+   note.textContent='책 관리 화면을 불러오지 못했습니다. 부모 관리자 잠금 상태를 확인하세요.';
+   stepNodes[1].appendChild(note);
+  }
+  if(!stepNodes[3].querySelector('[data-act="editChapter"]')){
+   const note=document.createElement('p');note.className='muted';note.textContent='책 관리에서 챕터 관리를 선택하면 편집 기능이 표시됩니다.';stepNodes[3].appendChild(note);
+  }
+  // Preserve unsubmitted text when render() reconstructs the parent DOM.
+  for(const el of root.querySelectorAll('textarea,input:not([type=file]):not([type=checkbox]):not([type=radio])')){
+   const key=materialInputKey(el),saved=materialDraftInputs.get(key);
+   if(!saved||!key)continue;
+   if(el.type==='checkbox'||el.type==='radio')el.checked=saved.checked;
+   else if(el.tagName==='SELECT'&&![...el.options].some(o=>o.value===saved.value))continue;
+   else el.value=saved.value;
+  }
+  root.open=materialWorkflowOpen;
+ }
+
  const originalRender=render;
- render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+serverSchedulePanel()+`<details class="card" id="cqMaterialWorkflow"><summary style="cursor:pointer;font-weight:700">📚 학습 자료 제작·승인·게시 (12단계 펼치기)</summary><div class="note">① 서버 원본 PDF 등록 → ② 책·챕터 관리 → ③ 챕터 추가 → ④ 편집·AI 문제 생성 → ⑤ AI용 TXT 저장 → ⑥ 원본 PDF/TXT 등록 → ⑦ JSON 가져오기 → ⑧ 본문·정답·근거 검토 → ⑨ 부모 승인 저장 → ⑩ 게시 가능 확인 → ⑪ 서버 PDF·학생 선택 → ⑫ 승인 자료 게시·배정. 책·챕터 편집은 아래 기존 책 관리 화면에서 진행합니다. 승인과 서버 게시는 별도 작업입니다.</div>`+pdfParentPanel()+publicationChildrenPanel()+`</details>`+recurringPanel()+lessonReleasePanel()+feedbackPanel()+rereadPanel());if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession);if(session&&scheduleAutoOwner!==cloudIdentity()&&!scheduleAutoBusy)queueMicrotask(loadServerSchedulesAutomatically)}};
+ render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+serverSchedulePanel()+`<details class="card" id="cqMaterialWorkflow"><summary style="cursor:pointer;font-weight:700">📚 학습 자료 제작·승인·게시 (12단계 펼치기)</summary><div class="note">① 서버 원본 PDF 등록 → ② 책·챕터 관리 → ③ 챕터 추가 → ④ 편집·AI 문제 생성 → ⑤ AI용 TXT 저장 → ⑥ 원본 PDF/TXT 등록 → ⑦ JSON 가져오기 → ⑧ 본문·정답·근거 검토 → ⑨ 부모 승인 저장 → ⑩ 게시 가능 확인 → ⑪ 서버 PDF·학생 선택 → ⑫ 승인 자료 게시·배정. 책·챕터 편집은 아래 기존 책 관리 화면에서 진행합니다. 승인과 서버 게시는 별도 작업입니다.</div>`+pdfParentPanel()+publicationChildrenPanel()+`</details>`+recurringPanel()+lessonReleasePanel()+feedbackPanel()+rereadPanel());organizeMaterialWorkflow();if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession);if(session&&scheduleAutoOwner!==cloudIdentity()&&!scheduleAutoBusy)queueMicrotask(loadServerSchedulesAutomatically)}};
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-parent-invite]');if(!b)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project){inviteStatus('부모 Supabase 로그인이 필요합니다.');return;}

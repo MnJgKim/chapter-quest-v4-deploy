@@ -111,9 +111,28 @@ try:
     if r.request.url.startswith(origin+'/') or r.request.url.startswith(base+'/'):r.continue_()
     else:report['blocked_requests'].append(r.request.url);r.abort()
    context.route('**/*',route);tab=context.new_page();tab.on('dialog',lambda d:d.accept('123456') if d.type=='prompt' else d.accept());tab.on('pageerror',lambda e:report['page_errors'].append(str(e)));tab.goto(origin);return tab
-  pp=page();pp.locator('#parentBtn').click();pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인 성공');passed('parent browser is authorized through real Auth and admin RPC')
+  pp=page();pp.locator('#parentBtn').click()
+  # The parent screen now requires a local-only PIN before rendering cloud login.
+  # Set the synthetic PIN twice on a fresh isolated browser context.
+  for _ in range(2):
+   pin_dialog=pp.get_by_role('dialog',name='부모 관리자 PIN')
+   if not pin_dialog.is_visible():break
+   pin_dialog.get_by_label('숫자 PIN').fill('123456')
+   pin_dialog.get_by_role('button',name='확인').click()
+  expect(pp.locator('#cloudEmail')).to_be_visible()
+  pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인됨');passed('parent browser is authorized through real Auth and admin RPC')
   pp.locator('[data-parent-invite="issue"]').click();expect(pp.locator('#cqInviteCode')).to_have_text(__import__('re').compile('^[0-9a-f]{48}$'));invite=pp.locator('#cqInviteCode').inner_text();private.append(invite)
-  sp=page();sp.locator('#cqChildEmail').fill(users['student']['email']);sp.locator('#cqChildPassword').fill(users['student']['password']);sp.locator('[data-child="login"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('배정 챕터를 불러왔습니다');expect(sp.locator('#cqChildInvite')).to_be_visible();sp.locator('#cqChildInvite').fill(invite);sp.locator('#cqChildInviteName').fill('Synthetic Student');assert sp.locator('#cqChildInvite').input_value()==invite,'Invite input was changed before claim';sp.locator('[data-child="claim"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('연결 요청 완료');pp.locator('[data-parent-invite="refresh"]').click();pp.locator('[data-parent-invite="approve"]').click();expect(pp.locator('#cqInviteStatus')).to_contain_text('승인 완료');passed('real invitation claim and parent enrollment approval')
+  # Diagnose the local schedule RPC independently; do not mask HTTP errors or relax student assertions.
+  try:
+   schedule_probe=api('/rest/v1/rpc/cq_v4_my_lesson_schedule',{},users['student']['token'])
+   report['schedule_probe']={'status':'ok','rows':len(schedule_probe) if isinstance(schedule_probe,list) else 'unexpected'}
+  except urllib.error.HTTPError as error:
+   report['schedule_probe']={'status':error.code,'body':error.read(700).decode(errors='replace')}
+  sp=page();sp.locator('#cqChildEmail').fill(users['student']['email']);sp.locator('#cqChildPassword').fill(users['student']['password']);sp.locator('[data-child="login"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('0개 공개 챕터를 불러왔습니다');assert report['schedule_probe']=={'status':'ok','rows':0},'Unenrolled synthetic student unexpectedly has scheduled lessons';passed('unenrolled student has zero visible lessons before invitation approval');sp.get_by_text('계정 관리 · 로그인 상태 확인',exact=True).click();expect(sp.locator('#cqChildInvite')).to_be_visible();sp.locator('#cqChildInvite').fill(invite);sp.locator('#cqChildInviteName').fill('Synthetic Student');assert sp.locator('#cqChildInvite').input_value()==invite,'Invite input was changed before claim';sp.locator('[data-child="claim"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('연결 요청 완료');pp.locator('[data-parent-invite="refresh"]').click();pp.locator('[data-parent-invite="approve"]').click();expect(pp.locator('#cqInviteStatus')).to_contain_text('승인 완료');passed('real invitation claim and parent enrollment approval')
+  workflow=pp.locator('#cqMaterialWorkflow');expect(workflow).to_have_count(1)
+  if not workflow.evaluate('(el)=>el.open'):
+   workflow.locator(':scope > summary').click()
+  expect(pp.locator('#bookTitle')).to_be_visible()
   pp.locator('#bookTitle').fill('Synthetic Local Book');pp.locator('[data-act="addBook"]').click();pp.locator('#chapterTitle').fill('Synthetic Chapter');pp.locator('[data-act="addChapter"]').click();pp.locator('#cqOriginalPDF').set_input_files(str(original));pp.locator('[data-act="savePDF"]').click()
   if original_kind=='txt':expect(pp.locator('#sourceText')).to_have_value(source)
   else:
@@ -178,7 +197,7 @@ try:
   assert any(row.get('student_user_id')==users['student']['uid'] and row.get('chapter_uuid',row.get('chapter_id'))==chapter_uuid for row in assigned),'Local parent assignment missing after publish'
   api('/rest/v1/rpc/cq_v4_parent_schedule_lesson',{'p_student_user_id':users['student']['uid'],'p_chapter_id':chapter_uuid,'p_lesson_date':time.strftime('%Y-%m-%d',time.gmtime(time.time()+9*3600))},users['parent']['token'])
   api('/rest/v1/rpc/cq_v4_parent_set_lesson_release',{'p_student_user_id':users['student']['uid'],'p_chapter_id':chapter_uuid,'p_release':True},users['parent']['token'])
-  sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(2);assert set(sp.locator('[data-child="view"]').evaluate_all('(buttons)=>buttons.map(b=>b.dataset.uuid)'))=={chapter_uuid};passed('parent releases exactly one synthetic lesson, rendered in weekly and all-chapters views')
+  scheduled_after_release=api('/rest/v1/rpc/cq_v4_my_lesson_schedule',{},users['student']['token']);assert any(row.get('chapter_uuid')==chapter_uuid and row.get('is_released') is True for row in scheduled_after_release),'Released lesson missing from student schedule RPC';passed('released lesson is returned by the real student schedule RPC');sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(2);assert set(sp.locator('[data-child="view"]').evaluate_all('(buttons)=>buttons.map(b=>b.dataset.uuid)'))=={chapter_uuid};passed('parent releases exactly one synthetic lesson, rendered in weekly and all-chapters views')
   context=api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['parent']['token']);assert context[0]['answer_key'][0]==0
   student_activities=api('/rest/v1/rpc/cq_v4_my_chapter_activities',{'p_chapter_uuid':chapter_uuid},users['student']['token'])
   assert 'PARENT_ONLY_SYNTHETIC_EVIDENCE' not in json.dumps(student_activities) and 'answer_key' not in json.dumps(student_activities)
@@ -240,7 +259,14 @@ try:
   pp.set_viewport_size({'width':1280,'height':900});pp.locator('[data-parent-feedback-text]').fill('Great explanation!');pp.locator('[data-parent-feedback-release]').check();pp.locator('[data-parent-feedback="save"]').click();expect(pp.locator('#cqParentFeedbackStatus')).to_contain_text('다시 확인');sp.locator('[data-child="feedback"]').click();expect(sp.locator('#cqChildDetail')).to_contain_text('Great explanation!');passed('parent reads real answers and releases feedback visible in independent student browser')
   # Fresh browser has no local book: recover the parent's existing private original read-only.
   before=api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])
-  rp=page();rp.locator('#parentBtn').click();rp.locator('#cloudEmail').fill(users['parent']['email']);rp.locator('#cloudPassword').fill(users['parent']['password']);rp.locator('[data-cloud="login"]').click();expect(rp.locator('#cloudStatus')).to_contain_text('로그인 성공');rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs);selected_title=next(x['title'] for x in before['chapters'] if x['chapter_uuid']==chapter_uuid);rp.locator('#cqPdfParentPanel .book').filter(has=rp.get_by_text(selected_title,exact=True)).locator('[data-pdf-parent="use-existing"]').click();expect(rp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다',timeout=90000)
+  rp=page();rp.locator('#parentBtn').click()
+  for _ in range(2):
+   pin_dialog=rp.get_by_role('dialog',name='부모 관리자 PIN')
+   if not pin_dialog.is_visible():break
+   pin_dialog.get_by_label('숫자 PIN').fill('123456')
+   pin_dialog.get_by_role('button',name='확인').click()
+  expect(rp.locator('#cloudEmail')).to_be_visible()
+  rp.locator('#cloudEmail').fill(users['parent']['email']);rp.locator('#cloudPassword').fill(users['parent']['password']);rp.locator('[data-cloud="login"]').click();expect(rp.locator('#cloudStatus')).to_contain_text('로그인됨');rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs);selected_title=next(x['title'] for x in before['chapters'] if x['chapter_uuid']==chapter_uuid);rp.locator('#cqPdfParentPanel .book').filter(has=rp.get_by_text(selected_title,exact=True)).locator('[data-pdf-parent="use-existing"]').click();expect(rp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다',timeout=90000)
   assert rp.evaluate("async()=>{const c=chapter(),f=await pdfGet(pdfKey(book().id,c.id));return c.serverPdfUuid==='"+chapter_uuid+"'&&f.size>5&&(await f.slice(0,5).text())==='%PDF-'}")
   assert api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])==before
   try:api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student read parent PDF endpoint')
@@ -253,7 +279,7 @@ try:
   passed('another registered parent cannot obtain this PDF, recording or answer context')
 
   op=page();op.locator('#cqChildEmail').fill(users['outsider']['email']);op.locator('#cqChildPassword').fill(users['outsider']['password']);op.locator('[data-child="login"]').click();expect(op.locator('[data-child="list"]')).to_be_visible();op.locator('[data-child="list"]').click();expect(op.locator('#cqChildStatus')).to_contain_text('0개');passed('unassigned real account sees no other student chapter')
-  pp.locator('[data-cloud="logout"]').click();pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인 성공');pp.locator('[data-pdf-parent="refresh"]').click();expect(pp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs)
+  pp.locator('[data-cloud="logout"]').click();pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인됨');pp.locator('[data-pdf-parent="refresh"]').click();expect(pp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs)
   # Two genuinely assigned students share the PDF but never submissions, feedback or audio.
   pp.locator('[data-parent-invite="issue"]').click();expect(pp.locator('#cqInviteCode')).not_to_have_text(invite);expect(pp.locator('#cqInviteCode')).to_have_text(__import__('re').compile('^[0-9a-f]{48}$'));second_invite=pp.locator('#cqInviteCode').inner_text();private.append(second_invite)
   sibling=page();sibling.locator('#cqChildEmail').fill(users['sibling']['email']);sibling.locator('#cqChildPassword').fill(users['sibling']['password']);sibling.locator('[data-child="login"]').click();expect(sibling.locator('#cqChildStatus')).to_contain_text('배정 챕터를 불러왔습니다');expect(sibling.locator('#cqChildInvite')).to_be_visible();sibling.locator('#cqChildInvite').fill(second_invite);sibling.locator('#cqChildInviteName').fill('Second Synthetic Student');sibling.locator('[data-child="claim"]').click();expect(sibling.locator('#cqChildStatus')).to_contain_text('연결 요청 완료');pp.locator('[data-parent-invite="refresh"]').click();pp.locator('[data-parent-invite="approve"]').click();expect(pp.locator('#cqInviteStatus')).to_contain_text('승인 완료');pp.locator('[data-publish-child="'+users['sibling']['uid']+'"]').check();pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공')
