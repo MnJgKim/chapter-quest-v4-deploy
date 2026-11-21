@@ -55,3 +55,5 @@ jobs:
         run: node parent-stage12-independent-postgres.test.mjs
       - name: Rehearse concurrent index failure, cleanup, retry and rollback
         run: node parent-stage12-index-rehearsal.test.mjs
+      - name: Verify definer RPC authorization using real PostgreSQL roles
+        run: node parent-stage12-postgres-rpc-security.test.mjs
