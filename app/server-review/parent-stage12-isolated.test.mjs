@@ -5,6 +5,7 @@ const db=new PGlite();
 const parent='11111111-1111-4111-8111-111111111111';
 const child='22222222-2222-4222-8222-222222222222';
 const outsider='33333333-3333-4333-8333-333333333333';
+const otherParent='66666666-6666-4666-8666-666666666666';
 const chapter='44444444-4444-4444-8444-444444444444';
 const otherChapter='55555555-5555-4555-8555-555555555555';
 let passed=0;
@@ -13,7 +14,7 @@ const uid=async id=>db.query("SELECT set_config('request.jwt.claim.sub',$1,false
 try{
  await db.exec(`CREATE ROLE anon;CREATE ROLE authenticated;CREATE SCHEMA auth;
  CREATE FUNCTION auth.uid() RETURNS uuid LANGUAGE sql STABLE AS $$ SELECT nullif(current_setting('request.jwt.claim.sub',true),'')::uuid $$;
- CREATE FUNCTION public.cq_is_admin() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT auth.uid()='11111111-1111-4111-8111-111111111111'::uuid $$;
+ CREATE FUNCTION public.cq_is_admin() RETURNS boolean LANGUAGE sql STABLE AS $$ SELECT auth.uid() IN ('11111111-1111-4111-8111-111111111111'::uuid,'66666666-6666-4666-8666-666666666666'::uuid) $;
  CREATE TABLE cq_v4_pdf_chapters(chapter_id uuid PRIMARY KEY,parent_user_id uuid NOT NULL);
  CREATE TABLE cq_v4_pdf_assignments(chapter_id uuid,student_user_id uuid);
  CREATE TABLE cq_v4_pdf_enrollments(parent_user_id uuid,student_user_id uuid);
@@ -45,6 +46,9 @@ try{
  await check('parent inbox idempotent',async()=>{const a=(await db.query('SELECT * FROM cq_v4_parent_reread_inbox()')).rows;const b=(await db.query('SELECT * FROM cq_v4_parent_reread_inbox()')).rows;assert.equal(a.length,1);assert.equal(b.length,1);assert.equal(a[0].notice_id,b[0].notice_id);assert.equal(a[0].correct_mc,null);});
  const notice=(await db.query('SELECT notice_id FROM cq_v4_parent_reread_inbox()')).rows[0].notice_id;
  await check('parent acknowledgement idempotent',async()=>{assert.equal((await db.query('SELECT cq_v4_parent_ack_reread_notice($1) AS ok',[notice])).rows[0].ok,true);assert.equal((await db.query('SELECT cq_v4_parent_ack_reread_notice($1) AS ok',[notice])).rows[0].ok,true);});
+ await uid(otherParent);
+ await check('different authorized parent sees no foreign notice',async()=>assert.equal((await db.query('SELECT * FROM cq_v4_parent_reread_inbox()')).rows.length,0));
+ await check('different authorized parent cannot acknowledge foreign notice',async()=>assert.equal((await db.query('SELECT cq_v4_parent_ack_reread_notice($1) AS ok',[notice])).rows[0].ok,false));
  await uid(outsider);
  await check('outsider inbox rejected',async()=>assert.rejects(db.query('SELECT * FROM cq_v4_parent_reread_inbox()'),e=>e.code==='42501'));
  await check('outsider ack rejected',async()=>assert.rejects(db.query('SELECT cq_v4_parent_ack_reread_notice($1)',[notice]),e=>e.code==='42501'));
