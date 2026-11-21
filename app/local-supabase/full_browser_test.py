@@ -111,7 +111,16 @@ try:
     if r.request.url.startswith(origin+'/') or r.request.url.startswith(base+'/'):r.continue_()
     else:report['blocked_requests'].append(r.request.url);r.abort()
    context.route('**/*',route);tab=context.new_page();tab.on('dialog',lambda d:d.accept('123456') if d.type=='prompt' else d.accept());tab.on('pageerror',lambda e:report['page_errors'].append(str(e)));tab.goto(origin);return tab
-  pp=page();pp.locator('#parentBtn').click();pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인 성공');passed('parent browser is authorized through real Auth and admin RPC')
+  pp=page();pp.locator('#parentBtn').click()
+  # The parent screen now requires a local-only PIN before rendering cloud login.
+  # Set the synthetic PIN twice on a fresh isolated browser context.
+  for _ in range(2):
+   pin_dialog=pp.get_by_role('dialog',name='부모 관리자 PIN')
+   if not pin_dialog.is_visible():break
+   pin_dialog.get_by_label('숫자 PIN').fill('123456')
+   pin_dialog.get_by_role('button',name='확인').click()
+  expect(pp.locator('#cloudEmail')).to_be_visible()
+  pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인 성공');passed('parent browser is authorized through real Auth and admin RPC')
   pp.locator('[data-parent-invite="issue"]').click();expect(pp.locator('#cqInviteCode')).to_have_text(__import__('re').compile('^[0-9a-f]{48}$'));invite=pp.locator('#cqInviteCode').inner_text();private.append(invite)
   sp=page();sp.locator('#cqChildEmail').fill(users['student']['email']);sp.locator('#cqChildPassword').fill(users['student']['password']);sp.locator('[data-child="login"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('배정 챕터를 불러왔습니다');expect(sp.locator('#cqChildInvite')).to_be_visible();sp.locator('#cqChildInvite').fill(invite);sp.locator('#cqChildInviteName').fill('Synthetic Student');assert sp.locator('#cqChildInvite').input_value()==invite,'Invite input was changed before claim';sp.locator('[data-child="claim"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('연결 요청 완료');pp.locator('[data-parent-invite="refresh"]').click();pp.locator('[data-parent-invite="approve"]').click();expect(pp.locator('#cqInviteStatus')).to_contain_text('승인 완료');passed('real invitation claim and parent enrollment approval')
   pp.locator('#bookTitle').fill('Synthetic Local Book');pp.locator('[data-act="addBook"]').click();pp.locator('#chapterTitle').fill('Synthetic Chapter');pp.locator('[data-act="addChapter"]').click();pp.locator('#cqOriginalPDF').set_input_files(str(original));pp.locator('[data-act="savePDF"]').click()
