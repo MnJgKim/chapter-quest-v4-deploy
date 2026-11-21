@@ -38,7 +38,7 @@ BEGIN
  ON CONFLICT(chapter_uuid,student_user_id) DO NOTHING;
  RETURN QUERY
  SELECT n.notice_id,n.student_user_id,n.chapter_uuid,
-        0::integer AS correct_mc, 1::integer AS total_mc,
+        NULL::integer AS correct_mc, NULL::integer AS total_mc,
         s.submitted_at,n.acknowledged_at
  FROM public.cq_v4_parent_reread_notices n
  JOIN public.cq_v4_reread_progress r
@@ -56,7 +56,7 @@ END $function$;
 CREATE OR REPLACE FUNCTION public.cq_v4_parent_ack_reread_notice(p_notice uuid)
 RETURNS boolean LANGUAGE plpgsql SECURITY DEFINER SET search_path=''
 AS $function$
-DECLARE v_updated boolean;
+DECLARE v_updated integer;
 BEGIN
  IF auth.uid() IS NULL OR NOT public.cq_is_admin()
  THEN RAISE EXCEPTION 'Parent authorization required' USING ERRCODE='42501'; END IF;
@@ -71,7 +71,7 @@ BEGIN
      AND c.parent_user_id=auth.uid()
  );
  GET DIAGNOSTICS v_updated = ROW_COUNT;
- RETURN v_updated;
+ RETURN v_updated>0;
 END $function$;
 REVOKE ALL ON FUNCTION public.cq_v4_parent_reread_inbox() FROM PUBLIC, anon;
 REVOKE ALL ON FUNCTION public.cq_v4_parent_ack_reread_notice(uuid) FROM PUBLIC, anon;
