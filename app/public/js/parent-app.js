@@ -675,6 +675,7 @@
 
  // Parent-only disclosure panels: keep all existing controls and delegated handlers unchanged.
  const parentFoldState=new Map();
+ let parentFoldWasLoggedIn=false;
  const parentFoldSpecs=[
   {id:'cloudPanel',title:'부모 계정 로그인 · 백업',match:/부모 계정 로그인.*백업/,open:()=>!session},
   {id:'cqParentInvitesFold',title:'학생 계정 초대·승인·연결 해제',match:/학생 계정 초대.*승인.*연결 해제/,open:()=>false},
@@ -684,6 +685,18 @@
  ];
  function foldParentAdministration(){
   const app=document.getElementById('app');if(!app)return;
+  if(!!session!==parentFoldWasLoggedIn){parentFoldState.delete('cloudPanel');parentFoldWasLoggedIn=!!session;}
+  // Local student weekday settings live inside the parent overview, not in a standalone card.
+  const weekdayHeading=[...app.querySelectorAll('h3')].find(h=>h.textContent.includes('학생별 자동 학습 요일'));
+  if(weekdayHeading){
+   const details=document.createElement('details');details.id='cqParentWeekdaysFold';details.dataset.parentFold='cqParentWeekdaysFold';
+   details.style.margin='12px 0';const summary=document.createElement('summary');summary.textContent='부모 관리 학생별 자동 학습요일 (기기 데모 설정)';summary.style.cssText='cursor:pointer;font-weight:700';details.appendChild(summary);
+   const content=document.createElement('div');content.style.paddingTop='12px';
+   weekdayHeading.before(details);
+   let node=weekdayHeading;
+   while(node&&!(node!==weekdayHeading&&node.matches?.('h3'))){const next=node.nextElementSibling;content.appendChild(node);node=next;}
+   details.appendChild(content);details.open=parentFoldState.get('cqParentWeekdaysFold')??false;
+  }
   for(const spec of parentFoldSpecs){
    const section=spec.id==='cloudPanel'?app.querySelector('#cloudPanel'):
     [...app.querySelectorAll('section.card')].find(node=>spec.match.test(node.querySelector('h2,h3')?.textContent||''));
@@ -700,7 +713,7 @@
    section.classList.remove('card');heading.remove();
    content.appendChild(section);details.appendChild(content);
    const remembered=parentFoldState.get(spec.id);
-   details.open=spec.id==='cloudPanel'&&!session?true:(remembered===undefined?spec.open():remembered);
+   details.open=remembered===undefined?spec.open():remembered;
   }
  }
  document.addEventListener('toggle',e=>{
