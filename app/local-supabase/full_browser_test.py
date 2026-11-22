@@ -110,7 +110,7 @@ try:
      r.fulfill(status=200,json=fixture);return
     if r.request.url.startswith(origin+'/') or r.request.url.startswith(base+'/'):r.continue_()
     else:report['blocked_requests'].append(r.request.url);r.abort()
-   context.route('**/*',route);tab=context.new_page();tab.on('dialog',lambda d:d.accept('123456') if d.type=='prompt' else d.accept());tab.on('pageerror',lambda e:report['page_errors'].append(str(e)));tab.goto(origin);return tab
+   context.route('**/*',route);tab=context.new_page();tab.on('dialog',lambda d:d.dismiss() if d.type=='prompt' else d.accept());tab.on('pageerror',lambda e:report['page_errors'].append(str(e)));tab.goto(origin);return tab
   pp=page();pp.locator('#parentBtn').click()
   # The parent screen now requires a local-only PIN before rendering cloud login.
   # Set the synthetic PIN twice on a fresh isolated browser context.
