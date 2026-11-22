@@ -33,6 +33,18 @@ jobs:
       - run: npm run build
         env:
           WRANGLER_SEND_METRICS: 'false'
+      - name: Generate candidate asset SHA-256 inventory (read-only)
+        run: |
+          mkdir -p "$RUNNER_TEMP/cq-candidate-inventory"
+          node app/tools/asset-integrity-audit.mjs > "$RUNNER_TEMP/cq-candidate-inventory/manifest.json"
+          node -e 'const m=require(process.argv[1]); if(m.scope!=="repository-candidate-not-live-cloudflare"||!m.files.length)process.exit(1); console.log("CANDIDATE_ASSET_MANIFEST_GENERATED files="+m.files.length)' "$RUNNER_TEMP/cq-candidate-inventory/manifest.json"
+      - name: Retain candidate SHA-256 inventory (no file contents)
+        uses: actions/upload-artifact@v4
+        with:
+          name: cq-v4-candidate-asset-sha256
+          path: ${{ runner.temp }}/cq-candidate-inventory/manifest.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Stage Worker dry-run (never deploy)
         run: node app/tools/deploy-preflight.mjs --target stage
         env:
