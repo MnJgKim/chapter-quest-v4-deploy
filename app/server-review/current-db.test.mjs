@@ -115,6 +115,15 @@ try{
  await check('MC non-integer rejected',()=>asUser(child,async()=>assert.rejects(submit({...full,answers:['0.2','Text']}),e=>e.code==='22023')));
  await check('non-text written answer rejected',()=>asUser(child,async()=>assert.rejects(submit({...full,answers:['0',42]}),e=>e.code==='22023')));
  await check('unassigned student rejected',()=>asUser(outsider,async()=>assert.rejects(submit(),e=>e.code==='42501')));
+ await check('invalid submission leaves both submission and snapshot tables unchanged',()=>asUser(child,async()=>{
+  await db.exec('RESET ROLE;');
+  const before=(await db.query('SELECT (SELECT count(*)::int FROM public.cq_v4_student_submissions WHERE child_user_id=$1) AS submissions,(SELECT count(*)::int FROM public.cq_v4_snapshots) AS snapshots',[child])).rows[0];
+  await db.exec('SET LOCAL ROLE authenticated;');
+  await assert.rejects(submit({...full,answers:['9','Text']}),e=>e.code==='22023');
+  await db.exec('RESET ROLE;');
+  const after=(await db.query('SELECT (SELECT count(*)::int FROM public.cq_v4_student_submissions WHERE child_user_id=$1) AS submissions,(SELECT count(*)::int FROM public.cq_v4_snapshots) AS snapshots',[child])).rows[0];
+  assert.deepEqual(after,before);
+ }));
  await check('authorized complete submission accepted',()=>asUser(child,async()=>assert.equal((await submit()).rows.length,1)));
  await check('duplicate submit preserves original answers',()=>asUser(child,async()=>{await submit();await submit({...full,essay:'Changed essay'});await db.exec('RESET ROLE;');const row=(await db.query('SELECT answers FROM public.cq_v4_student_submissions WHERE child_user_id=$1',[child])).rows[0];assert.equal(row.answers.essay,full.essay);}));
  await check('five-question lesson accepts three MC and two inference answers',()=>asUser(child,async()=>{await db.exec('RESET ROLE;');await db.query('update public.cq_v4_activities set questions=$1 where chapter_uuid=$2',[JSON.stringify([{kind:'mc',text:'A?',options:['A','B']},{kind:'mc',text:'B?',options:['A','B','C']},{kind:'mc',text:'C?',options:['A','B','C']},{kind:'inference',text:'Why?'},{kind:'inference',text:'How?'}]),chapter]);await db.exec('SET LOCAL ROLE authenticated;');assert.equal((await submit({...full,answers:['0','1','2','A supported reason.','Another supported explanation.']})).rows.length,1);}));
