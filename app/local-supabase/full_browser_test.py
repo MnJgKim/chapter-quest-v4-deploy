@@ -276,7 +276,14 @@ try:
    pin_dialog.get_by_label('숫자 PIN').fill('123456')
    pin_dialog.get_by_role('button',name='확인').click()
   expect(rp.locator('#cloudEmail')).to_be_visible()
-  rp.locator('#cloudEmail').fill(users['parent']['email']);rp.locator('#cloudPassword').fill(users['parent']['password']);rp.locator('[data-cloud="login"]').click();expect(rp.locator('#cloudStatus')).to_contain_text('로그인됨');rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs);selected_title=next(x['title'] for x in before['chapters'] if x['chapter_uuid']==chapter_uuid);rp.locator('#cqPdfParentPanel .book').filter(has=rp.get_by_text(selected_title,exact=True)).locator('[data-pdf-parent="use-existing"]').click();expect(rp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다',timeout=90000)
+  rp.locator('#cloudEmail').fill(users['parent']['email']);rp.locator('#cloudPassword').fill(users['parent']['password']);rp.locator('[data-cloud="login"]').click();expect(rp.locator('#cloudStatus')).to_contain_text('로그인됨')
+  workflow=rp.locator('#cqMaterialWorkflow')
+  expect(workflow).to_have_count(1)
+  if not workflow.evaluate('(el)=>el.open'):
+   workflow.locator('summary').first.click()
+  expect(workflow).to_have_attribute('open','')
+  expect(rp.locator('[data-pdf-parent="refresh"]')).to_be_visible()
+  rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs);selected_title=next(x['title'] for x in before['chapters'] if x['chapter_uuid']==chapter_uuid);rp.locator('#cqPdfParentPanel .book').filter(has=rp.get_by_text(selected_title,exact=True)).locator('[data-pdf-parent="use-existing"]').click();expect(rp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다',timeout=90000)
   assert rp.evaluate("async()=>{const c=chapter(),f=await pdfGet(pdfKey(book().id,c.id));return c.serverPdfUuid==='"+chapter_uuid+"'&&f.size>5&&(await f.slice(0,5).text())==='%PDF-'}")
   assert api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])==before
   try:api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student read parent PDF endpoint')
