@@ -121,6 +121,24 @@ try:
    pin_dialog.get_by_role('button',name='확인').click()
   expect(pp.locator('#cloudEmail')).to_be_visible()
   pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인됨');passed('parent browser is authorized through real Auth and admin RPC')
+  # Verify all five requested parent folds and rerender state using synthetic local accounts.
+  fold_ids=['cqParentLoginFold','cqParentInvitesFold','cqParentReleaseFold','cqParentWeekdaysFold','cqParentDemoFold']
+  for fold_id in fold_ids:
+   fold=pp.locator('#'+fold_id)
+   expect(fold).to_have_count(1)
+   assert not fold.evaluate('(el)=>el.open'),fold_id+' must be collapsed after login'
+   fold.locator(':scope > summary').click()
+   assert fold.evaluate('(el)=>el.open'),fold_id+' did not expand'
+  pp.evaluate('()=>render()')
+  for fold_id in fold_ids:
+   fold=pp.locator('#'+fold_id)
+   assert fold.evaluate('(el)=>el.open'),fold_id+' lost expanded state after rerender'
+   fold.locator(':scope > summary').click()
+   assert not fold.evaluate('(el)=>el.open'),fold_id+' did not collapse'
+  pp.evaluate('()=>render()')
+  for fold_id in fold_ids:
+   assert not pp.locator('#'+fold_id).evaluate('(el)=>el.open'),fold_id+' lost collapsed state after rerender'
+  passed('all five parent folds expand, collapse and retain state after rerender')
   if not pp.locator('#cqParentInvitesFold').evaluate('(el)=>el.open'):
    pp.locator('#cqParentInvitesFold > summary').click()
   pp.locator('[data-parent-invite="issue"]').click();expect(pp.locator('#cqInviteCode')).to_have_text(__import__('re').compile('^[0-9a-f]{48}$'));invite=pp.locator('#cqInviteCode').inner_text();private.append(invite)
@@ -400,6 +418,12 @@ try:
    except urllib.error.HTTPError as error:assert error.code in (400,403,404),'Unexpected cross-student recording response '+str(error.code)
   passed('two students assigned to the same chapter cannot sign each other private recording')
   assert not report['page_errors'] and not report['blocked_requests'];passed('no runtime errors or non-local service requests')
+  # Browser refresh must restore the parent session using local Auth refresh token.
+  pp.reload()
+  pp.wait_for_function("()=>document.querySelector('#cloudStatus')?.textContent?.includes('복원')",timeout=30000)
+  assert pp.locator('#cqParentLoginFold').count()==1
+  assert not pp.locator('#cqParentLoginFold').evaluate('(el)=>el.open'),'restored parent login fold must be collapsed'
+  passed('parent browser reload restores local Auth session and collapses login panel')
   browser.close()
 except Exception as error:
  message=str(error)
