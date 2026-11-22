@@ -94,10 +94,15 @@ try{
   assert.equal((await db.query('select public.cq_v4_publish_approved($1,$2::uuid[]) as id',[id,[child]])).rows[0].id,pdfId);
   const status=(await db.query('select public.cq_v4_publication_status($1,$2::uuid[]) as status',[id,[child]])).rows[0].status;assert.equal(status.content_matches,true);assert.equal(status.all_assigned,true);
   // Simulate a lost publish RPC response: status recovery must never create another assignment.
+  await db.exec('RESET ROLE;');
   const before=(await db.query('select count(*)::int as n from public.cq_v4_pdf_assignments')).rows[0].n;
+  assert.ok(before>0,'published assignment exists before recovery');
+  await db.exec('SET LOCAL ROLE authenticated;');
   const recovered=(await db.query('select public.cq_v4_publication_status($1,$2::uuid[]) as status',[id,[child]])).rows[0].status;
   assert.equal(recovered.content_matches,true);assert.equal(recovered.all_assigned,true);
+  await db.exec('RESET ROLE;');
   const after=(await db.query('select count(*)::int as n from public.cq_v4_pdf_assignments')).rows[0].n;
+  await db.exec('SET LOCAL ROLE authenticated;');
   assert.equal(after,before,'read-only recovery must not duplicate assignments');
   console.log('PUBLICATION_RESPONSE_LOSS_READONLY_RECOVERY_PASSED');
   await db.query("select set_config('request.jwt.claim.sub',$1,true)",[child]);
