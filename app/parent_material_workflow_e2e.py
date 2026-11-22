@@ -79,10 +79,10 @@ try:
   check('manual approval disabled without questions',page.locator('[data-act="approveManual"]').is_disabled())
   page.locator('[data-act="checkPublication"]').click()
   expect(page.locator('#cqPublicationStatus')).to_contain_text('원문과 유효한 문제')
-  check('publication eligibility blocks incomplete material',True)
+  check('publication eligibility blocks incomplete material','원문과 유효한 문제' in page.locator('#cqPublicationStatus').inner_text())
   page.locator('[data-parent-publish="publish"]').click()
   expect(page.locator('#cqPublicationStatus')).to_contain_text('부모 Supabase 로그인')
-  check('server publish requires parent cloud login',True)
+  check('server publish requires parent cloud login','부모 Supabase 로그인' in page.locator('#cqPublicationStatus').inner_text())
   page.locator('#cqDraftImport').set_input_files({'name':'invalid.json','mimeType':'application/json','buffer':b'{not valid json}'})
   for _ in range(40):
    if any('초안 가져오기 실패' in d['message'] for d in dialogs):break
@@ -114,7 +114,7 @@ try:
   check('approved questions visible',page.get_by_text('Synthetic question?',exact=False).count()>0)
   page.locator('[data-act="checkPublication"]').click()
   expect(page.locator('#cqPublicationStatus')).to_contain_text('원문과 유효한 문제')
-  check('publication still blocked without original PDF',True)
+  check('publication still blocked without original PDF','원문과 유효한 문제' in page.locator('#cqPublicationStatus').inner_text())
   check('no hosted network calls',not report['blocked_requests'])
   check('no browser exceptions',not report['errors'])
   browser.close()
