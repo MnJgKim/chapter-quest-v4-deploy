@@ -352,8 +352,15 @@ try:
   persisted_first=api('/rest/v1/rpc/cq_v4_my_submission',{'p_chapter_uuid':chapter_uuid},users['student']['token'])
   persisted_second=api('/rest/v1/rpc/cq_v4_my_submission',{'p_chapter_uuid':chapter_uuid},users['sibling']['token'])
   assert len(persisted_first)==1 and len(persisted_second)==1
-  assert persisted_first[0]['answers']['essay']=='Mina helped Leo and they found the book.'
-  assert persisted_second[0]['answers']['essay']=='A separate essay from the second student.'
+  # cq_v4_my_submission deliberately exposes only submission metadata and released feedback.
+  # Answers are parent-only; verify them through a fresh authorized parent RPC.
+  fresh_parent_rows=api('/rest/v1/rpc/cq_v4_parent_submissions',{},users['parent']['token'])
+  fresh_by_user={row['child_user_id']:row for row in fresh_parent_rows}
+  assert len(fresh_parent_rows)==2
+  assert fresh_by_user[users['student']['uid']]['answers']['essay']=='Mina helped Leo and they found the book.'
+  assert fresh_by_user[users['sibling']['uid']]['answers']['essay']=='A separate essay from the second student.'
+  assert all(row['submitted_at'] for row in persisted_first+persisted_second)
+  assert all('answers' not in row for row in persisted_first+persisted_second)
   assert persisted_first[0]['feedback']=='Great explanation!'
   assert persisted_second[0]['feedback']=='Feedback only for the second student.'
   passed('fresh authenticated server reads retain each submitted answer and separately released feedback')
