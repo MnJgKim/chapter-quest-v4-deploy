@@ -297,7 +297,7 @@ try:
    workflow.locator('summary').first.click()
   expect(workflow).to_have_attribute('open','')
   expect(rp.locator('[data-pdf-parent="refresh"]')).to_be_visible()
-  rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs);selected_title=next(x['title'] for x in before['chapters'] if x['chapter_uuid']==chapter_uuid)
+  rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs);expect(rp.locator('[data-pdf-parent="refresh"]')).to_be_enabled(timeout=30000);selected_title=next(x['title'] for x in before['chapters'] if x['chapter_uuid']==chapter_uuid)
   # A fresh browser has no selected book; the parent UI requests its title via a native prompt.
   # Playwright dismisses unhandled prompts, which cancels the import before any local chapter exists.
   def accept_original_book_title(dialog):
@@ -305,6 +305,7 @@ try:
    dialog.accept('Recovered original test book')
   rp.once('dialog',accept_original_book_title)
   rp.locator('#cqPdfParentPanel .book').filter(has=rp.get_by_text(selected_title,exact=True)).locator('[data-pdf-parent="use-existing"]').click()
+  expect(rp.locator('#cqPdfParentStatus')).to_contain_text('소유한 서버 원본을 읽는 중',timeout=30000)
   # The server-list refresh can rerender the status while the PDF is being imported.
   # Verify the durable PDF bytes and server UUID instead of trusting a transient toast.
   rp.wait_for_function("async uuid=>{try{const matches=state.books.flatMap(b=>(b.chapters||[]).filter(c=>c.serverPdfUuid===uuid).map(c=>({b,c})));if(matches.length!==1)return false;const {b,c}=matches[0];const f=await pdfGet(pdfKey(b.id,c.id));return !!f&&f.size>5&&(await f.slice(0,5).text())==='%PDF-'}catch{return false}}",arg=chapter_uuid,timeout=90000)
