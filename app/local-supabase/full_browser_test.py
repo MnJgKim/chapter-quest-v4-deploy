@@ -200,7 +200,14 @@ try:
   assert any(row.get('student_user_id')==users['student']['uid'] and row.get('chapter_uuid',row.get('chapter_id'))==chapter_uuid for row in assigned),'Local parent assignment missing after publish'
   api('/rest/v1/rpc/cq_v4_parent_schedule_lesson',{'p_student_user_id':users['student']['uid'],'p_chapter_id':chapter_uuid,'p_lesson_date':time.strftime('%Y-%m-%d',time.gmtime(time.time()+9*3600))},users['parent']['token'])
   api('/rest/v1/rpc/cq_v4_parent_set_lesson_release',{'p_student_user_id':users['student']['uid'],'p_chapter_id':chapter_uuid,'p_release':True},users['parent']['token'])
-  scheduled_after_release=api('/rest/v1/rpc/cq_v4_my_lesson_schedule',{},users['student']['token']);assert any(row.get('chapter_uuid')==chapter_uuid and row.get('is_released') is True for row in scheduled_after_release),'Released lesson missing from student schedule RPC';passed('released lesson is returned by the real student schedule RPC');sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(2);assert set(sp.locator('[data-child="view"]').evaluate_all('(buttons)=>buttons.map(b=>b.dataset.uuid)'))=={chapter_uuid};passed('parent releases exactly one synthetic lesson, rendered in weekly and all-chapters views')
+  scheduled_after_release=api('/rest/v1/rpc/cq_v4_my_lesson_schedule',{},users['student']['token']);assert any(row.get('chapter_uuid')==chapter_uuid and row.get('is_released') is True for row in scheduled_after_release),'Released lesson missing from student schedule RPC';passed('released lesson is returned by the real student schedule RPC')
+  # The earlier refresh rerenders the student panel and closes its account details.
+  account_summary=sp.get_by_text('계정 관리 · 로그인 상태 확인',exact=True)
+  if not account_summary.locator('xpath=..').evaluate('(el)=>el.open'):
+   account_summary.click()
+  expect(sp.locator('[data-child="list"]')).to_be_visible()
+  expect(sp.locator('[data-child="list"]')).to_be_enabled()
+  sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(2);assert set(sp.locator('[data-child="view"]').evaluate_all('(buttons)=>buttons.map(b=>b.dataset.uuid)'))=={chapter_uuid};passed('parent releases exactly one synthetic lesson, rendered in weekly and all-chapters views')
   context=api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['parent']['token']);assert context[0]['answer_key'][0]==0
   student_activities=api('/rest/v1/rpc/cq_v4_my_chapter_activities',{'p_chapter_uuid':chapter_uuid},users['student']['token'])
   assert 'PARENT_ONLY_SYNTHETIC_EVIDENCE' not in json.dumps(student_activities) and 'answer_key' not in json.dumps(student_activities)
