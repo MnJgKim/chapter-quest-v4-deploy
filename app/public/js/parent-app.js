@@ -717,7 +717,7 @@
   }
  }
  document.addEventListener('toggle',e=>{
-  const node=e.target;if(node?.dataset?.parentFold)parentFoldState.set(node.dataset.parentFold,node.open);
+  const node=e.target;if(node?.isConnected&&node?.dataset?.parentFold)parentFoldState.set(node.dataset.parentFold,node.open);
  },true);
 
  const originalRender=render;
