@@ -340,7 +340,24 @@ try:
   passed('another registered parent cannot obtain this PDF, recording or answer context')
 
   op=page();op.locator('#cqChildEmail').fill(users['outsider']['email']);op.locator('#cqChildPassword').fill(users['outsider']['password']);op.locator('[data-child="login"]').click();expect(op.locator('#cqChildStatus')).to_contain_text('0개 공개 챕터를 불러왔습니다');op.get_by_text('계정 관리 · 로그인 상태 확인',exact=True).click();expect(op.locator('[data-child="list"]')).to_be_visible();op.locator('[data-child="list"]').click();expect(op.locator('#cqChildStatus')).to_contain_text('0개');passed('unassigned real account sees no other student chapter')
-  pp.locator('[data-cloud="logout"]').click();pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인됨');pp.locator('[data-pdf-parent="refresh"]').click();expect(pp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs)
+  # Parent login/backup folds automatically after sign-in; expand it before logout.
+  login_fold=pp.locator('#cqParentLoginFold')
+  if not login_fold.evaluate('(el)=>el.open'):
+   login_fold.locator(':scope > summary').click()
+  expect(pp.locator('[data-cloud="logout"]')).to_be_visible()
+  pp.locator('[data-cloud="logout"]').click()
+  expect(pp.locator('#cloudEmail')).to_be_visible()
+  pp.locator('#cloudEmail').fill(users['parent']['email'])
+  pp.locator('#cloudPassword').fill(users['parent']['password'])
+  pp.locator('[data-cloud="login"]').click()
+  expect(pp.locator('#cloudStatus')).to_contain_text('로그인됨')
+  # The parent material workflow is separately collapsed by default.
+  workflow=pp.locator('#cqMaterialWorkflow')
+  if not workflow.evaluate('(el)=>el.open'):
+   workflow.locator(':scope > summary').click()
+  expect(pp.locator('[data-pdf-parent="refresh"]')).to_be_visible()
+  pp.locator('[data-pdf-parent="refresh"]').click()
+  expect(pp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs)
   # Two genuinely assigned students share the PDF but never submissions, feedback or audio.
   if not pp.locator('#cqParentInvitesFold').evaluate('(el)=>el.open'):
    pp.locator('#cqParentInvitesFold > summary').click()
