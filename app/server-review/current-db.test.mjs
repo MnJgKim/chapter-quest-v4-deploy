@@ -106,6 +106,29 @@ try{
   await db.query("select set_config('request.jwt.claim.sub',$1,true)",[child]);
   assert.equal((await db.query('select * from public.cq_v4_my_submission($1)',[chapter])).rows[0].feedback,'Great work!');
  }));
+ await check('outsider cannot see a different student submission or feedback',()=>asUser(outsider,async()=>{
+  assert.equal((await db.query('select * from public.cq_v4_my_submission($1)',[chapter])).rows.length,0);
+  assert.equal((await db.query('select * from public.cq_v4_parent_submissions()')).rows.length,0);
+ }));
+ await check('student cannot publish or overwrite parent feedback',()=>asUser(child,async()=>assert.rejects(
+  db.query('select public.cq_v4_release_feedback($1,$2,$3,$4)',[child,chapter,'Forged',true]),e=>e.code==='42501')));
+ await check('different parent cannot release feedback for another parent child',()=>asUser(outsider,async()=>{
+  await db.exec('RESET ROLE;');
+  await db.query('insert into public.cq_admins(user_id) values($1) on conflict do nothing',[outsider]);
+  await db.exec('SET LOCAL ROLE authenticated;');
+  await assert.rejects(db.query('select public.cq_v4_release_feedback($1,$2,$3,$4)',[child,chapter,'Foreign',true]),e=>e.code==='42501');
+ }));
+ await check('denied feedback release leaves prior published feedback unchanged',()=>asUser(child,async()=>{
+  await db.exec('RESET ROLE;');
+  const before=(await db.query('select feedback,feedback_released from public.cq_v4_student_submissions where chapter_uuid=$1 and child_user_id=$2',[chapter,child])).rows[0];
+  await db.exec('SET LOCAL ROLE authenticated;');
+  await db.exec('SAVEPOINT denied_feedback');
+  await assert.rejects(db.query('select public.cq_v4_release_feedback($1,$2,$3,$4)',[child,chapter,'Tamper',true]),e=>e.code==='42501');
+  await db.exec('ROLLBACK TO SAVEPOINT denied_feedback');
+  await db.exec('RESET ROLE;');
+  const after=(await db.query('select feedback,feedback_released from public.cq_v4_student_submissions where chapter_uuid=$1 and child_user_id=$2',[chapter,child])).rows[0];
+  assert.deepEqual(after,before);
+ }));
  await check('current live function compiles in isolated PostgreSQL',async()=>assert.ok(true));
  await check('short answer array rejected',()=>asUser(child,async()=>assert.rejects(submit({...full,answers:['0']}),e=>e.code==='22023')));
  await check('extra answer rejected',()=>asUser(child,async()=>assert.rejects(submit({...full,answers:['0','Text','extra']}),e=>e.code==='22023')));
