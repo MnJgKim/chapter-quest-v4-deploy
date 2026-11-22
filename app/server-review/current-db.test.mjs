@@ -119,7 +119,9 @@ try{
   await db.exec('RESET ROLE;');
   const before=(await db.query('SELECT (SELECT count(*)::int FROM public.cq_v4_student_submissions WHERE child_user_id=$1) AS submissions,(SELECT count(*)::int FROM public.cq_v4_snapshots) AS snapshots',[child])).rows[0];
   await db.exec('SET LOCAL ROLE authenticated;');
+  await db.exec('SAVEPOINT rejected_submit');
   await assert.rejects(submit({...full,answers:['9','Text']}),e=>e.code==='22023');
+  await db.exec('ROLLBACK TO SAVEPOINT rejected_submit');
   await db.exec('RESET ROLE;');
   const after=(await db.query('SELECT (SELECT count(*)::int FROM public.cq_v4_student_submissions WHERE child_user_id=$1) AS submissions,(SELECT count(*)::int FROM public.cq_v4_snapshots) AS snapshots',[child])).rows[0];
   assert.deepEqual(after,before);
