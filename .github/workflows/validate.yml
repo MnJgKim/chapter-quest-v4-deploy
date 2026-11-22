@@ -62,3 +62,33 @@ jobs:
         if: always()
         working-directory: app
         run: npx --no-install supabase --workdir local-supabase stop
+
+  reread-postgres-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: cq_reread_boundary
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cq_reread_boundary"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: isolated-test-only
+      PGDATABASE: cq_reread_boundary
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify 60/70/80 percent, persisted reread completion and feedback authorization
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-reread-submission.sql 2>&1 | tee /tmp/cq-reread-boundary.log
+          grep -q 'REREAD_STUDENT_POSTGRES_ASSERTIONS_PASSED' /tmp/cq-reread-boundary.log
