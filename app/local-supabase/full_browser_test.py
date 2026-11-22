@@ -259,7 +259,13 @@ try:
   try:api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student could read parent context')
   except urllib.error.HTTPError as error:assert error.code==403,'Expected local role denial 403, got '+str(error.code)+' '+error.read(400).decode(errors='replace')
   passed('real parent lesson context includes model answers and denies the student')
-  sp.locator('[data-child="view"]').first.click();expect(sp.locator('[data-server-pdf="count"]')).to_have_text('1 / '+str(lesson_pages)+' 페이지',timeout=90000);expect(sp.locator('#cqChildWork [type="submit"]')).to_be_enabled();passed('assigned student downloads and renders PDF through the real signed-link Edge function')
+  sp.locator('[data-child="view"]').first.click()
+  try:
+   expect(sp.locator('[data-server-pdf="count"]')).to_have_text('1 / '+str(lesson_pages)+' 페이지',timeout=90000)
+  except Exception as pdf_error:
+   diagnostic=sp.evaluate("""()=>({status:document.querySelector('#cqChildStatus')?.textContent,detail:document.querySelector('#cqChildDetail')?.textContent?.slice(0,1600),work:document.querySelector('#cqChildWork')?.textContent?.slice(0,1000),lessonButtons:[...document.querySelectorAll('[data-child="view"]')].map(b=>({uuid:b.dataset.uuid,disabled:b.disabled})),pdfCount:document.querySelector('[data-server-pdf="count"]')?.textContent})""")
+   raise AssertionError('Released lesson PDF did not render: '+json.dumps(diagnostic,ensure_ascii=False)) from pdf_error
+  expect(sp.locator('#cqChildWork [type="submit"]')).to_be_enabled();passed('assigned student downloads and renders PDF through the real signed-link Edge function')
   sp.locator('[data-word-reveal="0"]').tap();expect(sp.locator('[data-word-done="0"]')).to_be_checked();sp.locator('[name="readComplete"]').check();sp.locator('[name="cqAnswer0"][value="0"]').check();sp.locator('[name="cqAnswer1"]').fill('They wanted to find the book.');sp.locator('[name="essay"]').fill('Mina helped Leo and they found the book.');sp.locator('[name="speaking"]').fill('I will explain how Mina helped Leo.')
   for width,height in [(360,800),(412,915),(800,1280),(1280,800)]:
    sp.set_viewport_size({'width':width,'height':height});sp.locator('[name="cqAnswer0"][value="0"]').tap();expect(sp.locator('[name="cqAnswer0"][value="0"]')).to_be_checked();sp.locator('[name="essay"]').fill('Mina helped Leo and they found the book.');assert sp.evaluate('document.documentElement.scrollWidth<=innerWidth');expect(sp.locator('#cqChildWork [type="submit"]')).to_be_in_viewport();assert sp.locator('[data-child="voice-start"]').bounding_box()['height']>=44;passed(f'real learning controls accept touch and text at {width}x{height}')
