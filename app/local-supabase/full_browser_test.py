@@ -422,6 +422,12 @@ try:
   assert not report['page_errors'] and not report['blocked_requests'];passed('no runtime errors or non-local service requests')
   # Browser refresh must restore the parent session using local Auth refresh token.
   pp.reload()
+  # A full page reload starts in student mode; reenter the existing parent PIN view.
+  pp.locator('#parentBtn').click()
+  pin_dialog=pp.get_by_role('dialog',name='부모 관리자 PIN')
+  if pin_dialog.is_visible():
+   pin_dialog.get_by_label('숫자 PIN').fill('123456')
+   pin_dialog.get_by_role('button',name='확인').click()
   pp.wait_for_function("()=>document.querySelector('#cloudStatus')?.textContent?.includes('복원')",timeout=30000)
   assert pp.locator('#cqParentLoginFold').count()==1
   assert not pp.locator('#cqParentLoginFold').evaluate('(el)=>el.open'),'restored parent login fold must be collapsed'
