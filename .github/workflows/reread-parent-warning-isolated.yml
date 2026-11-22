@@ -3,6 +3,7 @@ on:
   push:
     branches:
       - work/reread-parent-workflow-20261120
+      - work/parent-material-workflow-12step-20261121
     paths:
       - 'app/sql/development-parent-lesson-context-not-for-production.sql'
       - 'app/tests/isolated-postgres-parent-lesson.sql'

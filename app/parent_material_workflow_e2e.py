@@ -1,0 +1,146 @@
+"""Isolated 12-step parent material workflow browser regression; never contacts hosted services."""
+import functools,json,sys,threading
+from pathlib import Path
+from http.server import ThreadingHTTPServer,SimpleHTTPRequestHandler
+from playwright.sync_api import sync_playwright,expect
+from qa_browser import launch_browser
+
+ROOT=Path(__file__).parent
+OUT=Path(sys.argv[1] if len(sys.argv)>1 else '/tmp/cq-v4-parent-material')
+OUT.mkdir(parents=True,exist_ok=True)
+class Quiet(SimpleHTTPRequestHandler):
+ def log_message(self,*args):pass
+server=ThreadingHTTPServer(('127.0.0.1',0),functools.partial(Quiet,directory=str(ROOT/'public')))
+threading.Thread(target=server.serve_forever,daemon=True).start()
+origin=f'http://127.0.0.1:{server.server_port}'
+report={'checks':[],'errors':[],'blocked_requests':[]}
+def check(name,condition):
+ assert condition,name
+ report['checks'].append(name)
+try:
+ with sync_playwright() as p:
+  browser=launch_browser(p,headless=True,args=['--no-sandbox'])
+  ctx=browser.new_context(viewport={'width':800,'height':1100})
+  def intercept(route):
+   if route.request.url.startswith(origin+'/'):route.continue_()
+   else:report['blocked_requests'].append(route.request.url);route.abort()
+  ctx.route('**/*',intercept)
+  page=ctx.new_page()
+  dialogs=[]
+  def on_dialog(dialog):
+   dialogs.append({'type':dialog.type,'message':dialog.message})
+   dialog.accept('123456') if dialog.type=='prompt' else dialog.accept()
+  page.on('dialog',on_dialog)
+  page.on('pageerror',lambda error:report['errors'].append(str(error)))
+  page.goto(origin+'/index.html')
+  page.locator('#parentBtn').click()
+  for _ in range(2):
+   dialog=page.get_by_role('dialog',name='부모 관리자 PIN')
+   if not dialog.is_visible():break
+   dialog.get_by_label('숫자 PIN').fill('123456')
+   dialog.get_by_role('button',name='확인').click()
+  login_fold=page.locator('#cqParentLoginFold')
+  expect(login_fold).to_have_count(1)
+  check('parent login panel open while signed out',login_fold.evaluate('(el)=>el.open'))
+  check('parent login fields preserved inside fold',login_fold.locator('#cloudEmail').count()==1)
+  login_fold.locator(':scope > summary').click()
+  check('parent login panel collapses',not login_fold.evaluate('(el)=>el.open'))
+  login_fold.locator(':scope > summary').click()
+  check('parent login panel reopens',login_fold.evaluate('(el)=>el.open'))
+  release_fold=page.locator('#cqParentReleaseFold')
+  expect(release_fold).to_have_count(1)
+  check('direct chapter release initially collapsed',not release_fold.evaluate('(el)=>el.open'))
+  check('release refresh button retained',release_fold.locator('[data-lesson="refresh"]').count()==1)
+  weekday_fold=page.locator('#cqParentWeekdaysFold')
+  expect(weekday_fold).to_have_count(1)
+  check('local weekday settings collapsed',not weekday_fold.evaluate('(el)=>el.open'))
+  check('local weekday controls retained',weekday_fold.locator('[data-schedule-student]').count()>0)
+  weekday_fold.locator(':scope > summary').click()
+  check('weekday settings open on click',weekday_fold.evaluate('(el)=>el.open'))
+  demo_fold=page.locator('#cqParentDemoFold')
+  expect(demo_fold).to_have_count(1)
+  check('demo weekly assignments collapsed',not demo_fold.evaluate('(el)=>el.open'))
+  check('demo assignment controls retained',demo_fold.locator('#assignStudent').count()==1)
+  root=page.locator('#cqMaterialWorkflow')
+  expect(root).to_have_count(1)
+  check('initially collapsed',not root.evaluate('(el)=>el.open'))
+  root.locator(':scope > summary').click()
+  check('opens on click',root.evaluate('(el)=>el.open'))
+  steps=root.locator(':scope > section[data-material-step]')
+  expect(steps).to_have_count(12)
+  check('ordered steps',steps.evaluate_all('(els)=>els.map(e=>Number(e.dataset.materialStep)).join(",")')==','.join(map(str,range(1,13))))
+  def in_step(selector,number):
+   return page.locator(selector).evaluate('(el)=>el.closest("[data-material-step]")?.dataset.materialStep')==str(number)
+  check('server PDF registration at 1',in_step('#cqPdfParentPanel',1))
+  check('book management at 2',in_step('#bookTitle',2))
+  check('book registration action at 2',in_step('[data-act="addBook"]',2))
+  check('student/PDF selection at 11',in_step('#cqPublishVerifiedPdf',11))
+  page.locator('#bookTitle').fill('Synthetic workflow book')
+  page.locator('[data-act="addBook"]').click()
+  check('remains expanded after add book',root.evaluate('(el)=>el.open'))
+  check('registered book list at 2',in_step('[data-act="manageBook"]',2))
+  page.locator('[data-act="manageBook"]').last.click()
+  check('chapter management heading at 2',root.locator('[data-material-step="2"]').get_by_text('챕터 관리',exact=False).count()>0)
+  check('chapter add at 3',in_step('#chapterTitle',3))
+  page.locator('#chapterTitle').fill('Synthetic chapter')
+  page.locator('[data-act="addChapter"]').click()
+  check('chapter edit action at 2',in_step('[data-act="editChapter"]',2))
+  check('AI source at 5',in_step('#sourceText',5))
+  check('original PDF/TXT at 6',in_step('#cqOriginalPDF',6))
+  check('JSON import at 7',in_step('[data-act="importDraft"]',7))
+  check('manual approval at 9',in_step('[data-act="approveManual"]',9))
+  check('publication check at 10',in_step('[data-act="checkPublication"]',10))
+  check('publication action at 12',in_step('[data-parent-publish="publish"]',12))
+  page.locator('#sourceText').fill('Unsubmitted synthetic text')
+  root.locator(':scope > summary').click()
+  check('collapses on click',not root.evaluate('(el)=>el.open'))
+  root.locator(':scope > summary').click()
+  check('reopens on click',root.evaluate('(el)=>el.open'))
+  check('text retained after toggle',page.locator('#sourceText').input_value()=='Unsubmitted synthetic text')
+  # Exercise isolated negative paths without ever authenticating to hosted services.
+  check('manual approval disabled without questions',page.locator('[data-act="approveManual"]').is_disabled())
+  page.locator('[data-act="checkPublication"]').click()
+  expect(page.locator('#cqPublicationStatus')).to_contain_text('원문과 유효한 문제')
+  check('publication eligibility blocks incomplete material','원문과 유효한 문제' in page.locator('#cqPublicationStatus').inner_text())
+  page.locator('[data-parent-publish="publish"]').click()
+  expect(page.locator('#cqPublicationStatus')).to_contain_text('부모 Supabase 로그인')
+  check('server publish requires parent cloud login','부모 Supabase 로그인' in page.locator('#cqPublicationStatus').inner_text())
+  page.locator('#cqDraftImport').set_input_files({'name':'invalid.json','mimeType':'application/json','buffer':b'{not valid json}'})
+  for _ in range(40):
+   if any('초안 가져오기 실패' in d['message'] for d in dialogs):break
+   page.wait_for_timeout(100)
+  check('invalid JSON import rejected',any('초안 가져오기 실패' in d['message'] for d in dialogs))
+  check('invalid JSON does not create review draft',page.locator('#cqParentDraftReview').count()==0)
+  # Valid synthetic draft exercises JSON parsing, review evidence, and local approval only.
+  sample={
+   'questions':[{'kind':'mc','text':'Synthetic question?','options':['Yes','No'],'correct':0}],
+   'vocabulary':[{'word':'sample','meaning':'example'}],
+   'writingPrompt':'Write a synthetic response.',
+   'speakingPrompt':'Say a synthetic response.',
+   'parentReview':{
+    'questions':[{'filePages':'1','printedPages':'','note':'Synthetic evidence for test'}],
+    'vocabulary':[{'filePages':'1','printedPages':'','note':'Synthetic vocabulary evidence'}]
+   }
+  }
+  page.locator('#cqDraftImport').set_input_files({'name':'synthetic.json','mimeType':'application/json','buffer':json.dumps(sample).encode('utf-8')})
+  expect(page.locator('#cqParentDraftReview')).to_have_count(1)
+  check('valid JSON draft imported into review',in_step('#cqParentDraftReview',8))
+  check('evidence checkbox inside review',in_step('#cqEvidenceConfirmed',8))
+  page.locator('[data-act="approve"]').click()
+  check('approval blocked before evidence confirmation',any('근거 확인란을 체크' in d['message'] for d in dialogs))
+  check('approval receipt absent before evidence confirmation',page.get_by_text('승인 기록 없음 · 서버 게시 불가').count()>0)
+  page.locator('#cqEvidenceConfirmed').check()
+  page.locator('[data-act="approve"]').click()
+  expect(page.locator('#cqParentDraftReview')).to_have_count(0)
+  check('local parent approval saved',page.get_by_text('로컬 승인 기록 있음 · 수정 시 승인 무효화').count()>0)
+  check('approved questions visible',page.get_by_text('Synthetic question?',exact=False).count()>0)
+  page.locator('[data-act="checkPublication"]').click()
+  expect(page.locator('#cqPublicationStatus')).to_contain_text('원문과 유효한 문제')
+  check('publication still blocked without original PDF','원문과 유효한 문제' in page.locator('#cqPublicationStatus').inner_text())
+  check('no hosted network calls',not report['blocked_requests'])
+  check('no browser exceptions',not report['errors'])
+  browser.close()
+finally:
+ server.shutdown()
+ (OUT/'report.json').write_text(json.dumps(report,ensure_ascii=False,indent=2))
+print(json.dumps(report,ensure_ascii=False,indent=2))

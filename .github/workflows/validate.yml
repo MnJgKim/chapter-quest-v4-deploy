@@ -22,9 +22,29 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: python -m compileall -q -x 'node_modules|runtime' app
       - run: npm test
+      - name: Read-only deployment asset integrity manifest regression (isolated)
+        run: node app/tools/asset-integrity-audit.test.mjs
+      - name: Parent publication answer-key validation (isolated)
+        run: node app/tests/parent-publication-payload.test.mjs
+      - name: Isolated PostgreSQL submission and feedback permission regression
+        run: |
+          npm install --prefix app/server-review --no-save --ignore-scripts --no-audit --no-fund
+          node app/server-review/current-db.test.mjs
       - run: npm run build
         env:
           WRANGLER_SEND_METRICS: 'false'
+      - name: Generate candidate asset SHA-256 inventory (read-only)
+        run: |
+          mkdir -p "$RUNNER_TEMP/cq-candidate-inventory"
+          node app/tools/asset-integrity-audit.mjs > "$RUNNER_TEMP/cq-candidate-inventory/manifest.json"
+          node -e 'const m=require(process.argv[1]); if(m.scope!=="repository-candidate-not-live-cloudflare"||!m.files.length)process.exit(1); console.log("CANDIDATE_ASSET_MANIFEST_GENERATED files="+m.files.length)' "$RUNNER_TEMP/cq-candidate-inventory/manifest.json"
+      - name: Retain candidate SHA-256 inventory (no file contents)
+        uses: actions/upload-artifact@v4
+        with:
+          name: cq-v4-candidate-asset-sha256
+          path: ${{ runner.temp }}/cq-candidate-inventory/manifest.json
+          if-no-files-found: error
+          retention-days: 7
       - name: Stage Worker dry-run (never deploy)
         run: node app/tools/deploy-preflight.mjs --target stage
         env:
@@ -36,6 +56,8 @@ jobs:
       - run: pip install -r app/qa-requirements.txt
       - run: python -m playwright install --with-deps chromium
       - run: npm run test:browser
+      - name: Parent 12-step isolated browser regression
+        run: python app/parent_material_workflow_e2e.py "$RUNNER_TEMP/cq-parent-material"
       - name: Start isolated local Supabase, with no hosted project link
         working-directory: app
         run: |
@@ -56,3 +78,39 @@ jobs:
         if: always()
         working-directory: app
         run: npx --no-install supabase --workdir local-supabase stop
+
+  reread-postgres-boundaries:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: isolated-test-only
+          POSTGRES_DB: cq_reread_boundary
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d cq_reread_boundary"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    env:
+      PGHOST: localhost
+      PGPORT: '5432'
+      PGUSER: postgres
+      PGPASSWORD: isolated-test-only
+      PGDATABASE: cq_reread_boundary
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify 60/70/80 percent, persisted reread completion and feedback authorization
+        run: |
+          set -euo pipefail
+          psql -X -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-reread-submission.sql 2>&1 | tee /tmp/cq-reread-boundary.log
+          grep -q 'REREAD_STUDENT_POSTGRES_ASSERTIONS_PASSED' /tmp/cq-reread-boundary.log
+
+  isolated-atomic-postgres-review:
+    name: Reuse isolated PostgreSQL atomic submission and frozen reread preflight
+    uses: ./.github/workflows/chapter-quest-v4-isolated-preflight.yml
+    permissions:
+      contents: read

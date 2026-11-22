@@ -93,6 +93,18 @@ try{
   assert.equal((await db.query('select public.cq_v4_bind_verified_pdf($1,$2) as id',[id,pdfId])).rows[0].id,pdfId);
   assert.equal((await db.query('select public.cq_v4_publish_approved($1,$2::uuid[]) as id',[id,[child]])).rows[0].id,pdfId);
   const status=(await db.query('select public.cq_v4_publication_status($1,$2::uuid[]) as status',[id,[child]])).rows[0].status;assert.equal(status.content_matches,true);assert.equal(status.all_assigned,true);
+  // Simulate a lost publish RPC response: status recovery must never create another assignment.
+  await db.exec('RESET ROLE;');
+  const before=(await db.query('select count(*)::int as n from public.cq_v4_pdf_assignments')).rows[0].n;
+  assert.ok(before>0,'published assignment exists before recovery');
+  await db.exec('SET LOCAL ROLE authenticated;');
+  const recovered=(await db.query('select public.cq_v4_publication_status($1,$2::uuid[]) as status',[id,[child]])).rows[0].status;
+  assert.equal(recovered.content_matches,true);assert.equal(recovered.all_assigned,true);
+  await db.exec('RESET ROLE;');
+  const after=(await db.query('select count(*)::int as n from public.cq_v4_pdf_assignments')).rows[0].n;
+  await db.exec('SET LOCAL ROLE authenticated;');
+  assert.equal(after,before,'read-only recovery must not duplicate assignments');
+  console.log('PUBLICATION_RESPONSE_LOSS_READONLY_RECOVERY_PASSED');
   await db.query("select set_config('request.jwt.claim.sub',$1,true)",[child]);
   const rows=(await db.query('select * from public.cq_v4_my_chapters()')).rows;assert.ok(rows.some(x=>x.chapter_uuid===pdfId));assert.ok(!JSON.stringify(rows).includes('correct'));assert.ok(!JSON.stringify(rows).includes('answer_key'));
  }));
@@ -106,6 +118,29 @@ try{
   await db.query("select set_config('request.jwt.claim.sub',$1,true)",[child]);
   assert.equal((await db.query('select * from public.cq_v4_my_submission($1)',[chapter])).rows[0].feedback,'Great work!');
  }));
+ await check('outsider cannot see a different student submission or feedback',()=>asUser(outsider,async()=>{
+  assert.equal((await db.query('select * from public.cq_v4_my_submission($1)',[chapter])).rows.length,0);
+  assert.equal((await db.query('select * from public.cq_v4_parent_submissions()')).rows.length,0);
+ }));
+ await check('student cannot publish or overwrite parent feedback',()=>asUser(child,async()=>assert.rejects(
+  db.query('select public.cq_v4_release_feedback($1,$2,$3,$4)',[child,chapter,'Forged',true]),e=>e.code==='42501')));
+ await check('different parent cannot release feedback for another parent child',()=>asUser(outsider,async()=>{
+  await db.exec('RESET ROLE;');
+  await db.query('insert into public.cq_admins(user_id) values($1) on conflict do nothing',[outsider]);
+  await db.exec('SET LOCAL ROLE authenticated;');
+  await assert.rejects(db.query('select public.cq_v4_release_feedback($1,$2,$3,$4)',[child,chapter,'Foreign',true]),e=>e.code==='42501');
+ }));
+ await check('denied feedback release leaves prior published feedback unchanged',()=>asUser(child,async()=>{
+  await db.exec('RESET ROLE;');
+  const before=(await db.query('select feedback,feedback_released from public.cq_v4_student_submissions where chapter_uuid=$1 and child_user_id=$2',[chapter,child])).rows[0];
+  await db.exec('SET LOCAL ROLE authenticated;');
+  await db.exec('SAVEPOINT denied_feedback');
+  await assert.rejects(db.query('select public.cq_v4_release_feedback($1,$2,$3,$4)',[child,chapter,'Tamper',true]),e=>e.code==='42501');
+  await db.exec('ROLLBACK TO SAVEPOINT denied_feedback');
+  await db.exec('RESET ROLE;');
+  const after=(await db.query('select feedback,feedback_released from public.cq_v4_student_submissions where chapter_uuid=$1 and child_user_id=$2',[chapter,child])).rows[0];
+  assert.deepEqual(after,before);
+ }));
  await check('current live function compiles in isolated PostgreSQL',async()=>assert.ok(true));
  await check('short answer array rejected',()=>asUser(child,async()=>assert.rejects(submit({...full,answers:['0']}),e=>e.code==='22023')));
  await check('extra answer rejected',()=>asUser(child,async()=>assert.rejects(submit({...full,answers:['0','Text','extra']}),e=>e.code==='22023')));
@@ -115,6 +150,17 @@ try{
  await check('MC non-integer rejected',()=>asUser(child,async()=>assert.rejects(submit({...full,answers:['0.2','Text']}),e=>e.code==='22023')));
  await check('non-text written answer rejected',()=>asUser(child,async()=>assert.rejects(submit({...full,answers:['0',42]}),e=>e.code==='22023')));
  await check('unassigned student rejected',()=>asUser(outsider,async()=>assert.rejects(submit(),e=>e.code==='42501')));
+ await check('invalid submission leaves both submission and snapshot tables unchanged',()=>asUser(child,async()=>{
+  await db.exec('RESET ROLE;');
+  const before=(await db.query('SELECT (SELECT count(*)::int FROM public.cq_v4_student_submissions WHERE child_user_id=$1) AS submissions,(SELECT count(*)::int FROM public.cq_v4_snapshots) AS snapshots',[child])).rows[0];
+  await db.exec('SET LOCAL ROLE authenticated;');
+  await db.exec('SAVEPOINT rejected_submit');
+  await assert.rejects(submit({...full,answers:['9','Text']}),e=>e.code==='22023');
+  await db.exec('ROLLBACK TO SAVEPOINT rejected_submit');
+  await db.exec('RESET ROLE;');
+  const after=(await db.query('SELECT (SELECT count(*)::int FROM public.cq_v4_student_submissions WHERE child_user_id=$1) AS submissions,(SELECT count(*)::int FROM public.cq_v4_snapshots) AS snapshots',[child])).rows[0];
+  assert.deepEqual(after,before);
+ }));
  await check('authorized complete submission accepted',()=>asUser(child,async()=>assert.equal((await submit()).rows.length,1)));
  await check('duplicate submit preserves original answers',()=>asUser(child,async()=>{await submit();await submit({...full,essay:'Changed essay'});await db.exec('RESET ROLE;');const row=(await db.query('SELECT answers FROM public.cq_v4_student_submissions WHERE child_user_id=$1',[child])).rows[0];assert.equal(row.answers.essay,full.essay);}));
  await check('five-question lesson accepts three MC and two inference answers',()=>asUser(child,async()=>{await db.exec('RESET ROLE;');await db.query('update public.cq_v4_activities set questions=$1 where chapter_uuid=$2',[JSON.stringify([{kind:'mc',text:'A?',options:['A','B']},{kind:'mc',text:'B?',options:['A','B','C']},{kind:'mc',text:'C?',options:['A','B','C']},{kind:'inference',text:'Why?'},{kind:'inference',text:'How?'}]),chapter]);await db.exec('SET LOCAL ROLE authenticated;');assert.equal((await submit({...full,answers:['0','1','2','A supported reason.','Another supported explanation.']})).rows.length,1);}));

@@ -9,7 +9,7 @@ test('parent app browser script parses',()=>{
   assert.doesNotThrow(()=>new Script(source,{filename:'parent-app.js'}));
 });
 
-test('recurring queue fails closed until server capability is implemented',()=>{
+test('recurring queue fails closed until server capability is confirmed',()=>{
   assert.match(source,/recurringBackendMissing=true/);
   assert.doesNotMatch(source,/recurringBackendMissing=false/);
   assert.match(source,/if\(willQueue&&recurringBackendMissing\)/);
@@ -21,11 +21,12 @@ test('recurring panel reads existing scheduled releases without fabricating queu
   assert.match(source,/if\(!Array\.isArray\(rows\)\)throw Error\('서버 일정 응답 오류'\)/);
   assert.match(source,/recurringRows=rows\.filter\(r=>r\.lesson_date\)/);
   assert.match(source,/recurringOwner=owner;render\(\)/);
-  assert.doesNotMatch(source,/parentRpc\('cq_v4_parent_recurring_status'\)/);
+  assert.match(source,/parentRpc\('cq_v4_parent_recurring_status'\)/);
 });
 
-test('recurring controls remain closed even after a successful schedule lookup',()=>{
-  assert.match(source,/recurringBackendMissing=true;\s*recurringRows=rows/);
+test('recurring controls stay closed unless the server capability probe succeeds',()=>{
+  assert.match(source,/recurringBackendMissing=!Array\.isArray\(capability\)/);
+  assert.match(source,/catch \(_\) \{ recurringBackendMissing=true; \}/);
   assert.match(source,/if\(owner!==cloudIdentity\(\)\)return/);
   assert.match(source,/catch\(error\)\{const statusNode=document\.getElementById\('cqRecurringStatus'\)/);
 });

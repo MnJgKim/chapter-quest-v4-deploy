@@ -1,7 +1,7 @@
 name: Chapter Quest V4 isolated security preflight
 on:
   push:
-    branches: [work/hosted-readonly-preflight-20261117, work/reread-parent-workflow-20261120]
+    branches: [work/hosted-readonly-preflight-20261117, work/reread-parent-workflow-20261120, work/parent-material-workflow-12step-20261121]
     paths:
       - '.github/workflows/chapter-quest-v4-isolated-preflight.yml'
       - 'app/tests/**'
@@ -26,6 +26,7 @@ on:
       - 'review/sql-candidates/cq_v4_submit_with_frozen_snapshot.REVIEW-ONLY.sql'
       - 'app/supabase/functions/cq-v4-pdf-link/index.ts'
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 jobs:

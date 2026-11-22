@@ -35,3 +35,15 @@ test('acknowledgement re-fetch validates all notice records before rendering',()
  assert.match(fragment,/if\(!valid\)throw Error\('알림 갱신 데이터가 올바르지 않습니다/);
  assert.match(fragment,/rereadNotices=rows;rereadOwner=owner;rereadAvailable=true;render\(\)/);
 });
+
+test('recurring queue remains fail-closed until parent-only atomic bundle status RPC is available',()=>{
+ const start=source.indexOf('async function refreshRecurring(){');
+ const end=source.indexOf("document.addEventListener('click'",start);
+ assert.ok(start>=0&&end>start);
+ const fragment=source.slice(start,end);
+ assert.match(fragment,/recurringBackendMissing=true/);
+ assert.match(fragment,/parentRpc\('cq_v4_parent_recurring_status'\)/);
+ assert.match(fragment,/recurringBackendMissing=!Array\.isArray\(capability\)/);
+ assert.match(fragment,/catch \(_\) \{ recurringBackendMissing=true; \}/);
+ assert.match(source,/if\(willQueue&&recurringBackendMissing\)/);
+});
