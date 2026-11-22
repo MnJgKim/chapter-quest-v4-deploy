@@ -308,7 +308,13 @@ try:
   expect(rp.locator('#cqPdfParentStatus')).to_contain_text('소유한 서버 원본을 읽는 중',timeout=30000)
   # The server-list refresh can rerender the status while the PDF is being imported.
   # Verify the durable PDF bytes and server UUID instead of trusting a transient toast.
-  rp.wait_for_function("async uuid=>{try{const matches=state.books.flatMap(b=>(b.chapters||[]).filter(c=>c.serverPdfUuid===uuid).map(c=>({b,c})));if(matches.length!==1)return false;const {b,c}=matches[0];const f=await pdfGet(pdfKey(b.id,c.id));return !!f&&f.size>5&&(await f.slice(0,5).text())==='%PDF-'}catch{return false}}",arg=chapter_uuid,timeout=90000)
+  # Poll synchronously for the persisted chapter. Async predicates can be treated as
+  # truthy promises by the browser polling layer before their result is resolved.
+  try:
+   rp.wait_for_function("uuid=>state.books.some(b=>(b.chapters||[]).some(c=>c.serverPdfUuid===uuid))",arg=chapter_uuid,timeout=90000)
+  except Exception as error:
+   snapshot=rp.evaluate("()=>({bookCount:state.books.length,pdfStatus:document.querySelector('#cqPdfParentStatus')?.textContent,refreshEnabled:!document.querySelector('[data-pdf-parent=refresh]')?.disabled,recoveryEnabled:!!document.querySelector('[data-pdf-parent=use-existing]:not([disabled])')})")
+   raise AssertionError('Parent PDF recovery did not persist a chapter: '+json.dumps({'snapshot':snapshot,'network':recovery_network[-25:],'page_errors':report['page_errors'][-10:]}) ) from error
   recovery=rp.evaluate("async uuid=>{const matches=state.books.flatMap(b=>(b.chapters||[]).filter(c=>c.serverPdfUuid===uuid).map(c=>({b,c})));const rows=[];for(const {b,c} of matches){const f=await pdfGet(pdfKey(b.id,c.id));rows.push({bookId:b.id,chapterId:c.id,bytes:f?.size??null,header:f?await f.slice(0,5).text():null,serverOriginalCopy:c.serverOriginalCopy===true})}return {count:matches.length,rows,selectedChapterUuid:chapter()?.serverPdfUuid??null,bookCount:state.books.length,books:state.books.map(b=>({id:b.id,title:b.title,chapters:(b.chapters||[]).map(c=>({id:c.id,uuid:c.serverPdfUuid,copy:c.serverOriginalCopy}))})),selectedBook:typeof selectedBook==='undefined'?null:selectedBook,selectedChapter:typeof selectedChapter==='undefined'?null:selectedChapter,cloudStatus:document.querySelector('#cloudStatus')?.textContent,pdfStatus:document.querySelector('#cqPdfParentStatus')?.textContent,appStatus:document.querySelector('#status')?.textContent}}",chapter_uuid)
   assert recovery['count']==1 and len(recovery['rows'])==1 and recovery['rows'][0]['bytes']>5 and recovery['rows'][0]['header']=='%PDF-' and recovery['rows'][0]['serverOriginalCopy'], 'Recovered original must remain in exactly one persisted local chapter with valid PDF bytes: '+json.dumps({'recovery':recovery,'network':recovery_network[-25:],'page_errors':report['page_errors'][-10:]})
   assert api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])==before
