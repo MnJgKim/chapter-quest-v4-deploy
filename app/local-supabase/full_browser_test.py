@@ -207,7 +207,7 @@ try:
    account_summary.click()
   expect(sp.locator('[data-child="list"]')).to_be_visible()
   expect(sp.locator('[data-child="list"]')).to_be_enabled()
-  sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(2);assert set(sp.locator('[data-child="view"]').evaluate_all('(buttons)=>buttons.map(b=>b.dataset.uuid)'))=={chapter_uuid};passed('parent releases exactly one synthetic lesson, rendered in weekly and all-chapters views')
+  sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(1);assert sp.locator('[data-child="view"]').get_attribute('data-uuid')==chapter_uuid,'Released lesson is not the assigned chapter';expect(sp.locator('[data-child="view"]')).to_be_enabled();expect(sp.locator('#cqChildStatus')).to_contain_text('1개 공개 챕터를 불러왔습니다');passed('parent releases exactly one synthetic lesson, visible and enabled in the student weekly view')
   context=api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['parent']['token']);assert context[0]['answer_key'][0]==0
   student_activities=api('/rest/v1/rpc/cq_v4_my_chapter_activities',{'p_chapter_uuid':chapter_uuid},users['student']['token'])
   assert 'PARENT_ONLY_SYNTHETIC_EVIDENCE' not in json.dumps(student_activities) and 'answer_key' not in json.dumps(student_activities)
