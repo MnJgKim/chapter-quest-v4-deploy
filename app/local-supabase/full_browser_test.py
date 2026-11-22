@@ -121,7 +121,7 @@ try:
    pin_dialog.get_by_role('button',name='확인').click()
   expect(pp.locator('#cloudEmail')).to_be_visible()
   pp.locator('#cloudEmail').fill(users['parent']['email']);pp.locator('#cloudPassword').fill(users['parent']['password']);pp.locator('[data-cloud="login"]').click();expect(pp.locator('#cloudStatus')).to_contain_text('로그인됨');passed('parent browser is authorized through real Auth and admin RPC')
-  pp.locator('[data-parent-invite="issue"]').click();expect(pp.locator('#cqInviteCode')).to_have_text(__import__('re').compile('^[0-9a-f]{48}$'));invite=pp.locator('#cqInviteCode').inner_text();private.append(invite)
+  pp.locator('#cqParentInvitesFold > summary').click()\n  pp.locator('[data-parent-invite="issue"]').click();expect(pp.locator('#cqInviteCode')).to_have_text(__import__('re').compile('^[0-9a-f]{48}$'));invite=pp.locator('#cqInviteCode').inner_text();private.append(invite)
   # Diagnose the local schedule RPC independently; do not mask HTTP errors or relax student assertions.
   try:
    schedule_probe=api('/rest/v1/rpc/cq_v4_my_lesson_schedule',{},users['student']['token'])
