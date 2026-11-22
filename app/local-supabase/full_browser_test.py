@@ -182,6 +182,9 @@ try:
   if original_kind=='range':
    derived_uuid=pp.locator('#cqPublishVerifiedPdf').input_value();pp.locator('#cqPublishVerifiedPdf').select_option(original_uuid);pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('선택 범위 자료와 서버 PDF가 다릅니다');assert api('/rest/v1/rpc/cq_v4_my_chapters',{},users['student']['token'])==[];pp.locator('#cqPublishVerifiedPdf').select_option(derived_uuid);passed('changing the range lesson binding to the complete original is blocked before publishing or assigning')
   pp.locator('[data-parent-publish]').click();expect(pp.locator('#cqPublicationStatus')).to_contain_text('성공');passed('approved lesson binds to the real verified PDF and assigns through RPC')
+  if not sp.get_by_text('계정 관리 · 로그인 상태 확인',exact=True).locator('xpath=..').evaluate('(el)=>el.open'):
+   sp.get_by_text('계정 관리 · 로그인 상태 확인',exact=True).click()
+  expect(sp.locator('[data-child="list"]')).to_be_visible()
   sp.locator('[data-child="list"]').click();expect(sp.locator('[data-child="view"]')).to_have_count(0);passed('newly assigned lesson stays hidden until parent release')
   # UI hiding is not sufficient: a known chapter UUID must not bypass the release gate.
   unpublished_activities=api('/rest/v1/rpc/cq_v4_my_chapter_activities',{'p_chapter_uuid':unpublished_uuid},users['student']['token'])
