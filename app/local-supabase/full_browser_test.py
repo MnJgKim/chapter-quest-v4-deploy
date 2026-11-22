@@ -259,6 +259,10 @@ try:
   try:api('/rest/v1/rpc/cq_v4_parent_lesson',{'p_chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student could read parent context')
   except urllib.error.HTTPError as error:assert error.code==403,'Expected local role denial 403, got '+str(error.code)+' '+error.read(400).decode(errors='replace')
   passed('real parent lesson context includes model answers and denies the student')
+  # The list RPC updates the status before its click handler releases the shared busy flag.
+  # Wait for the refresh button to be re-enabled so a view click cannot be silently ignored.
+  expect(sp.locator('[data-child="list"]')).to_be_enabled(timeout=30000)
+  expect(sp.locator('[data-child="view"]').first).to_be_enabled()
   sp.locator('[data-child="view"]').first.click()
   try:
    expect(sp.locator('[data-server-pdf="count"]')).to_have_text('1 / '+str(lesson_pages)+' 페이지',timeout=90000)
