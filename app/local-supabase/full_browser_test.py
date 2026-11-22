@@ -283,7 +283,10 @@ try:
    workflow.locator('summary').first.click()
   expect(workflow).to_have_attribute('open','')
   expect(rp.locator('[data-pdf-parent="refresh"]')).to_be_visible()
-  rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs);selected_title=next(x['title'] for x in before['chapters'] if x['chapter_uuid']==chapter_uuid);rp.locator('#cqPdfParentPanel .book').filter(has=rp.get_by_text(selected_title,exact=True)).locator('[data-pdf-parent="use-existing"]').click();expect(rp.locator('#cqPdfParentStatus')).to_contain_text('이 기기에 준비했습니다',timeout=90000)
+  rp.locator('[data-pdf-parent="refresh"]').click();expect(rp.locator('[data-pdf-parent="use-existing"]')).to_have_count(expected_server_pdfs);selected_title=next(x['title'] for x in before['chapters'] if x['chapter_uuid']==chapter_uuid);rp.locator('#cqPdfParentPanel .book').filter(has=rp.get_by_text(selected_title,exact=True)).locator('[data-pdf-parent="use-existing"]').click()
+  # The server-list refresh can rerender the status while the PDF is being imported.
+  # Verify the durable PDF bytes and server UUID instead of trusting a transient toast.
+  rp.wait_for_function("async uuid=>{try{const c=chapter();if(!c||c.serverPdfUuid!==uuid)return false;const f=await pdfGet(pdfKey(book().id,c.id));return !!f&&f.size>5&&(await f.slice(0,5).text())==='%PDF-'}catch{return false}}",arg=chapter_uuid,timeout=90000)
   assert rp.evaluate("async()=>{const c=chapter(),f=await pdfGet(pdfKey(book().id,c.id));return c.serverPdfUuid==='"+chapter_uuid+"'&&f.size>5&&(await f.slice(0,5).text())==='%PDF-'}")
   assert api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])==before
   try:api('/functions/v1/cq-v4-pdf-parent',{'action':'download_url','chapter_uuid':chapter_uuid},users['student']['token']);raise AssertionError('Student read parent PDF endpoint')
