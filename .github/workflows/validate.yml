@@ -22,6 +22,8 @@ jobs:
       - run: npm ci --ignore-scripts --no-audit --no-fund
       - run: python -m compileall -q -x 'node_modules|runtime' app
       - run: npm test
+      - name: Read-only deployment asset integrity manifest regression (isolated)
+        run: node app/tools/asset-integrity-audit.test.mjs
       - name: Parent publication answer-key validation (isolated)
         run: node app/tests/parent-publication-payload.test.mjs
       - name: Isolated PostgreSQL submission and feedback permission regression
