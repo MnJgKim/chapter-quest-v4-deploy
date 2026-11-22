@@ -122,7 +122,15 @@
   const rows=await parentRpc('cq_v4_parent_list_lesson_releases');
   if(owner!==cloudIdentity())return;
   if(!Array.isArray(rows))throw Error('서버 일정 응답 오류');
+  // The recurring SQL bundle installs the status and enqueue RPCs atomically.
+  // Probe the parent-only status RPC before enabling queue writes; legacy servers
+  // without the bundle stay read-only and never attempt an enqueue.
   recurringBackendMissing=true;
+  try {
+   const capability=await parentRpc('cq_v4_parent_recurring_status');
+   if(owner!==cloudIdentity())return;
+   recurringBackendMissing=!Array.isArray(capability);
+  } catch (_) { recurringBackendMissing=true; }
   recurringRows=rows.filter(r=>r.lesson_date).map(r=>({...r,title:pdfServerChapters.find(c=>c.uuid===r.chapter_id)?.title||'Chapter '+String(r.chapter_id||'').slice(0,8)})).sort((a,b)=>a.lesson_date.localeCompare(b.lesson_date)||studentLabel(a.student_user_id).localeCompare(studentLabel(b.student_user_id)));
   recurringOwner=owner;render();
  }
