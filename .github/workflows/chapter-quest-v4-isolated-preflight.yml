@@ -26,6 +26,7 @@ on:
       - 'review/sql-candidates/cq_v4_submit_with_frozen_snapshot.REVIEW-ONLY.sql'
       - 'app/supabase/functions/cq-v4-pdf-link/index.ts'
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 jobs:
