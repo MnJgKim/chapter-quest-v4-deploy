@@ -92,3 +92,9 @@ jobs:
           set -euo pipefail
           psql -X -v ON_ERROR_STOP=1 -f app/tests/isolated-postgres-reread-submission.sql 2>&1 | tee /tmp/cq-reread-boundary.log
           grep -q 'REREAD_STUDENT_POSTGRES_ASSERTIONS_PASSED' /tmp/cq-reread-boundary.log
+
+  isolated-atomic-postgres-review:
+    name: Reuse isolated PostgreSQL atomic submission and frozen reread preflight
+    uses: ./.github/workflows/chapter-quest-v4-isolated-preflight.yml
+    permissions:
+      contents: read
