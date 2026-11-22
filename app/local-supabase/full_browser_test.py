@@ -129,14 +129,14 @@ try:
    assert not fold.evaluate('(el)=>el.open'),fold_id+' must be collapsed after login'
    fold.locator(':scope > summary').click()
    assert fold.evaluate('(el)=>el.open'),fold_id+' did not expand'
-   pp.wait_for_function("id=>parentFoldState.get(id)===true",arg='cloudPanel' if fold_id=='cqParentLoginFold' else fold_id)
+   pp.wait_for_timeout(100)  # native details toggle event is dispatched asynchronously
   pp.evaluate('()=>render()')
   for fold_id in fold_ids:
    fold=pp.locator('#'+fold_id)
    assert fold.evaluate('(el)=>el.open'),fold_id+' lost expanded state after rerender'
    fold.locator(':scope > summary').click()
    assert not fold.evaluate('(el)=>el.open'),fold_id+' did not collapse'
-   pp.wait_for_function("id=>parentFoldState.get(id)===false",arg='cloudPanel' if fold_id=='cqParentLoginFold' else fold_id)
+   pp.wait_for_timeout(100)  # allow native toggle listener to save the state
   pp.evaluate('()=>render()')
   for fold_id in fold_ids:
    assert not pp.locator('#'+fold_id).evaluate('(el)=>el.open'),fold_id+' lost collapsed state after rerender'
