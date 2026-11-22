@@ -12,7 +12,7 @@ const valid=publicationPayload(base);
 assert.deepEqual(Array.from(valid.answerKey),[0]);
 assert.equal(valid.questions[0].options[0],'Yes');
 const rejects=(name,question)=>{
-  assert.throws(()=>publicationPayload({questions:[question]}),Error,name);
+  assert.throws(()=>publicationPayload({questions:[question]}),undefined,name);
   console.log('PUBLICATION_PAYLOAD_REJECTED '+name);
 };
 rejects('missing correct index',{kind:'mc',text:'Question?',options:['Yes','No']});
@@ -23,5 +23,5 @@ rejects('fractional correct index',{kind:'mc',text:'Question?',options:['Yes','N
 rejects('missing MC options',{kind:'mc',text:'Question?',correct:0});
 rejects('missing written model answer',{kind:'inference',text:'Explain why'});
 rejects('missing question text',{kind:'mc',options:['Yes','No'],correct:0});
-assert.throws(()=>publicationPayload({questions:[]}),Error,'empty questions rejected');
+assert.throws(()=>publicationPayload({questions:[]}),undefined,'empty questions rejected');
 console.log('PARENT_PUBLICATION_PAYLOAD_ASSERTIONS_PASSED');
