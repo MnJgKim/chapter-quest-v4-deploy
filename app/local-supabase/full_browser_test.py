@@ -398,7 +398,14 @@ try:
   sibling.locator('[data-child="list"]').click();expect(sibling.locator('[data-child="view"]')).to_have_count(0);passed('second student assignment remains hidden before its own parent release')
   api('/rest/v1/rpc/cq_v4_parent_schedule_lesson',{'p_student_user_id':users['sibling']['uid'],'p_chapter_id':chapter_uuid,'p_lesson_date':time.strftime('%Y-%m-%d',time.gmtime(time.time()+9*3600+86400))},users['parent']['token'])
   api('/rest/v1/rpc/cq_v4_parent_set_lesson_release',{'p_student_user_id':users['sibling']['uid'],'p_chapter_id':chapter_uuid,'p_release':True},users['parent']['token'])
-  sibling.locator('[data-child="list"]').click();expect(sibling.locator('[data-child="view"]')).to_have_count(0)
+  sibling.locator('[data-child="list"]').click()
+  expect(sibling.locator('[data-child="list"]')).to_be_enabled()
+  future_button=sibling.locator('[data-child="view"][data-uuid="'+chapter_uuid+'"]')
+  expect(sibling.locator('[data-child="view"]:enabled')).to_have_count(0)
+  if future_button.count():
+   expect(future_button).to_be_disabled()
+   expect(future_button).to_have_text('수업 예정')
+  assert api('/rest/v1/rpc/cq_v4_my_chapter_activities',{'p_chapter_uuid':chapter_uuid},users['sibling']['token'])==[]
   try:
    api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':chapter_uuid},users['sibling']['token'])
    raise AssertionError('Future-dated released lesson issued a PDF signed link')
