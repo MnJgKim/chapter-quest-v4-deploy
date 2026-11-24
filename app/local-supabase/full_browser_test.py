@@ -307,8 +307,43 @@ try:
    assert dialog.type=='confirm','Expected immutable final submission confirmation, got '+dialog.type
    assert '제출' in dialog.message,'Unexpected confirmation before final submission: '+dialog.message
    dialog.accept()
+  # Intercept only the first final RPC, after the real recording upload.
+  def approval_mismatch_regression(route):
+   payload=route.request.post_data_json
+   assert payload['p_chapter_uuid']==chapter_uuid
+   def sql(query):
+    return subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec','-i','supabase_db_cq-v4-local-qa','psql','-U','postgres','-At','-v','ON_ERROR_STOP=1'],input=query,env=env,text=True,capture_output=True,check=True).stdout.strip()
+   where=" where chapter_uuid='"+chapter_uuid+"'"
+   uid=users['student']['uid']
+   def counts():
+    return sql("select (select count(*) from public.cq_v4_student_submissions"+where+" and child_user_id='"+uid+"'),(select count(*) from public.cq_v4_immutable_grading_snapshots"+where+" and student_user_id='"+uid+"'),(select count(*) from public.cq_v4_reread_progress"+where+" and child_user_id='"+uid+"');")
+   assert counts()=='0|0|0'
+   original_hash=sql("select approval_hash from public.cq_v4_activities"+where+";")
+   assert len(original_hash)==64
+   bad_hash=('0' if original_hash[0]!='0' else '1')+original_hash[1:]
+   sql("update public.cq_v4_activities set approval_hash='"+bad_hash+"'"+where+";")
+   try:
+    try:
+     api('/rest/v1/rpc/cq_v4_submit_answers',payload,users['student']['token'])
+     raise AssertionError('Mismatched approval accepted a new submission')
+    except urllib.error.HTTPError as error:
+     body=json.loads(error.read())
+     assert error.code==400 and body.get('code')=='22023' and 'Approved grading material unavailable or mismatched' in body.get('message',''),body
+    assert counts()=='0|0|0','Rejected submission left persisted rows'
+   finally:
+    sql("update public.cq_v4_activities set approval_hash='"+original_hash+"'"+where+";")
+   passed('APPROVAL_MISMATCH_ATOMIC_ROLLBACK_PASSED')
+   route.continue_()
+  sp.route('**/rest/v1/rpc/cq_v4_submit_answers',approval_mismatch_regression,times=1)
   sp.once('dialog',accept_final_submission)
   sp.locator('#cqChildWork [type="submit"]').tap();expect(sp.locator('#cqChildStatus')).to_contain_text('제출 완료',timeout=60000);passed('real MediaRecorder audio uploads to private Storage and final answers submit through RPC')
+  frozen_args={'p_chapter_uuid':chapter_uuid,'p_student_uuid':users['student']['uid']}
+  frozen=api('/rest/v1/rpc/cq_v4_parent_frozen_result',frozen_args,users['parent']['token'])
+  assert frozen and frozen['submitted_answers']==[0,'They wanted to find the book.'] or frozen and frozen['submitted_answers']==['0','They wanted to find the book.']
+  assert frozen['answer_key'][0]==0 and frozen['submitted_at'] and frozen['content_hash']
+  for role in ('student','otherparent','outsider'):
+   assert api('/rest/v1/rpc/cq_v4_parent_frozen_result',frozen_args,users[role]['token']) is None
+  passed('NEW_SUBMISSION_PARENT_FROZEN_RESULT_PASSED')
   pp.locator('[data-parent-feedback="list"]').click();expect(pp.locator('#cqParentFeedback')).to_contain_text('Mina helped Leo and they found the book.');pp.locator('[data-parent-feedback="audio"]').click();expect(pp.locator('[data-audio-player] audio')).to_be_visible();expect(pp.locator('[data-audio-player] audio')).to_have_js_property('readyState',4);passed('parent receives a real authorized signed recording playback link')
   for width,height in [(360,800),(412,915),(800,1280),(1280,800)]:
    pp.set_viewport_size({'width':width,'height':height});assert pp.evaluate('document.documentElement.scrollWidth<=innerWidth');assert pp.locator('[data-parent-feedback="save"]').bounding_box()['height']>=44;passed(f'real parent results and recording controls fit {width}x{height}')
