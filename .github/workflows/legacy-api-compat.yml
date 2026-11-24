@@ -1,0 +1,73 @@
+name: Legacy API compatibility isolated
+on:
+  push:
+    branches: [work/v4-final-integration-20261124]
+    paths: ['.github/workflows/legacy-api-compat.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  legacy-api:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Start isolated local Supabase, with no hosted project link
+        working-directory: app
+        run: |
+          npx --no-install supabase --workdir local-supabase start --exclude realtime,imgproxy,studio,logflare,vector,supavisor,postgres-meta,mailpit > "$RUNNER_TEMP/supabase-start.log" 2>&1
+          npx --no-install supabase --workdir local-supabase status -o json > "$RUNNER_TEMP/cq-local-status.json"
+          chmod 600 "$RUNNER_TEMP/cq-local-status.json"
+          nohup npx --no-install supabase --workdir local-supabase functions serve > "$RUNNER_TEMP/cq-functions.log" 2>&1 < /dev/null &
+      - name: Install integrated SQL into disposable local Supabase only
+        run: |
+          set -euo pipefail
+          DB_URL=$(python -c 'import json,os,urllib.parse; u=json.load(open(os.environ["RUNNER_TEMP"]+"/cq-local-status.json"))["DB_URL"]; p=urllib.parse.urlparse(u); assert p.hostname in ("127.0.0.1","localhost") and p.path=="/postgres"; print(u)')
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f app/sql/development-reread-progress-not-for-production.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE OR REPLACE FUNCTION public.cq_v4_lock_student_lesson_writes(p_student uuid)
+          RETURNS void LANGUAGE sql VOLATILE SET search_path TO ''
+          AS $$
+            SELECT pg_catalog.pg_advisory_xact_lock(
+              pg_catalog.hashtextextended(p_student::text, 731640)
+            );
+          $$;
+          REVOKE ALL ON FUNCTION public.cq_v4_lock_student_lesson_writes(uuid)
+            FROM PUBLIC, anon, authenticated;
+          DROP TRIGGER IF EXISTS cq_v4_reread_after_submit ON public.cq_v4_student_submissions;
+          SQL
+          for sql in cq_v4_immutable_grading_snapshot v4-integrated-optional-answers v4-parent-frozen-result v4-parent-material-preview; do
+            psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "review/sql-candidates/$sql.REVIEW-ONLY.sql"
+          done
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';"
+          echo LOCAL_V4_INTEGRATED_SQL_INSTALLED
+      - name: Compare legacy RPC contracts against installed database
+        run: |
+          set -euo pipefail
+          git show 9a43d5e68e7fb89b697b5c74db603f73aaf11382:app/public/js/student-api.js > /tmp/legacy-student.js
+          git show 9a43d5e68e7fb89b697b5c74db603f73aaf11382:app/public/js/parent-app.js > /tmp/legacy-parent.js
+          python - <<'PY'
+          import json, os, re, subprocess, urllib.parse
+          db=json.load(open(os.environ['RUNNER_TEMP']+'/cq-local-status.json'))['DB_URL']
+          assert urllib.parse.urlparse(db).hostname in ('localhost','127.0.0.1')
+          names=set()
+          for path in ('/tmp/legacy-student.js','/tmp/legacy-parent.js'):
+              names.update(re.findall(r"""['"](cq_v4_[a-z0-9_]+)['"]""",open(path).read()))
+          assert 'cq_v4_submit_answers' in names
+          rows=subprocess.check_output(['psql',db,'-XAt','-v','ON_ERROR_STOP=1','-c',"select distinct proname from pg_proc join pg_namespace n on n.oid=pronamespace where n.nspname='public'"],text=True).splitlines()
+          missing=sorted(names-set(rows))
+          print('Legacy referenced identifiers:',sorted(names))
+          print('Missing database functions (requires classification):',missing)
+          assert not missing, missing
+          print('LEGACY_RPC_NAME_COMPATIBILITY_PASSED')
+          PY
+      - name: Stop local stack
+        if: always()
+        working-directory: app
+        run: npx --no-install supabase --workdir local-supabase stop
