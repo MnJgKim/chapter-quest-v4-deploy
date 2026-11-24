@@ -99,5 +99,5 @@ DO $$ BEGIN
  IF EXISTS (SELECT row FROM integration_saved EXCEPT SELECT to_jsonb(s) FROM public.cq_v4_immutable_grading_snapshots s) THEN RAISE EXCEPTION 'Rollback changed frozen history'; END IF;
  IF EXISTS (SELECT row FROM integration_submissions EXCEPT ALL SELECT to_jsonb(s) FROM public.cq_v4_student_submissions s) OR EXISTS (SELECT to_jsonb(s) FROM public.cq_v4_student_submissions s EXCEPT ALL SELECT row FROM integration_submissions) THEN RAISE EXCEPTION 'Rollback changed submissions'; END IF;
  IF EXISTS (SELECT row FROM integration_schedules EXCEPT ALL SELECT to_jsonb(s) FROM public.cq_v4_lesson_schedule s) OR EXISTS (SELECT to_jsonb(s) FROM public.cq_v4_lesson_schedule s EXCEPT ALL SELECT row FROM integration_schedules) THEN RAISE EXCEPTION 'Rollback changed schedules'; END IF;
-END $;
+END $$;
 \echo V4_DETAILED_INTEGRATION_ASSERTIONS_PASSED
