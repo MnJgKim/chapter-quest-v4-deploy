@@ -59,6 +59,33 @@ BEGIN
   IF public.cq_v4_parent_frozen_result(c,s) IS NOT NULL THEN RAISE EXCEPTION 'Other parent frozen result leak'; END IF;
  END LOOP;
 END $test$;
+
+-- Exercise actual client roles, not merely JWT claims under the test owner.
+SET LOCAL ROLE authenticated;
+DO $roles$
+DECLARE p uuid:='aaaaaaaa-aaaa-4aaa-aaaa-aaaaaaaaaaaa'; s uuid:=md5('integration-student-5')::uuid; c uuid:=md5('integration-chapter-5')::uuid;
+BEGIN
+ PERFORM set_config('request.jwt.claim.sub',p::text,true);
+ IF public.cq_v4_parent_frozen_result(c,s) IS NULL THEN RAISE EXCEPTION 'Authenticated parent denied'; END IF;
+ PERFORM set_config('request.jwt.claim.sub',s::text,true);
+ IF public.cq_v4_parent_frozen_result(c,s) IS NOT NULL OR public.cq_v4_parent_material_preview(c) IS NOT NULL THEN RAISE EXCEPTION 'Authenticated student leak'; END IF;
+ PERFORM set_config('request.jwt.claim.sub','ffffffff-ffff-4fff-8fff-ffffffffffff',true);
+ IF public.cq_v4_parent_frozen_result(c,s) IS NOT NULL OR public.cq_v4_parent_material_preview(c) IS NOT NULL THEN RAISE EXCEPTION 'Authenticated unrelated parent leak'; END IF;
+END $roles$;
+RESET ROLE;
+SET LOCAL ROLE anon;
+DO $anon$
+BEGIN
+ BEGIN
+  PERFORM public.cq_v4_parent_material_preview(md5('integration-chapter-5')::uuid);
+  RAISE EXCEPTION 'Anonymous preview allowed';
+ EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+ BEGIN
+  PERFORM public.cq_v4_parent_frozen_result(md5('integration-chapter-5')::uuid,md5('integration-student-5')::uuid);
+  RAISE EXCEPTION 'Anonymous frozen result allowed';
+ EXCEPTION WHEN insufficient_privilege THEN NULL; END;
+END $anon$;
+RESET ROLE;
 CREATE TEMP TABLE integration_saved AS SELECT to_jsonb(s) AS row FROM public.cq_v4_immutable_grading_snapshots s;
 CREATE TEMP TABLE integration_submissions AS SELECT to_jsonb(s) AS row FROM public.cq_v4_student_submissions s;
 CREATE TEMP TABLE integration_schedules AS SELECT to_jsonb(s) AS row FROM public.cq_v4_lesson_schedule s;
