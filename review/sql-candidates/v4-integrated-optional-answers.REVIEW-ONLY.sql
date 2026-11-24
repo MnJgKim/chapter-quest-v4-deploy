@@ -127,7 +127,10 @@ BEGIN
  VALUES(p_chapter_uuid,v_uid,p_answers)
  ON CONFLICT DO NOTHING;
  GET DIAGNOSTICS v_inserted = ROW_COUNT;
- IF v_inserted=1 AND v_snapshot_ready THEN
+ IF v_inserted=1 THEN
+   IF v_snapshot_ready IS DISTINCT FROM true THEN
+     RAISE EXCEPTION 'Approved grading material unavailable or mismatched' USING ERRCODE='22023';
+   END IF;
    IF NOT public.cq_v4_capture_grading_snapshot_internal(v_uid,p_chapter_uuid) THEN
      RAISE EXCEPTION 'Immutable grading snapshot capture failed' USING ERRCODE='22023';
    END IF;
