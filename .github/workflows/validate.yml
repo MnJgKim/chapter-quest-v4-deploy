@@ -65,6 +65,28 @@ jobs:
           npx --no-install supabase --workdir local-supabase status -o json > "$RUNNER_TEMP/cq-local-status.json"
           chmod 600 "$RUNNER_TEMP/cq-local-status.json"
           nohup npx --no-install supabase --workdir local-supabase functions serve > "$RUNNER_TEMP/cq-functions.log" 2>&1 < /dev/null &
+      - name: Install integrated SQL into disposable local Supabase only
+        run: |
+          set -euo pipefail
+          DB_URL=$(python -c 'import json,os,urllib.parse; u=json.load(open(os.environ["RUNNER_TEMP"]+"/cq-local-status.json"))["DB_URL"]; p=urllib.parse.urlparse(u); assert p.hostname in ("127.0.0.1","localhost") and p.path=="/postgres"; print(u)')
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f app/sql/development-reread-progress-not-for-production.sql
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 <<'SQL'
+          CREATE OR REPLACE FUNCTION public.cq_v4_lock_student_lesson_writes(p_student uuid)
+          RETURNS void LANGUAGE sql VOLATILE SET search_path TO ''
+          AS $$
+            SELECT pg_catalog.pg_advisory_xact_lock(
+              pg_catalog.hashtextextended(p_student::text, 731640)
+            );
+          $$;
+          REVOKE ALL ON FUNCTION public.cq_v4_lock_student_lesson_writes(uuid)
+            FROM PUBLIC, anon, authenticated;
+          DROP TRIGGER IF EXISTS cq_v4_reread_after_submit ON public.cq_v4_student_submissions;
+          SQL
+          for sql in cq_v4_immutable_grading_snapshot v4-integrated-optional-answers v4-parent-frozen-result v4-parent-material-preview; do
+            psql "$DB_URL" -X -v ON_ERROR_STOP=1 -f "review/sql-candidates/$sql.REVIEW-ONLY.sql"
+          done
+          psql "$DB_URL" -X -v ON_ERROR_STOP=1 -c "NOTIFY pgrst, 'reload schema';"
+          echo LOCAL_V4_INTEGRATED_SQL_INSTALLED
       - name: Real local Auth, Storage, Edge and learning flow
         run: |
           python app/local-supabase/full_browser_test.py "$RUNNER_TEMP/cq-local-status.json" "$RUNNER_TEMP/cq-full-txt/results.json" txt

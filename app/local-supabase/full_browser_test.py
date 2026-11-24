@@ -297,19 +297,65 @@ try:
    sp.set_viewport_size({'width':width,'height':height});sp.locator('[name="cqAnswer0"][value="0"]').tap();expect(sp.locator('[name="cqAnswer0"][value="0"]')).to_be_checked();sp.locator('[name="essay"]').fill('Mina helped Leo and they found the book.');assert sp.evaluate('document.documentElement.scrollWidth<=innerWidth');expect(sp.locator('#cqChildWork [type="submit"]')).to_be_in_viewport();assert sp.locator('[data-child="voice-start"]').bounding_box()['height']>=44;passed(f'real learning controls accept touch and text at {width}x{height}')
   def reopen_student():
    sp.reload();expect(sp.locator('#cqChildStatus')).to_contain_text('1개 공개 챕터를 자동으로 불러왔습니다',timeout=20000);account_summary=sp.get_by_text('계정 관리 · 로그인 상태 확인',exact=True);account_summary.click() if not account_summary.locator('xpath=..').evaluate('(el)=>el.open') else None;expect(sp.locator('[data-child="list"]')).to_be_visible();sp.locator('[data-child="list"]').click();expect(sp.locator('#cqChildStatus')).to_contain_text('1개 공개 챕터를 불러왔습니다',timeout=30000);expect(sp.locator('[data-child="view"]').first).to_be_enabled();sp.locator('[data-child="view"]').first.click();expect(sp.locator('[data-server-pdf="count"]')).to_have_text('1 / '+str(lesson_pages)+' 페이지',timeout=90000)
+  for prompt,field,expected in [('writing','essay',fixture['writingPrompt']),('speaking','speaking',fixture['speakingPrompt'])]:
+   expect(sp.locator('[data-'+prompt+'-prompt]')).to_have_text(expected)
+   assert sp.locator('[name="'+field+'"]').evaluate('(el)=>el.previousElementSibling?.hasAttribute("data-'+prompt+'-prompt")'), 'Prompt must immediately precede its answer field'
+  passed('writing and speaking prompts appear directly above their respective answer fields')
   reopen_student();expect(sp.locator('[name="essay"]')).to_have_value('Mina helped Leo and they found the book.');expect(sp.locator('[name="cqAnswer0"][value="0"]')).to_be_checked();expect(sp.locator('[name="cqAnswer1"]')).to_have_value('They wanted to find the book.');expect(sp.locator('[name="speaking"]')).to_have_value('I will explain how Mina helped Leo.');expect(sp.locator('[data-word-done="0"]')).to_be_checked();expect(sp.locator('[name="readComplete"]')).to_be_checked();passed('real Auth re-login after reload restores vocabulary and all answer drafts before recording')
   sp.set_viewport_size({'width':800,'height':1280});sp.locator('[data-child="voice-start"]').tap();expect(sp.locator('#cqVoiceStatus')).to_contain_text('녹음 중');sp.wait_for_timeout(900);sp.locator('[data-child="voice-stop"]').tap();expect(sp.locator('#cqVoiceStatus')).to_contain_text('원본 저장 완료');reopen_student();expect(sp.locator('#cqVoiceStatus')).to_contain_text('녹음 원본을 복원했습니다');expect(sp.locator('#cqVoicePlayback audio')).to_be_visible();passed('recorded audio survives reload and real re-login on the tablet viewport before final upload')
   def accept_final_submission(dialog):
    assert dialog.type=='confirm','Expected immutable final submission confirmation, got '+dialog.type
    assert '제출' in dialog.message,'Unexpected confirmation before final submission: '+dialog.message
    dialog.accept()
+  # Intercept only the first final RPC, after the real recording upload.
+  def approval_mismatch_regression(route):
+   payload=route.request.post_data_json
+   assert payload['p_chapter_uuid']==chapter_uuid
+   def sql(query):
+    return subprocess.run(['docker','--host=unix:///var/run/docker.sock','exec','-i','supabase_db_cq-v4-local-qa','psql','-U','postgres','-At','-v','ON_ERROR_STOP=1'],input=query,env=env,text=True,capture_output=True,check=True).stdout.strip()
+   where=" where chapter_uuid='"+chapter_uuid+"'"
+   uid=users['student']['uid']
+   def counts():
+    return sql("select (select count(*) from public.cq_v4_student_submissions"+where+" and child_user_id='"+uid+"'),(select count(*) from public.cq_v4_immutable_grading_snapshots"+where+" and student_user_id='"+uid+"'),(select count(*) from public.cq_v4_reread_progress"+where+" and child_user_id='"+uid+"');")
+   assert counts()=='0|0|0'
+   original_hash=sql("select approval_hash from public.cq_v4_activities"+where+";")
+   assert original_hash and __import__('re').fullmatch(r'[A-Za-z0-9:_-]+',original_hash), 'Missing or unexpected approval hash format'
+   bad_hash=('0' if original_hash[0]!='0' else '1')+original_hash[1:]
+   sql("update public.cq_v4_activities set approval_hash='"+bad_hash+"'"+where+";")
+   try:
+    try:
+     api('/rest/v1/rpc/cq_v4_submit_answers',payload,users['student']['token'])
+     raise AssertionError('Mismatched approval accepted a new submission')
+    except urllib.error.HTTPError as error:
+     body=json.loads(error.read())
+     assert error.code==400 and body.get('code')=='22023' and 'Approved grading material unavailable or mismatched' in body.get('message',''),body
+    assert counts()=='0|0|0','Rejected submission left persisted rows'
+   finally:
+    sql("update public.cq_v4_activities set approval_hash='"+original_hash+"'"+where+";")
+   passed('APPROVAL_MISMATCH_ATOMIC_ROLLBACK_PASSED')
+   route.continue_()
+  sp.route('**/rest/v1/rpc/cq_v4_submit_answers',approval_mismatch_regression,times=1)
   sp.once('dialog',accept_final_submission)
   sp.locator('#cqChildWork [type="submit"]').tap();expect(sp.locator('#cqChildStatus')).to_contain_text('제출 완료',timeout=60000);passed('real MediaRecorder audio uploads to private Storage and final answers submit through RPC')
+  frozen_args={'p_chapter_uuid':chapter_uuid,'p_student_uuid':users['student']['uid']}
+  frozen=api('/rest/v1/rpc/cq_v4_parent_frozen_result',frozen_args,users['parent']['token'])
+  assert frozen and frozen['submitted_answers']==[0,'They wanted to find the book.'] or frozen and frozen['submitted_answers']==['0','They wanted to find the book.']
+  assert frozen['answer_key'][0]==0 and frozen['submitted_at'] and frozen['content_hash']
+  for role in ('student','otherparent','outsider'):
+   assert api('/rest/v1/rpc/cq_v4_parent_frozen_result',frozen_args,users[role]['token']) is None
+  passed('NEW_SUBMISSION_PARENT_FROZEN_RESULT_PASSED')
   pp.locator('[data-parent-feedback="list"]').click();expect(pp.locator('#cqParentFeedback')).to_contain_text('Mina helped Leo and they found the book.');pp.locator('[data-parent-feedback="audio"]').click();expect(pp.locator('[data-audio-player] audio')).to_be_visible();expect(pp.locator('[data-audio-player] audio')).to_have_js_property('readyState',4);passed('parent receives a real authorized signed recording playback link')
   for width,height in [(360,800),(412,915),(800,1280),(1280,800)]:
    pp.set_viewport_size({'width':width,'height':height});assert pp.evaluate('document.documentElement.scrollWidth<=innerWidth');assert pp.locator('[data-parent-feedback="save"]').bounding_box()['height']>=44;passed(f'real parent results and recording controls fit {width}x{height}')
   pp.set_viewport_size({'width':1280,'height':900});pp.locator('[data-parent-feedback-text]').fill('Great explanation!');pp.locator('[data-parent-feedback-release]').check();pp.locator('[data-parent-feedback="save"]').click();expect(pp.locator('#cqParentFeedbackStatus')).to_contain_text('다시 확인');sp.locator('[data-child="feedback"]').click();expect(sp.locator('#cqChildDetail')).to_contain_text('Great explanation!');passed('parent reads real answers and releases feedback visible in independent student browser')
   # Fresh browser has no local book: recover the parent's existing private original read-only.
+  pp.locator('[data-pdf-parent="refresh"]').click()
+  expect(pp.locator('[data-pdf-parent="refresh"]')).to_be_enabled()
+  pp.locator('[data-material-preview="'+chapter_uuid+'"]').click()
+  expect(pp.locator('#cqMaterialPreview')).to_contain_text('patient')
+  expect(pp.locator('#cqMaterialPreview')).to_contain_text('참을성 있는')
+  expect(pp.locator('#cqMaterialPreview')).to_contain_text('Mina was patient.')
+  passed('parent browser displays published vocabulary and material preview')
   before=api('/functions/v1/cq-v4-pdf-parent',{'action':'list_chapters'},users['parent']['token'])
   recovery_network=[]
   rp=page()
@@ -387,7 +433,14 @@ try:
   sibling.locator('[data-child="list"]').click();expect(sibling.locator('[data-child="view"]')).to_have_count(0);passed('second student assignment remains hidden before its own parent release')
   api('/rest/v1/rpc/cq_v4_parent_schedule_lesson',{'p_student_user_id':users['sibling']['uid'],'p_chapter_id':chapter_uuid,'p_lesson_date':time.strftime('%Y-%m-%d',time.gmtime(time.time()+9*3600+86400))},users['parent']['token'])
   api('/rest/v1/rpc/cq_v4_parent_set_lesson_release',{'p_student_user_id':users['sibling']['uid'],'p_chapter_id':chapter_uuid,'p_release':True},users['parent']['token'])
-  sibling.locator('[data-child="list"]').click();expect(sibling.locator('[data-child="view"]')).to_have_count(0)
+  sibling.locator('[data-child="list"]').click()
+  expect(sibling.locator('[data-child="list"]')).to_be_enabled()
+  future_button=sibling.locator('[data-child="view"][data-uuid="'+chapter_uuid+'"]')
+  expect(sibling.locator('[data-child="view"]:enabled')).to_have_count(0)
+  if future_button.count():
+   expect(future_button).to_be_disabled()
+   expect(future_button).to_have_text('수업 예정')
+  assert api('/rest/v1/rpc/cq_v4_my_chapter_activities',{'p_chapter_uuid':chapter_uuid},users['sibling']['token'])==[]
   try:
    api('/functions/v1/cq-v4-pdf-link',{'chapter_uuid':chapter_uuid},users['sibling']['token'])
    raise AssertionError('Future-dated released lesson issued a PDF signed link')
@@ -397,7 +450,18 @@ try:
   api('/rest/v1/rpc/cq_v4_parent_schedule_lesson',{'p_student_user_id':users['sibling']['uid'],'p_chapter_id':chapter_uuid,'p_lesson_date':time.strftime('%Y-%m-%d',time.gmtime(time.time()+9*3600))},users['parent']['token'])
   sibling.locator('[data-child="list"]').click();expect(sibling.locator('[data-child="view"]')).to_have_count(1);assert sibling.locator('[data-child="view"]').get_attribute('data-uuid')==chapter_uuid;expect(sibling.locator('[data-child="view"]')).to_be_enabled();assert len(api('/rest/v1/rpc/cq_v4_my_chapters',{},users['student']['token']))==1,'First student must retain original approved chapter';assert len(api('/rest/v1/rpc/cq_v4_my_chapters',{},users['sibling']['token']))==1,'Second student must have exactly one approved chapter';passed('second student receives one independently released lesson without changing first student')
   sibling.locator('[data-child="view"]').first.click();expect(sibling.locator('[data-server-pdf="count"]')).to_have_text('1 / '+str(lesson_pages)+' 페이지',timeout=90000);expect(sibling.locator('[name="essay"]')).to_have_value('');assert 'Great explanation!' not in sibling.locator('#cqChildDetail').inner_text()
-  sibling.locator('[name="readComplete"]').check();sibling.locator('[name="cqAnswer0"][value="1"]').check();sibling.locator('[name="cqAnswer1"]').fill('This student has a different explanation.');sibling.locator('[name="essay"]').fill('A separate essay from the second student.');sibling.locator('[name="speaking"]').fill('My own spoken summary.');sibling.locator('[data-child="voice-start"]').click();expect(sibling.locator('#cqVoiceStatus')).to_contain_text('녹음 중');sibling.wait_for_timeout(900);sibling.locator('[data-child="voice-stop"]').click();expect(sibling.locator('#cqVoiceStatus')).to_contain_text('원본 저장 완료');sibling.once('dialog',accept_final_submission);sibling.locator('#cqChildWork [type="submit"]').click();expect(sibling.locator('#cqChildStatus')).to_contain_text('제출 완료',timeout=60000);passed('second assigned student starts without the first result and submits independent answers and real recorded audio')
+  sibling.locator('[name="readComplete"]').check();sibling.get_by_text('잘 모르겠어요',exact=True).click();expect(sibling.locator('[name="cqAnswer0"][value=""]')).to_be_checked();expect(sibling.locator('[name="cqAnswer1"]')).to_have_value('');sibling.locator('[name="essay"]').fill('A separate essay from the second student.');sibling.locator('[name="speaking"]').fill('My own spoken summary.');sibling.locator('[data-child="voice-start"]').click();expect(sibling.locator('#cqVoiceStatus')).to_contain_text('녹음 중');sibling.wait_for_timeout(900);sibling.locator('[data-child="voice-stop"]').click();expect(sibling.locator('#cqVoiceStatus')).to_contain_text('원본 저장 완료');sibling.once('dialog',accept_final_submission);sibling.locator('#cqChildWork [type="submit"]').click();expect(sibling.locator('#cqChildStatus')).to_contain_text('제출 완료',timeout=60000);passed('second assigned student starts without the first result and submits independent answers and real recorded audio')
+  expect(sibling.locator('[data-child="reread-complete"]')).to_be_visible()
+  sibling.locator('[data-child="reread-complete"]').click();expect(sibling.locator('#cqChildStatus')).to_contain_text('재독서 완료')
+  sibling.reload()
+  expect(sibling.locator('[data-child="view"]')).to_be_visible()
+  sibling.locator('[data-child="view"]').click()
+  expect(sibling.locator('[data-child="reread-complete"]')).to_have_count(0)
+  pp.locator('[data-parent-reread="progress"]').click()
+  pp.locator('[data-parent-feedback="list"]').click()
+  expect(pp.locator('#cqParentFeedback')).to_contain_text('재독서 완료')
+  expect(pp.locator('#cqParentFeedback')).to_contain_text('미응답')
+  passed('optional answers and reread completion persist across browser reload and parent results')
   rows=api('/rest/v1/rpc/cq_v4_parent_submissions',{},users['parent']['token']);by_user={row['child_user_id']:row for row in rows};assert len(rows)==2 and by_user[users['student']['uid']]['answers']['essay']=='Mina helped Leo and they found the book.' and by_user[users['sibling']['uid']]['answers']['essay']=='A separate essay from the second student.'
   api('/rest/v1/rpc/cq_v4_release_feedback',{'p_child_user_id':users['sibling']['uid'],'p_chapter_uuid':chapter_uuid,'p_feedback':'Feedback only for the second student.','p_release':True},users['parent']['token']);assert api('/rest/v1/rpc/cq_v4_my_submission',{'p_chapter_uuid':chapter_uuid},users['student']['token'])[0]['feedback']=='Great explanation!';assert api('/rest/v1/rpc/cq_v4_my_submission',{'p_chapter_uuid':chapter_uuid},users['sibling']['token'])[0]['feedback']=='Feedback only for the second student.';passed('parent receives two distinct submissions and released feedback remains scoped to each real student')
   persisted_first=api('/rest/v1/rpc/cq_v4_my_submission',{'p_chapter_uuid':chapter_uuid},users['student']['token'])
