@@ -211,7 +211,7 @@
  });
 
  const pdfParentStatus=message=>{const el=document.getElementById('cqPdfParentStatus');if(el)el.textContent=message};
- const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정</h2><p class="note">현재 챕터의 원본을 서버에 등록하면 게시할 PDF에 연결됩니다. 원본은 비공개 저장소에 보관되며 AI용 텍스트와 별도로 관리됩니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><label>챕터 제목 <input id="cqPdfChapterTitle" placeholder="예: Chapter 1" maxlength="200"></label><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf,text/plain,.txt"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF/TXT 등록·검증</button><button data-pdf-parent="from-local" ${session&&chapter()?.pdfStored&&!isOriginalSavePending()?'':'disabled'}>현재 챕터 원본을 서버에 등록</button></div><p class="muted">PDF 최대 50MB · TXT 최대 1MB. TXT는 화면에 표시한 원문을 PDF로 변환해 등록하며 기기의 원본 TXT는 보존합니다.</p><details><summary>PDF 보관·재사용 및 저장 용량 안내</summary><p>이미 등록된 PDF는 위 목록의 ‘선택 학생에게 추가 배정’으로 다른 학생에게 재사용할 수 있습니다. 동일 원본을 다시 업로드하지 마세요.</p><p>위 50MB는 개별 파일 제한이며 프로젝트 전체 무료 저장 용량이나 남은 용량이 아닙니다. 전체 사용량·플랜 한도는 Supabase 프로젝트 사용량 화면에서 별도로 확인해야 합니다. 사용량이 확인되지 않으면 초과 경고나 삭제 권고를 자동 확정하지 않습니다.</p><p>용량이 부족해지면 부모가 완료·미배정 자료를 검토하여 삭제 여부를 직접 승인해야 합니다. 학습 기록과 나중에 다른 학생이 사용할 PDF는 자동 삭제하지 않으며 유료 전환도 자동으로 진행하지 않습니다.</p></details>${session&&pdfServerStudents.length===0?'<p class="note">학생 연결 목록을 새로고침해 확인하세요. 이미 연결된 계정은 재초대하지 않아도 됩니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'PDF 검증 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row">${c.ready?`<button data-pdf-parent="use-existing" data-index="${i}">기존 PDF로 학습 준비</button><button data-parent-preview="${escapeHtml(c.uuid)}">부모 미리보기</button>${pdfServerStudents.some(s=>pendingChildren.some(x=>x.child_user_id===s.student_user_id&&x.active===true))?`<select data-pdf-student="${i}" aria-label="배정할 학생"><option value="">배정할 학생 선택</option>${pdfServerStudents.filter(s=>pendingChildren.some(x=>x.child_user_id===s.student_user_id&&x.active===true)).map(s=>`<option value="${escapeHtml(s.student_user_id)}">${escapeHtml(studentLabel(s.student_user_id))} · ${escapeHtml(s.student_user_id.slice(-8))}</option>`).join("")}</select><button data-pdf-parent="assign" data-index="${i}">선택 학생에게 추가 배정</button>`:"<span class=\"muted\">연결 학생 목록을 새로고침하세요.</span>"}`:''}${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
+ const pdfParentPanel=()=>`<section class="card" id="cqPdfParentPanel"><h2>📄 서버 원본 PDF 등록 · 학생 배정</h2><p class="note">현재 챕터의 원본을 서버에 등록하면 게시할 PDF에 연결됩니다. 원본은 비공개 저장소에 보관되며 AI용 텍스트와 별도로 관리됩니다.</p><button data-pdf-parent="refresh" ${session?'':'disabled'}>서버 챕터·학생 목록 새로고침</button><div class="row"><label>챕터 제목 <input id="cqPdfChapterTitle" placeholder="예: Chapter 1" maxlength="200"></label><input type="file" id="cqPdfServerFile" accept="application/pdf,.pdf,text/plain,.txt"><button data-pdf-parent="create" ${session?'':'disabled'}>PDF/TXT 등록·검증</button><button data-pdf-parent="from-local" ${session&&chapter()?.pdfStored&&!isOriginalSavePending()?'':'disabled'}>현재 챕터 원본을 서버에 등록</button></div><p class="muted">PDF 최대 50MB · TXT 최대 1MB. TXT는 화면에 표시한 원문을 PDF로 변환해 등록하며 기기의 원본 TXT는 보존합니다.</p><details><summary>PDF 보관·재사용 및 저장 용량 안내</summary><p>이미 등록된 PDF는 위 목록의 ‘선택 학생에게 추가 배정’으로 다른 학생에게 재사용할 수 있습니다. 동일 원본을 다시 업로드하지 마세요.</p><p>위 50MB는 개별 파일 제한이며 프로젝트 전체 무료 저장 용량이나 남은 용량이 아닙니다. 전체 사용량·플랜 한도는 Supabase 프로젝트 사용량 화면에서 별도로 확인해야 합니다. 사용량이 확인되지 않으면 초과 경고나 삭제 권고를 자동 확정하지 않습니다.</p><p>용량이 부족해지면 부모가 완료·미배정 자료를 검토하여 삭제 여부를 직접 승인해야 합니다. 학습 기록과 나중에 다른 학생이 사용할 PDF는 자동 삭제하지 않으며 유료 전환도 자동으로 진행하지 않습니다.</p></details>${session&&pdfServerStudents.length===0?'<p class="note">학생 연결 목록을 새로고침해 확인하세요. 이미 연결된 계정은 재초대하지 않아도 됩니다.</p>':''}${pdfServerChapters.map((c,i)=>`<div class="book"><b>${escapeHtml(c.title)}</b> · ${c.ready?'PDF 검증 완료':'검증 대기'} · 배정 ${pdfServerAssignments.filter(a=>a.chapter_uuid===c.uuid).length}명<div class="row">${c.ready?`<button data-pdf-parent="use-existing" data-index="${i}">기존 PDF로 학습 준비</button><button data-parent-preview="${escapeHtml(c.uuid)}">PDF 미리보기</button><button data-material-preview="${escapeHtml(c.uuid)}">학습 자료 미리보기</button>${pdfServerStudents.some(s=>pendingChildren.some(x=>x.child_user_id===s.student_user_id&&x.active===true))?`<select data-pdf-student="${i}" aria-label="배정할 학생"><option value="">배정할 학생 선택</option>${pdfServerStudents.filter(s=>pendingChildren.some(x=>x.child_user_id===s.student_user_id&&x.active===true)).map(s=>`<option value="${escapeHtml(s.student_user_id)}">${escapeHtml(studentLabel(s.student_user_id))} · ${escapeHtml(s.student_user_id.slice(-8))}</option>`).join("")}</select><button data-pdf-parent="assign" data-index="${i}">선택 학생에게 추가 배정</button>`:"<span class=\"muted\">연결 학생 목록을 새로고침하세요.</span>"}`:''}${!c.ready?`<button data-pdf-parent="verify" data-index="${i}" ${session?'':'disabled'}>PDF 검증 다시 확인</button>`:''}</div></div>`).join('')}<p id="cqPdfParentStatus" class="status">서버 연동 전에는 실행되지 않습니다.</p></section>`;
  async function pdfParentCall(action,args){
    if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('부모 계정으로 로그인해야 합니다.');
    const owner=cloudIdentity();await refreshIfNeeded();
@@ -237,6 +237,38 @@
    render();pdfParentStatus('서버 목록을 다시 불러왔습니다. 승인된 학생과 PDF 목록을 확인했습니다.');
  }
 
+ document.addEventListener('click',async event=>{
+   const button=event.target.closest('[data-material-preview]');
+   if(!button||button.disabled)return;
+   const owner=cloudIdentity(),uuid=button.dataset.materialPreview;
+   button.disabled=true;
+   try{
+    const d=await parentRpc('cq_v4_parent_material_preview',{p_chapter_uuid:uuid});
+    if(owner!==cloudIdentity()||!parentUnlocked||mode!=='parent')return;
+    if(!d||d.chapter_uuid!==uuid)throw Error('조회 권한 또는 게시 자료를 확인하세요.');
+    const panel=document.getElementById('cqPdfParentPanel');if(!panel)return;
+    panel.querySelector('#cqMaterialPreview')?.remove();
+    const section=document.createElement('section');section.id='cqMaterialPreview';section.className='book';
+    const add=(tag,value)=>{const el=document.createElement(tag);el.textContent=String(value??'');section.appendChild(el);return el;};
+    const fmt=v=>typeof v==='object'&&v!==null?JSON.stringify(v):String(v??'');
+    const q=Array.isArray(d.questions)?d.questions:[],k=Array.isArray(d.answer_key)?d.answer_key:[];
+    add('h3',d.title);add('p','읽기 전용 · '+(d.published_at?'게시됨':'미게시')+' · '+(d.approval_valid?'승인 일치':'승인 확인 불가'));
+    add('p','게시 시각: '+fmt(d.published_at)+' · 버전: '+fmt(d.content_hash));
+    add('p','전체 '+q.length+'문항 · 객관식 '+q.filter(x=>x.kind==='mc').length+' · 기타 '+q.filter(x=>x.kind!=='mc').length);
+    const pdf=add('button','원본 PDF 미리보기');pdf.dataset.parentPreview=uuid;
+    add('h4','학생별 배정 및 공개 예정일');
+    for(const x of d.assignments||[])add('p',studentLabel(x.student_user_id)+' · '+(x.lesson_date||'미예약')+' · '+(x.released_at?'공개 설정됨':'비공개'));
+    add('h4','핵심 단어');
+    for(const v of d.vocabulary||[])add('p',fmt(v));
+    add('h4','문제 및 기준 답안');
+    q.forEach((x,i)=>{add('p',(i+1)+'. '+fmt(x.text));(x.options||[]).forEach((o,j)=>add('p',(j+1)+') '+fmt(o)));add('p','기준 답안: '+(x.kind==='mc'?fmt(x.options?.[k[i]]):fmt(k[i])));});
+    add('h4','영어 독후감');add('p',fmt(d.writing_prompt));
+    add('h4','영어 말하기');add('p',fmt(d.speaking_prompt));
+    const close=add('button','닫기');close.addEventListener('click',()=>section.remove());
+    panel.appendChild(section);
+   }catch(error){if(owner===cloudIdentity())pdfParentStatus('학습 자료 조회 오류: '+error.message);}
+   finally{button.disabled=false;}
+ });
  // Read-only published-content preview; never imports or overwrites local books.
  document.addEventListener('click',async event=>{
    const button=event.target.closest('[data-parent-preview]');
@@ -412,11 +444,11 @@
   return {correct,total,percent,unanswered,wrong:total-correct-unanswered,needsReread:correct*10<total*7};
  }
  function resultDetails(row){
-  const context=row.lessonContext,questions=Array.isArray(context?.questions)?context.questions:[],answers=Array.isArray(row.answers?.answers)?row.answers.answers:[];
+  const context=row.lessonContext,questions=Array.isArray(context?.questions)?context.questions:[],answers=Array.isArray(context?.submitted_answers)?context.submitted_answers:[];
   const advisory=objectiveReadingAdvisory(row);
   const rereadNotice=advisory?.needsReread?'<p role="status"><strong>재독서 권장 · 부모 확인 필요</strong> — 객관식 '+advisory.correct+'/'+advisory.total+'개 정답 ('+advisory.percent+'%). 70% 미만입니다. 서술형·독후감·말하기는 채점하지 않았습니다. 이 알림은 부모 화면에만 표시되며 학생에게 자동 전송되지 않습니다.</p>':advisory?'<p>객관식 참고 정답률: '+advisory.correct+'/'+advisory.total+' ('+advisory.percent+'%). 서술형·독후감·말하기 제외.</p>':'<p class="muted" role="status">제출 당시 스냅샷을 확인할 수 없어 정답률을 계산하지 않습니다.</p>';
   const display=(q,value)=>value===undefined||value===null||(typeof value==='string'&&value.trim()==='')?'미응답':q.kind==='mc'&&Array.isArray(q.options)?q.options[Number(value)]??'미응답':String(value??'미응답');
-  const questionsHtml=questions.map((q,i)=>q?`<li><b>${escapeHtml(q.text||'문제')}</b><p>학생 답변: ${escapeHtml(display(q,answers[i]))}</p><details><summary>기준 답안</summary><p>${escapeHtml(display(q,context.answer_key?.[i]))}</p></details></li>`:'').join('');
+  const questionsHtml=questions.map((q,i)=>q?`<li><b>${escapeHtml(q.text||'문제')}</b><p>학생 답변: ${escapeHtml(display(q,answers[i]))}</p><p>${answers[i]===''?'미응답':q.kind==='mc'&&advisory?(Number(answers[i])===context.answer_key[i]?'정답':'오답'):'부모 검토 필요'}</p><details><summary>기준 답안</summary><p>${escapeHtml(display(q,context.answer_key?.[i]))}</p></details></li>`:'').join('');
   return `<div class="submitted-lesson">${rereadNotice}${advisory?`<p>객관식 정답 ${advisory.correct} · 오답 ${advisory.wrong} · 미응답 ${advisory.unanswered}</p>`:''}${questionsHtml?'<ol>'+questionsHtml+'</ol>':'<p class="muted">제출 당시 문제·정답을 확인할 수 없습니다. 현재 게시 자료로 재채점하지 않습니다.</p>'}<h4>영어 독후감</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.essay||'')}</p><h4>말하기 대본</h4><p style="white-space:pre-wrap">${escapeHtml(row.answers?.speaking||'')}</p><p>단어 복습 체크: ${Array.isArray(row.answers?.wordsReviewed)?row.answers.wordsReviewed.length:0}개</p></div>`;
  }
  const rereadPanel=()=>`<section class="card" id="cqParentReread"><h2>📖 재독서 알림함 (서버 검증)</h2><button data-parent-reread="progress" ${session&&parentUnlocked?'':'disabled'}>재독서 필요·완료 조회</button><div>${rereadProgressOwner===cloudIdentity()?rereadProgressRows.map(n=>`<p>학생 ${escapeHtml(String(n.student_user_id).slice(-8))} · 챕터 ${escapeHtml(String(n.chapter_uuid).slice(-8))} — ${n.required?(n.completed_at?'재독서 완료':'재독서 필요 · 완료 대기'):'재독서 불필요'}</p>`).join(''):'<p class="muted">재독서 진행 상태를 아직 조회하지 않았습니다.</p>'}</div><p class="muted">부모 계정 전용입니다. 서버 알림 RPC가 설치되지 않은 환경에서는 사용할 수 없습니다. 알림은 학생에게 자동 전송되지 않습니다.</p><button data-parent-reread="refresh" ${session&&parentUnlocked?'':'disabled'}>알림 조회</button><div>${rereadAvailable&&rereadOwner===cloudIdentity()?rereadNotices.map(n=>`<div class="book"><b>학생 ${escapeHtml(String(n.student_user_id||'').slice(-8))} · 챕터 ${escapeHtml(String(n.chapter_uuid||'').slice(-8))}</b><p>${n.correct_mc===null?'재독서 필요 (객관식 세부 점수 미제공)':'객관식 '+escapeHtml(n.correct_mc)+'/'+escapeHtml(n.total_mc)} · 제출 ${escapeHtml(n.submitted_at||'')}</p><p>${n.acknowledged_at?'확인 완료':'부모 확인 대기'}</p>${n.acknowledged_at?'':`<button data-parent-reread="ack" data-notice="${escapeHtml(n.notice_id)}">확인 완료로 표시</button>`}</div>`).join(''):'<p class="muted">서버 알림을 조회하지 않았거나 기능이 비활성화되었습니다.</p>'}</div><p id="cqRereadStatus" role="status" class="status"></p></section>`;
