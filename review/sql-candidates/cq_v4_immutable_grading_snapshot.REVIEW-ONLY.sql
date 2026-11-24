@@ -54,6 +54,7 @@ REVOKE ALL ON FUNCTION public.cq_v4_capture_grading_snapshot_internal(uuid,uuid)
 CREATE OR REPLACE FUNCTION public.cq_v4_reject_snapshot_mutation()
 RETURNS trigger LANGUAGE plpgsql SET search_path TO '' AS $fn$
 BEGIN RAISE EXCEPTION 'Immutable snapshot cannot be modified' USING ERRCODE='42501';END;$fn$;
+REVOKE ALL ON FUNCTION public.cq_v4_reject_snapshot_mutation() FROM PUBLIC,anon,authenticated;
 DROP TRIGGER IF EXISTS cq_v4_snapshot_immutable_guard ON public.cq_v4_immutable_grading_snapshots;
 CREATE TRIGGER cq_v4_snapshot_immutable_guard BEFORE UPDATE OR DELETE ON public.cq_v4_immutable_grading_snapshots
 FOR EACH ROW EXECUTE FUNCTION public.cq_v4_reject_snapshot_mutation();
