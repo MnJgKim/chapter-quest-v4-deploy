@@ -151,6 +151,8 @@ jobs:
           bash app/tests/isolated-student-auto-release-concurrency.sh
       - name: Execute integrated optional answers and parent RPC installation and rollback
         run: psql -v ON_ERROR_STOP=1 -f app/tests/isolated-v4-integrated-install.sql
+      - name: Verify concurrent optional answer submissions
+        run: bash app/tests/isolated-v4-optional-concurrency.sh
       - name: Publish isolated PostgreSQL verification summary
         if: success()
         run: |
