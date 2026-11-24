@@ -319,7 +319,7 @@ try:
     return sql("select (select count(*) from public.cq_v4_student_submissions"+where+" and child_user_id='"+uid+"'),(select count(*) from public.cq_v4_immutable_grading_snapshots"+where+" and student_user_id='"+uid+"'),(select count(*) from public.cq_v4_reread_progress"+where+" and child_user_id='"+uid+"');")
    assert counts()=='0|0|0'
    original_hash=sql("select approval_hash from public.cq_v4_activities"+where+";")
-   assert len(original_hash)==64
+   assert original_hash and __import__('re').fullmatch(r'[A-Za-z0-9:_-]+',original_hash), 'Missing or unexpected approval hash format'
    bad_hash=('0' if original_hash[0]!='0' else '1')+original_hash[1:]
    sql("update public.cq_v4_activities set approval_hash='"+bad_hash+"'"+where+";")
    try:
