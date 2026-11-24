@@ -259,7 +259,12 @@
     add('h4','학생별 배정 및 공개 예정일');
     for(const x of d.assignments||[])add('p',studentLabel(x.student_user_id)+' · '+(x.lesson_date||'미예약')+' · '+(x.released_at?'공개 설정됨':'비공개'));
     add('h4','핵심 단어');
-    for(const v of d.vocabulary||[])add('p',fmt(v));
+    for(const v of d.vocabulary||[]){
+     if(!v||typeof v!=='object'){add('p',fmt(v));continue;}
+     add('p',[v.word??v.term,v.meaning??v.definition].filter(Boolean).join(' — '));
+     if(v.pronunciation??v.phonetic)add('p','발음: '+fmt(v.pronunciation??v.phonetic));
+     if(v.example??v.example_sentence)add('p','예문: '+fmt(v.example??v.example_sentence));
+    }
     add('h4','문제 및 기준 답안');
     q.forEach((x,i)=>{add('p',(i+1)+'. '+fmt(x.text));(x.options||[]).forEach((o,j)=>add('p',(j+1)+') '+fmt(o)));add('p','기준 답안: '+(x.kind==='mc'?fmt(x.options?.[k[i]]):fmt(k[i])));});
     add('h4','영어 독후감');add('p',fmt(d.writing_prompt));
