@@ -59,12 +59,15 @@ jobs:
           names=set()
           for path in ('/tmp/legacy-student.js','/tmp/legacy-parent.js'):
               names.update(re.findall(r"""['"](cq_v4_[a-z0-9_]+)['"]""",open(path).read()))
+          names.discard('cq_v4_cloud_project') # localStorage key, not RPC
           assert 'cq_v4_submit_answers' in names
           rows=subprocess.check_output(['psql',db,'-XAt','-v','ON_ERROR_STOP=1','-c',"select distinct proname from pg_proc join pg_namespace n on n.oid=pronamespace where n.nspname='public'"],text=True).splitlines()
           missing=sorted(names-set(rows))
           print('Legacy referenced identifiers:',sorted(names))
           print('Missing database functions (requires classification):',missing)
-          assert not missing, missing
+          optional={'cq_v4_ensure_today_approved_lesson'} # explicit legacy 404 fallback
+          required_missing=sorted(set(missing)-optional)
+          assert not required_missing, required_missing
           print('LEGACY_RPC_NAME_COMPATIBILITY_PASSED')
           PY
       - name: Stop local stack
