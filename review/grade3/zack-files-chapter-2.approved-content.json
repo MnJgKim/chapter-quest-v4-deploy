@@ -1,0 +1,169 @@
+{
+  "title": "The Zack Files: Just Add Water... and Scream!",
+  "chapter": 2,
+  "source": "29-2.pdf",
+  "status": "parent-approved-content-review-only",
+  "questions": [
+    {
+      "kind": "mc",
+      "prompt": "Who was hungry?",
+      "options": [
+        "Dad",
+        "Spencer",
+        "Zack's teacher"
+      ],
+      "answer": 1,
+      "page": 8
+    },
+    {
+      "kind": "mc",
+      "prompt": "Why did Zack leave the fridge door open?",
+      "options": [
+        "It smelled bad.",
+        "It was too cold.",
+        "It was empty."
+      ],
+      "answer": 0,
+      "page": 9
+    },
+    {
+      "kind": "mc",
+      "prompt": "What did the astronaut pizza taste like?",
+      "options": [
+        "Chocolate",
+        "Soap",
+        "Cardboard"
+      ],
+      "answer": 2,
+      "page": 10
+    },
+    {
+      "kind": "mc",
+      "prompt": "What are spores like?",
+      "options": [
+        "Seeds",
+        "Rocks",
+        "Stars"
+      ],
+      "answer": 0,
+      "page": 11
+    },
+    {
+      "kind": "mc",
+      "prompt": "What did Zack add to the spores?",
+      "options": [
+        "Milk",
+        "Water",
+        "Juice"
+      ],
+      "answer": 1,
+      "page": 12
+    },
+    {
+      "kind": "mc",
+      "prompt": "What does 'creepy' mean?",
+      "options": [
+        "Very funny",
+        "Very tasty",
+        "Scary"
+      ],
+      "answer": 2,
+      "page": 14
+    },
+    {
+      "kind": "mc",
+      "prompt": "Why was the food in the fridge almost gone?",
+      "options": [
+        "The spores probably ate it.",
+        "Dad ate it.",
+        "Spencer threw it away."
+      ],
+      "answer": 0,
+      "page": 14
+    },
+    {
+      "kind": "short",
+      "prompt": "What did the spores want?",
+      "answer": "Food. / They wanted food.",
+      "page": 15
+    }
+  ],
+  "answer_key": [
+    1,
+    0,
+    2,
+    0,
+    1,
+    2,
+    0,
+    "Food. / They wanted food."
+  ],
+  "vocabulary": [
+    {
+      "word": "hungry",
+      "pronunciation": "헝그리",
+      "meaning": "배고픈"
+    },
+    {
+      "word": "refrigerator",
+      "pronunciation": "리프리저레이터",
+      "meaning": "냉장고"
+    },
+    {
+      "word": "stale",
+      "pronunciation": "스테일",
+      "meaning": "오래되어 신선하지 않은"
+    },
+    {
+      "word": "mold",
+      "pronunciation": "몰드",
+      "meaning": "곰팡이"
+    },
+    {
+      "word": "packet",
+      "pronunciation": "패킷",
+      "meaning": "작은 봉지"
+    },
+    {
+      "word": "freeze-dried",
+      "pronunciation": "프리즈 드라이드",
+      "meaning": "동결 건조된"
+    },
+    {
+      "word": "spore",
+      "pronunciation": "스포어",
+      "meaning": "포자"
+    },
+    {
+      "word": "seed",
+      "pronunciation": "시드",
+      "meaning": "씨앗"
+    },
+    {
+      "word": "burp",
+      "pronunciation": "버프",
+      "meaning": "트림하다"
+    },
+    {
+      "word": "creepy",
+      "pronunciation": "크리피",
+      "meaning": "소름 끼치는"
+    }
+  ],
+  "writing": {
+    "prompt": "What was the strangest thing in Chapter 2?",
+    "starters": [
+      "I think the spores were strange.",
+      "They ..."
+    ],
+    "sentences": "1–3"
+  },
+  "speaking": {
+    "prompt": "Were the spores scary or funny?",
+    "starters": [
+      "I think they were ...",
+      "They ..."
+    ],
+    "sentences": "1–3"
+  }
+}
