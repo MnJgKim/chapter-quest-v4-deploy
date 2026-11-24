@@ -60,6 +60,8 @@ BEGIN
  END LOOP;
 END $test$;
 CREATE TEMP TABLE integration_saved AS SELECT to_jsonb(s) AS row FROM public.cq_v4_immutable_grading_snapshots s;
+CREATE TEMP TABLE integration_submissions AS SELECT to_jsonb(s) AS row FROM public.cq_v4_student_submissions s;
+CREATE TEMP TABLE integration_schedules AS SELECT to_jsonb(s) AS row FROM public.cq_v4_lesson_schedule s;
 COMMIT;
 
 \ir ../../review/sql-candidates/v4-integrated-optional-answers.rollback.REVIEW-ONLY.sql
@@ -68,5 +70,7 @@ COMMIT;
 
 DO $$ BEGIN
  IF EXISTS (SELECT row FROM integration_saved EXCEPT SELECT to_jsonb(s) FROM public.cq_v4_immutable_grading_snapshots s) THEN RAISE EXCEPTION 'Rollback changed frozen history'; END IF;
-END $$;
+ IF EXISTS (SELECT row FROM integration_submissions EXCEPT ALL SELECT to_jsonb(s) FROM public.cq_v4_student_submissions s) OR EXISTS (SELECT to_jsonb(s) FROM public.cq_v4_student_submissions s EXCEPT ALL SELECT row FROM integration_submissions) THEN RAISE EXCEPTION 'Rollback changed submissions'; END IF;
+ IF EXISTS (SELECT row FROM integration_schedules EXCEPT ALL SELECT to_jsonb(s) FROM public.cq_v4_lesson_schedule s) OR EXISTS (SELECT to_jsonb(s) FROM public.cq_v4_lesson_schedule s EXCEPT ALL SELECT row FROM integration_schedules) THEN RAISE EXCEPTION 'Rollback changed schedules'; END IF;
+END $;
 \echo V4_DETAILED_INTEGRATION_ASSERTIONS_PASSED
