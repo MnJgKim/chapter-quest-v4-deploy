@@ -465,7 +465,38 @@
  }
  const rereadPanel=()=>`<section class="card" id="cqParentReread"><h2>📖 재독서 알림함 (서버 검증)</h2><button data-parent-reread="progress" ${session&&parentUnlocked?'':'disabled'}>재독서 필요·완료 조회</button><div>${rereadProgressOwner===cloudIdentity()?rereadProgressRows.map(n=>`<p>학생 ${escapeHtml(String(n.student_user_id).slice(-8))} · 챕터 ${escapeHtml(String(n.chapter_uuid).slice(-8))} — ${n.required?(n.completed_at?'재독서 완료':'재독서 필요 · 완료 대기'):'재독서 불필요'}</p>`).join(''):'<p class="muted">재독서 진행 상태를 아직 조회하지 않았습니다.</p>'}</div><p class="muted">부모 계정 전용입니다. 서버 알림 RPC가 설치되지 않은 환경에서는 사용할 수 없습니다. 알림은 학생에게 자동 전송되지 않습니다.</p><button data-parent-reread="refresh" ${session&&parentUnlocked?'':'disabled'}>알림 조회</button><div>${rereadAvailable&&rereadOwner===cloudIdentity()?rereadNotices.map(n=>`<div class="book"><b>학생 ${escapeHtml(String(n.student_user_id||'').slice(-8))} · 챕터 ${escapeHtml(String(n.chapter_uuid||'').slice(-8))}</b><p>${n.correct_mc===null?'재독서 필요 (객관식 세부 점수 미제공)':'객관식 '+escapeHtml(n.correct_mc)+'/'+escapeHtml(n.total_mc)} · 제출 ${escapeHtml(n.submitted_at||'')}</p><p>${n.acknowledged_at?'확인 완료':'부모 확인 대기'}</p>${n.acknowledged_at?'':`<button data-parent-reread="ack" data-notice="${escapeHtml(n.notice_id)}">확인 완료로 표시</button>`}</div>`).join(''):'<p class="muted">서버 알림을 조회하지 않았거나 기능이 비활성화되었습니다.</p>'}</div><p id="cqRereadStatus" role="status" class="status"></p></section>`;
  const rereadStatus=t=>{const el=document.getElementById('cqRereadStatus');if(el)el.textContent=t};
- const feedbackPanel=()=>`<section class="card" id="cqParentFeedback"><h2>학생 제출·피드백 관리 (서버)</h2><p class="muted">로그인한 부모 계정의 제출만 조회합니다. 기존 로컬 제출 기록과는 별개입니다.</p><button data-parent-feedback="list" ${session?'':'disabled'}>제출 기록 불러오기</button><div>${submissions.map((r,i)=>`<div class="book"><h3>${escapeHtml(studentLabel(r.child_user_id,r.student_name))} · ${escapeHtml(r.chapter_title||r.chapter_uuid)}</h3><p>제출: ${escapeHtml(r.submitted_at||'')}</p>${resultDetails(r)}<details><summary>제출 원본 보기</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(JSON.stringify(r.answers??{},null,2))}</pre></details><label>부모 피드백<textarea data-parent-feedback-text="${i}" rows="3">${escapeHtml(r.feedback||'')}</textarea></label><label><input type="checkbox" data-parent-feedback-release="${i}" ${r.feedback_released?'checked':''}> 학생에게 공개</label><button data-parent-feedback="save" data-index="${i}">피드백 저장</button><button data-parent-feedback="audio" data-index="${i}">녹음 재생</button><div data-audio-player="${i}"></div></div>`).join('')}</div><p id="cqParentFeedbackStatus" class="status"></p></section>`;
+
+ let feedbackFilter='',feedbackFilterOwner=null;
+ function feedbackTabs(){
+   const owner=cloudIdentity();
+   if(feedbackFilterOwner!==owner){feedbackFilter='';feedbackFilterOwner=owner;}
+   const names=new Map();
+   if(owner&&headerOwner===owner)for(const row of headerStudents)names.set(row.student_user_id,studentLabel(row.student_user_id));
+   for(const row of submissions)names.set(row.child_user_id,studentLabel(row.child_user_id,row.student_name));
+   if(feedbackFilter&&!names.has(feedbackFilter))feedbackFilter='';
+   return '<div class="tabs" role="group" aria-label="학생별 제출 기록" style="margin:12px 0">'+[['','전체'],...names].map(([id,name])=>'<button type="button" data-feedback-filter="'+escapeHtml(id)+'" aria-pressed="'+(feedbackFilter===id)+'" class="'+(feedbackFilter===id?'active':'')+'">'+escapeHtml(name)+'</button>').join('')+'</div>';
+ }
+ function applyFeedbackFilter(panel,id){
+   feedbackFilter=id;
+   for(const button of panel.querySelectorAll('[data-feedback-filter]')){
+     const selected=button.dataset.feedbackFilter===id;
+     button.classList.toggle('active',selected);button.setAttribute('aria-pressed',String(selected));
+   }
+   let count=0;
+   for(const card of panel.querySelectorAll('[data-feedback-student]')){
+     card.hidden=!!id&&card.dataset.feedbackStudent!==id;
+     if(!card.hidden)count++;
+   }
+   const empty=panel.querySelector('[data-feedback-empty]');
+   if(empty)empty.hidden=count!==0;
+ }
+ document.addEventListener('click',event=>{
+   const button=event.target.closest('[data-feedback-filter]');
+   if(!button||mode!=='parent'||!parentUnlocked||!session||feedbackBusy)return;
+   const panel=button.closest('#cqParentFeedback');
+   if(panel)applyFeedbackFilter(panel,button.dataset.feedbackFilter);
+ });
+ const feedbackPanel=()=>`<section class="card" id="cqParentFeedback"><h2>학생 제출·피드백 관리 (서버)</h2><p class="muted">로그인한 부모 계정의 제출만 조회합니다. 기존 로컬 제출 기록과는 별개입니다.</p><button data-parent-feedback="list" ${session?'':'disabled'}>제출 기록 불러오기</button>${feedbackTabs()}<p data-feedback-empty ${submissions.some(r=>!feedbackFilter||r.child_user_id===feedbackFilter)?'hidden':''}>표시할 제출 기록이 없습니다. 제출 기록 불러오기를 눌러 확인하세요.</p><div>${submissions.map((r,i)=>`<div class="book" data-feedback-student="${escapeHtml(r.child_user_id)}" ${feedbackFilter&&feedbackFilter!==r.child_user_id?'hidden':''}><h3>${escapeHtml(studentLabel(r.child_user_id,r.student_name))} · ${escapeHtml(r.chapter_title||r.chapter_uuid)}</h3><p>제출: ${escapeHtml(r.submitted_at||'')}</p>${resultDetails(r)}<details><summary>제출 원본 보기</summary><pre style="white-space:pre-wrap;overflow-wrap:anywhere">${escapeHtml(JSON.stringify(r.answers??{},null,2))}</pre></details><label>부모 피드백<textarea data-parent-feedback-text="${i}" rows="3">${escapeHtml(r.feedback||'')}</textarea></label><label><input type="checkbox" data-parent-feedback-release="${i}" ${r.feedback_released?'checked':''}> 학생에게 공개</label><button data-parent-feedback="save" data-index="${i}">피드백 저장</button><button data-parent-feedback="audio" data-index="${i}">녹음 재생</button><div data-audio-player="${i}"></div></div>`).join('')}</div><p id="cqParentFeedbackStatus" class="status"></p></section>`;
  async function parentRpc(name,args={}){
    if(mode!=='parent'||!parentUnlocked||!session||!project)throw Error('부모 관리자 로그인이 필요합니다.');
    const owner=cloudIdentity();await refreshIfNeeded();
