@@ -225,15 +225,20 @@
    return data;
  }
  async function refreshPdfParentLists(){
+   const headerRequestOwner=cloudIdentity();
    const [chapters,students,assignments]=await Promise.all([pdfParentCall('list_chapters',{}),pdfParentCall('list_students',{}),pdfParentCall('list_assignments',{})]);
+   if(!headerRequestOwner||cloudIdentity()!==headerRequestOwner)throw Error('부모 계정 변경');
    if(!Array.isArray(chapters.chapters)||!Array.isArray(students.students)||!Array.isArray(assignments.assignments))throw Error('서버 목록 응답이 올바르지 않습니다.');
    pdfServerChapters=chapters.chapters.filter(c=>/^[0-9a-f-]{36}$/i.test(String(c.chapter_uuid||''))).map(c=>({title:String(c.title||''),uuid:String(c.chapter_uuid||''),ready:c.pdf_ready===true}));
    pdfServerStudents=students.students.map(s=>({student_user_id:String(s.student_user_id||'')})).filter(s=>/^[0-9a-f-]{36}$/i.test(s.student_user_id));
    pdfServerAssignments=assignments.assignments.filter(a=>/^[0-9a-f-]{36}$/i.test(a.chapter_uuid||'')&&/^[0-9a-f-]{36}$/i.test(a.student_user_id||''));
-   try{const releases=await parentRpc('cq_v4_parent_list_lesson_releases');if(Array.isArray(releases))lessonReleases=releases;}catch(error){console.warn('Lesson release status unavailable:',error.message);}
+   let headerFetchedReleases=null;
+   try{const releases=await parentRpc('cq_v4_parent_list_lesson_releases');if(Array.isArray(releases)){lessonReleases=releases;headerFetchedReleases=releases;}}catch(error){console.warn('Lesson release status unavailable:',error.message);}
 
    const owner=cloudIdentity();
    try{const children=await parentRpc('cq_v4_list_child_access',{});if(cloudIdentity()!==owner)throw Error('부모 계정 변경');if(Array.isArray(children))pendingChildren=children;}catch(error){console.warn('Linked student names unavailable:',error.message)}
+   if(cloudIdentity()!==headerRequestOwner)return;
+   headerOwner=headerRequestOwner;headerStudents=pdfServerStudents.slice();headerReleases=headerFetchedReleases;
    render();pdfParentStatus('서버 목록을 다시 불러왔습니다. 승인된 학생과 PDF 목록을 확인했습니다.');
  }
 
@@ -764,8 +769,26 @@
   const node=e.target;if(node?.isConnected&&node?.dataset?.parentFold)parentFoldState.set(node.dataset.parentFold,node.open);
  },true);
 
+
+ // Parent header is read-only: never activate local demo students or modify assignments.
+ let headerOwner=null, headerStudents=[], headerReleases=null;
+ function renderServerStudentHeader(){
+   const select=document.getElementById('student'), label=document.getElementById('dayLabel');
+   if(!select||!label)return;
+   const owner=cloudIdentity(), ready=!!owner&&parentUnlocked&&headerOwner===owner;
+   const date=new Date(), today=date.toLocaleDateString('ko-KR',{timeZone:'Asia/Seoul',month:'long',day:'numeric',weekday:'long'});
+   for(const option of select.options){
+     const matches=ready?headerStudents.filter(x=>studentLabel(x.student_user_id)===option.value):[];
+     option.textContent=option.value+(ready?(matches.length===1?'':' (서버 연결 미확인)'):' (서버 확인 전)');
+   }
+   const matches=ready?headerStudents.filter(x=>studentLabel(x.student_user_id)===select.value):[];
+   if(matches.length!==1||!Array.isArray(headerReleases)){label.textContent=today+' · 서버 일정 확인 전';return;}
+   const dates=headerReleases.filter(x=>x.student_user_id===matches[0].student_user_id&&/^\d{4}-\d{2}-\d{2}$/.test(x.lesson_date)).map(x=>x.lesson_date);
+   const days=[...new Set(dates.map(d=>new Date(d+'T00:00:00Z').getUTCDay()))].sort((a,b)=>(a||7)-(b||7));
+   label.textContent=today+' · '+(days.length?days.map(d=>['일','월','화','수','목','금','토'][d]).join('·')+' 서버 배정':'학습 일정 미등록');
+ }
  const originalRender=render;
- render=function(){originalRender();if(mode==='parent'){const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+serverSchedulePanel()+`<details class="card" id="cqMaterialWorkflow"><summary style="cursor:pointer;font-weight:700">📚 학습 자료 제작·승인·게시 (12단계 펼치기)</summary><div class="note">① 서버 원본 PDF 등록 → ② 책·챕터 관리 → ③ 챕터 추가 → ④ 편집·AI 문제 생성 → ⑤ AI용 TXT 저장 → ⑥ 원본 PDF/TXT 등록 → ⑦ JSON 가져오기 → ⑧ 본문·정답·근거 검토 → ⑨ 부모 승인 저장 → ⑩ 게시 가능 확인 → ⑪ 서버 PDF·학생 선택 → ⑫ 승인 자료 게시·배정. 책·챕터 편집은 아래 기존 책 관리 화면에서 진행합니다. 승인과 서버 게시는 별도 작업입니다.</div>`+pdfParentPanel()+publicationChildrenPanel()+`</details>`+recurringPanel()+lessonReleasePanel()+feedbackPanel()+rereadPanel());organizeMaterialWorkflow();foldParentAdministration();if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession);if(session&&scheduleAutoOwner!==cloudIdentity()&&!scheduleAutoBusy)queueMicrotask(loadServerSchedulesAutomatically)}};
+ render=function(){originalRender();if(mode==='parent'){renderServerStudentHeader();const app=document.getElementById('app');if(app)app.insertAdjacentHTML('afterbegin',panel()+invitationPanel()+serverSchedulePanel()+`<details class="card" id="cqMaterialWorkflow"><summary style="cursor:pointer;font-weight:700">📚 학습 자료 제작·승인·게시 (12단계 펼치기)</summary><div class="note">① 서버 원본 PDF 등록 → ② 책·챕터 관리 → ③ 챕터 추가 → ④ 편집·AI 문제 생성 → ⑤ AI용 TXT 저장 → ⑥ 원본 PDF/TXT 등록 → ⑦ JSON 가져오기 → ⑧ 본문·정답·근거 검토 → ⑨ 부모 승인 저장 → ⑩ 게시 가능 확인 → ⑪ 서버 PDF·학생 선택 → ⑫ 승인 자료 게시·배정. 책·챕터 편집은 아래 기존 책 관리 화면에서 진행합니다. 승인과 서버 게시는 별도 작업입니다.</div>`+pdfParentPanel()+publicationChildrenPanel()+`</details>`+recurringPanel()+lessonReleasePanel()+feedbackPanel()+rereadPanel());organizeMaterialWorkflow();foldParentAdministration();if(!session&&!parentRestoreAttempted)queueMicrotask(restoreParentSession);if(session&&scheduleAutoOwner!==cloudIdentity()&&!scheduleAutoBusy)queueMicrotask(loadServerSchedulesAutomatically)}};
  document.addEventListener('click',async e=>{
   const b=e.target.closest('[data-parent-invite]');if(!b)return;
   if(mode!=='parent'||!parentUnlocked||!session||!project){inviteStatus('부모 Supabase 로그인이 필요합니다.');return;}
