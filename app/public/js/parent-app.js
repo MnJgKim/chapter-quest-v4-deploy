@@ -759,6 +759,7 @@
  const parentFoldSpecs=[
   {id:'cloudPanel',title:'부모 계정 로그인 · 백업',match:/부모 계정 로그인.*백업/,open:()=>!session},
   {id:'cqParentInvitesFold',title:'학생 계정 초대·승인·연결 해제',match:/학생 계정 초대.*승인.*연결 해제/,open:()=>false},
+  {id:'cqParentRecurringFold',title:'요일 자동 공개 · 학생별 예정 수업',match:/^요일 자동 공개 · 학생별 예정 수업$/,open:()=>false},
   {id:'cqParentReleaseFold',title:'부모 직접 챕터 공개',match:/부모 직접 챕터 공개/,open:()=>false},
   {id:'cqParentWeekdaysFold',title:'부모 관리 학생별 자동 학습요일',match:/학생별 자동 학습요일|학생별.*학습요일|자동 학습요일/,open:()=>false},
   {id:'cqParentDemoFold',title:'기기 데모 전용 주간 배정 (서버 수업 아님)',match:/기기 데모.*주간 배정|데모 전용.*주간 배정/,open:()=>false}
